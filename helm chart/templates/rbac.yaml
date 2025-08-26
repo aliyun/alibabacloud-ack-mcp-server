@@ -1,0 +1,81 @@
+{{- if and .Values.k8sMcpServer.enabled .Values.k8sMcpServer.serviceAccount.create }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "mcp-chart.serviceAccountName" . }}
+  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-role
+  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+rules:
+- apiGroups: [""]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["apps", "extensions"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["*"]
+  verbs: ["*"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-rolebinding
+  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+subjects:
+- kind: ServiceAccount
+  name: {{ include "mcp-chart.serviceAccountName" . }}
+  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+roleRef:
+  kind: Role
+  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-clusterrole
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "persistentvolumeclaims", "events", "configmaps", "secrets", "nodes", "namespaces"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources: ["deployments", "daemonsets", "replicasets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies", "ingresses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["metrics.k8s.io"]
+  resources: ["pods", "nodes"]
+  verbs: ["get", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-clusterrolebinding
+subjects:
+- kind: ServiceAccount
+  name: {{ include "mcp-chart.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

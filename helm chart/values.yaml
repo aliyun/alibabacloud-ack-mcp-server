@@ -1,0 +1,101 @@
+# Default values for mcp-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# Override names
+nameOverride: ""
+fullnameOverride: ""
+
+# Global values
+global:
+  registry: registry.cn-hangzhou.aliyuncs.com/ceyewan
+  tag: latest
+
+# Replica count for each service
+replicaCount: 1
+
+# Image pull policy
+image:
+  pullPolicy: Always
+
+# Service account configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Pod annotations and labels
+podAnnotations: {}
+podLabels: {}
+
+# Security context
+podSecurityContext: {}
+securityContext: {}
+
+# Service configuration
+service:
+  port: 80
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: alb
+  annotations: {}
+  hosts:
+    - host: ""
+      paths:
+        - path: /
+          pathType: Prefix
+
+# Probes (disabled as per requirements)
+livenessProbe: {}
+readinessProbe: {}
+
+# Autoscaling (disabled as per requirements)
+autoscaling:
+  enabled: false
+
+# Service-specific configurations
+k8sMcpServer:
+  enabled: true
+  image:
+    repository: k8s-mcp-server
+    tag: ""
+  port: 3000
+  serviceAccount:
+    create: true
+  rbac:
+    namespaceAccess: default
+    clusterRole: view
+
+k8sMcpServerService:
+  enabled: true
+  port: 8080
+
+obsMcpServer:
+  enabled: true
+  image:
+    repository: obs-mcp-server
+    tag: ""
+  port: 8000
+  credentials:
+    # Required: Alibaba Cloud Access Key ID
+    accessKeyId: "xxx"
+    # Required: Alibaba Cloud Access Key Secret
+    accessKeySecret: "xxx"
+
+obsMcpServerService:
+  enabled: true
+  port: 8080
+
+mcpProxy:
+  enabled: true
+  image:
+    repository: mcp-proxy
+    tag: ""
+  port: 9090
+
+mcpProxyService:
+  enabled: true
+  port: 8080
