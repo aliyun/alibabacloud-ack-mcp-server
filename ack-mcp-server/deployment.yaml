@@ -1,0 +1,76 @@
+# Kubernetes Deployment and Service for the MCP Server
+
+# --- Service ---
+# Exposes the MCP Server within the Kubernetes cluster.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcp-server-service
+  labels:
+    app: mcp-server
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: mcp-server
+
+---
+# --- Deployment ---
+# Manages the pods for the MCP Server application.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-server-deployment
+  labels:
+    app: mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcp-server
+  template:
+    metadata:
+      labels:
+        app: mcp-server
+    spec:
+      containers:
+        - name: mcp-server
+          # IMPORTANT: Replace this with the actual image path from your registry
+          image: registry.cn-hangzhou.aliyuncs.com/your-namespace/k8s-mcp-server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            # Load configuration from a secret.
+            # You must create this secret in your cluster before deploying.
+            # Example: kubectl create secret generic mcp-server-config --from-literal=MCP_AUTH_TOKEN='your-secret' --from-literal=ALIYUN_REGION='cn-beijing'
+            - name: HTTP_PORT
+              value: "8080"
+            - name: MCP_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-server-config
+                  key: MCP_AUTH_TOKEN
+            - name: ALIYUN_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: mcp-server-config
+                  key: ALIYUN_REGION
+          # Optional: Add readiness and liveness probes for better reliability
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
