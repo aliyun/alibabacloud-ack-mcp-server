@@ -10,8 +10,8 @@ from typing import Optional, Literal
 from mcp.server.fastmcp import FastMCP
 from mcp.server.stdio import stdio_server
 
-from alibabacloud_cluster_aduit_log_mcp_server.context.lifespan_manager import KubeAuditLifespanManager
-from alibabacloud_cluster_aduit_log_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
+from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import KubeAuditLifespanManager
+from alibabacloud_cluster_audit_log_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
 
 
 def create_server(

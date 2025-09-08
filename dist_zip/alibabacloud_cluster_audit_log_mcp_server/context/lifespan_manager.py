@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional, List
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
-from utils.context import LifespanManager
+from lifespan_manager.context import LifespanManager
 
 
 class ConfigValidationError(Exception):
@@ -319,7 +319,7 @@ class KubeAuditLifespanManager(LifespanManager):
                     sls_config["access_key_secret"] = access_key_secret
 
                     # Import here to avoid circular imports
-                    from alibabacloud_cluster_aduit_log_mcp_server.provider.provider import AlibabaSLSProvider
+                    from alibabacloud_cluster_audit_log_mcp_server.provider.provider import AlibabaSLSProvider
                     clients[cluster_name] = AlibabaSLSProvider(sls_config)
                 else:
                     print(f"Warning: Unknown provider type: {provider_type}")

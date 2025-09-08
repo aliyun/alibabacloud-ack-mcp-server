@@ -6,22 +6,29 @@ __email__ = "support@alibabacloud.com"
 __description__ = "AlibabaCloud ACK MCP Server for Kubernetes audit log querying"
 
 # Import main components for easy access
-from utils.context import (
+from lifespan_manager.context import (
     LifespanManager,
 )
-from alibabacloud_cluster_aduit_log_mcp_server.context.lifespan_manager import (
+from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import (
     KubeAuditLifespanManager,
     ConfigValidationError,
     ConfigLoader,
 )
 
-from alibabacloud_cluster_aduit_log_mcp_server.provider.provider import (
+from alibabacloud_cluster_audit_log_mcp_server.provider import (
     Provider,
     AlibabaSLSProvider,
 )
 
+from alibabacloud_cluster_audit_log_mcp_server.server import (
+    create_server,
+    main,
+)
 
-# Define what gets imported with "from alibabacloud_cluster_aduit_log_mcp_server import *"
+from alibabacloud_cluster_audit_log_mcp_server.toolkits import KubeAuditTool
+
+
+# Define what gets imported with "from alibabacloud_cluster_audit_log_mcp_server import *"
 __all__ = [
     # Version info
     "__version__",
@@ -38,5 +45,12 @@ __all__ = [
     # Providers
     "Provider",
     "AlibabaSLSProvider",
+    
+    # Server functions
+    "create_server",
+    "main",
+    
+    # Tools
+    "KubeAuditTool",
     
 ]

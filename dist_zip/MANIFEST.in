@@ -1,0 +1,16 @@
+include README.md
+include LICENSE
+recursive-include alibabacloud_cluster_audit_log_mcp_server *.py
+recursive-include alibabacloud_cluster_audit_log_mcp_server *.yaml
+recursive-include alibabacloud_cluster_audit_log_mcp_server *.yml
+recursive-include lifespan_manager *.py
+recursive-exclude * __pycache__
+recursive-exclude * *.py[co]
+recursive-exclude * .DS_Store
+recursive-exclude * .git*
+recursive-exclude * .pytest_cache
+recursive-exclude * .coverage
+recursive-exclude * htmlcov
+recursive-exclude * .tox
+recursive-exclude * .mypy_cache
+recursive-exclude * .ruff_cache

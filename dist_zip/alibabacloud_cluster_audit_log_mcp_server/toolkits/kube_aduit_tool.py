@@ -5,7 +5,7 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP, Context
 from typing import List, Dict, Any
 from pydantic import Field
-from alibabacloud_cluster_aduit_log_mcp_server.provider.provider import Provider
+from alibabacloud_cluster_audit_log_mcp_server.provider.provider import Provider
 
 
 class KubeAuditTool:

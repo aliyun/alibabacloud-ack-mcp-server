@@ -1,8 +1,6 @@
-# Byte-compiled / optimized / DLL files
+# Python cache files
 __pycache__/
 *.py[cod]
-.venv/
-.dist_zip/
 *$py.class
 
 # Distribution / packaging

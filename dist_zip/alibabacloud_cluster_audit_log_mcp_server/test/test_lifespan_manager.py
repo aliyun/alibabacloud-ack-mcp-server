@@ -7,7 +7,7 @@ import yaml
 from unittest.mock import Mock, patch, AsyncMock
 from pathlib import Path
 
-from alibabacloud_cluster_aduit_log_mcp_server.context.lifespan_manager import SimpleKubeAuditLifespanManager
+from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import SimpleKubeAuditLifespanManager
 
 
 class TestSimpleKubeAuditLifespanManager:
@@ -61,7 +61,7 @@ class TestSimpleKubeAuditLifespanManager:
         
         assert default_cluster == "default"
 
-    @patch('alibabacloud_cluster_aduit_log_mcp_server.provider.provider.AlibabaSLSProvider')
+    @patch('alibabacloud_cluster_audit_log_mcp_server.provider.provider.AlibabaSLSProvider')
     def test_initialize_providers_alibaba(self, mock_provider_class, mock_config):
         """Test provider initialization for Alibaba SLS."""
         mock_provider_instance = Mock()
@@ -185,8 +185,8 @@ class TestSimpleKubeAuditLifespanManager:
 
     def test_lifespan_manager_inheritance(self):
         """Test that SimpleKubeAuditLifespanManager inherits from LifespanManager."""
-        from alibabacloud_cluster_aduit_log_mcp_server.context.lifespan_manager import SimpleKubeAuditLifespanManager
-        from alibabacloud_cluster_aduit_log_mcp_server.utils.context import LifespanManager
+        from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import SimpleKubeAuditLifespanManager
+        from alibabacloud_cluster_audit_log_mcp_server.utils.context import LifespanManager
         
         assert issubclass(SimpleKubeAuditLifespanManager, LifespanManager)
 

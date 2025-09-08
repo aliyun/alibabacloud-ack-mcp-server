@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "alibabacloud-cluster-aduit-log-mcp-server"
+name = "alibabacloud-cluster-audit-log-mcp-server"
 version = "0.1.0"
 description = "AlibabaCloud ACK MCP Server for Kubernetes audit log querying"
 readme = "README.md"
@@ -65,14 +65,14 @@ Issues = "https://github.com/alibabacloud/alibabacloud-ack-mcp-server/issues"
 Changelog = "https://github.com/alibabacloud/alibabacloud-ack-mcp-server/blob/main/CHANGELOG.md"
 
 [project.scripts]
-alibabacloud-cluster-aduit-log-mcp-server = "alibabacloud_cluster_aduit_log_mcp_server.server:main"
-cluster-aduit-log-mcp-server = "alibabacloud_cluster_aduit_log_mcp_server.server:main"
+alibabacloud-cluster-audit-log-mcp-server = "alibabacloud_cluster_audit_log_mcp_server.server:main"
+cluster-audit-log-mcp-server = "alibabacloud_cluster_audit_log_mcp_server.server:main"
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["alibabacloud_cluster_aduit_log_mcp_server"]
+packages = ["alibabacloud_cluster_audit_log_mcp_server"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -94,7 +94,7 @@ addopts = [
     "--strict-config",
     "--verbose",
     "--tb=short",
-    "--cov=src/alibabacloud_cluster_aduit_log_mcp_server",
+    "--cov=src/alibabacloud_cluster_audit_log_mcp_server",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -108,7 +108,7 @@ markers = [
 asyncio_mode = "auto"
 
 [tool.coverage.run]
-source = ["src/alibabacloud_cluster_aduit_log_mcp_server"]
+source = ["src/alibabacloud_cluster_audit_log_mcp_server"]
 omit = [
     "*/test/*",
     "*/tests/*",
@@ -152,7 +152,7 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-known_first_party = ["alibabacloud_cluster_aduit_log_mcp_server"]
+known_first_party = ["alibabacloud_cluster_audit_log_mcp_server"]
 known_third_party = ["mcp", "pydantic", "yaml", "aliyun"]
 
 [tool.mypy]

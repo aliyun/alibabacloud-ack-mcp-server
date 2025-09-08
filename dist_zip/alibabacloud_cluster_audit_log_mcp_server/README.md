@@ -42,7 +42,7 @@ cd src/utils
 pip install -e .
 
 # 安装主包
-cd ../alibabacloud_cluster_aduit_log_mcp_server
+cd ../alibabacloud_cluster_audit_log_mcp_server
 pip install -e .
 ```
 
