@@ -1,11 +1,11 @@
-""" lifespan manager implementation for Kubernetes audit log querying."""
+"""Runtime provider implementation for Kubernetes audit log querying."""
 
 import yaml
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional, List
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
-from lifespan_manager.context import LifespanManager
+from src.runtime_provider import RuntimeProvider
 
 
 class ConfigValidationError(Exception):
@@ -210,8 +210,8 @@ class ConfigLoader:
             )
 
 
-class KubeAuditLifespanManager(LifespanManager):
-    """Implementation of LifespanManager for Kubernetes audit log querying."""
+class KubeAuditRuntimeProvider(RuntimeProvider):
+    """Implementation of RuntimeProvider for Kubernetes audit log querying."""
 
     def __init__(self, config_path: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
         """Initialize the lifespan manager with configuration.
@@ -255,8 +255,8 @@ class KubeAuditLifespanManager(LifespanManager):
             raise e
 
     @asynccontextmanager
-    async def lifespan(self, app: FastMCP) -> AsyncIterator[Dict[str, Any]]:
-        """Simple lifespan implementation with provider initialization."""
+    async def init_runtime(self, app: FastMCP) -> AsyncIterator[Dict[str, Any]]:
+        """Simple runtime initialization implementation with provider initialization."""
         print("KubeAudit server starting...")
 
         # Initialize clients based on configuration

@@ -6,11 +6,9 @@ __email__ = "support@alibabacloud.com"
 __description__ = "AlibabaCloud ACK MCP Server for Kubernetes audit log querying"
 
 # Import main components for easy access
-from lifespan_manager.context import (
-    LifespanManager,
-)
+from src.runtime_provider import RuntimeProvider
 from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import (
-    KubeAuditLifespanManager,
+    KubeAuditRuntimeProvider,
     ConfigValidationError,
     ConfigLoader,
 )
@@ -36,9 +34,9 @@ __all__ = [
     "__email__",
     "__description__",
     
-    # Lifespan managers
-    "LifespanManager",
-    "KubeAuditLifespanManager",
+    # Runtime providers
+    "RuntimeProvider",
+    "KubeAuditRuntimeProvider",
     "ConfigValidationError",
     "ConfigLoader",
     

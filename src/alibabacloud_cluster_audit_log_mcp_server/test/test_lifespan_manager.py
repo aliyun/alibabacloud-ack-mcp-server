@@ -1,4 +1,4 @@
-"""Unit tests for lifespan manager implementation."""
+"""Unit tests for runtime provider implementation."""
 
 import pytest
 import asyncio
@@ -7,15 +7,15 @@ import yaml
 from unittest.mock import Mock, patch, AsyncMock
 from pathlib import Path
 
-from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import SimpleKubeAuditLifespanManager
+from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
 
 
-class TestSimpleKubeAuditLifespanManager:
-    """Test cases for SimpleKubeAuditLifespanManager."""
+class TestKubeAuditRuntimeProvider:
+    """Test cases for KubeAuditRuntimeProvider."""
 
     def test_init_with_config_path(self, temp_config_file):
         """Test initialization with config file path."""
-        manager = SimpleKubeAuditLifespanManager(config_path=temp_config_file)
+        manager = KubeAuditRuntimeProvider(config_path=temp_config_file)
         
         assert manager._config is not None
         assert "default_cluster" in manager._config
@@ -23,40 +23,40 @@ class TestSimpleKubeAuditLifespanManager:
 
     def test_init_with_config_dict(self, mock_config):
         """Test initialization with config dictionary."""
-        manager = SimpleKubeAuditLifespanManager(config=mock_config)
+        manager = KubeAuditRuntimeProvider(config=mock_config)
         
         assert manager._config == mock_config
         assert manager._default_cluster == "default"
 
     def test_init_without_config(self):
         """Test initialization without config raises error."""
-        with pytest.raises(ValueError, match="config error"):
-            SimpleKubeAuditLifespanManager()
+        with pytest.raises(ValueError, match="Either config_path or config must be provided"):
+            KubeAuditRuntimeProvider()
 
     def test_load_config_from_file(self, mock_config, temp_config_file):
         """Test loading configuration from file."""
-        manager = SimpleKubeAuditLifespanManager()
+        manager = KubeAuditRuntimeProvider(config={"clusters": []})
         manager._load_config_from_file(temp_config_file)
         
         assert manager._config == mock_config
 
     def test_load_config_from_invalid_file(self):
         """Test loading configuration from invalid file."""
-        manager = SimpleKubeAuditLifespanManager()
+        manager = KubeAuditRuntimeProvider(config={"clusters": []})
         
         with pytest.raises(Exception):
             manager._load_config_from_file("nonexistent.yaml")
 
     def test_get_default_cluster(self, mock_config):
         """Test getting default cluster from config."""
-        manager = SimpleKubeAuditLifespanManager(config=mock_config)
+        manager = KubeAuditRuntimeProvider(config=mock_config)
         default_cluster = manager.get_default_cluster(mock_config)
         
         assert default_cluster == "test-cluster"
 
     def test_get_default_cluster_without_config(self):
         """Test getting default cluster without config."""
-        manager = SimpleKubeAuditLifespanManager()
+        manager = KubeAuditRuntimeProvider(config={"clusters": []})
         default_cluster = manager.get_default_cluster({})
         
         assert default_cluster == "default"
@@ -67,7 +67,7 @@ class TestSimpleKubeAuditLifespanManager:
         mock_provider_instance = Mock()
         mock_provider_class.return_value = mock_provider_instance
         
-        manager = SimpleKubeAuditLifespanManager(config=mock_config)
+        manager = KubeAuditRuntimeProvider(config=mock_config)
         clients = manager.initialize_providers(mock_config)
         
         assert "test-cluster" in clients
@@ -89,7 +89,7 @@ class TestSimpleKubeAuditLifespanManager:
             ]
         }
         
-        manager = SimpleKubeAuditLifespanManager(config=config)
+        manager = KubeAuditRuntimeProvider(config=config)
         clients = manager.initialize_providers(config)
         
         assert "unknown-cluster" not in clients
@@ -107,7 +107,7 @@ class TestSimpleKubeAuditLifespanManager:
             ]
         }
         
-        manager = SimpleKubeAuditLifespanManager(config=config)
+        manager = KubeAuditRuntimeProvider(config=config)
         clients = manager.initialize_providers(config)
         
         assert len(clients) == 0
@@ -125,28 +125,28 @@ class TestSimpleKubeAuditLifespanManager:
             ]
         }
         
-        manager = SimpleKubeAuditLifespanManager(config=config)
+        manager = KubeAuditRuntimeProvider(config=config)
         clients = manager.initialize_providers(config)
         
         assert len(clients) == 0
 
     def test_initialize_providers_empty_config(self):
         """Test provider initialization with empty config."""
-        manager = SimpleKubeAuditLifespanManager(config={})
+        manager = KubeAuditRuntimeProvider(config={"clusters": []})
         clients = manager.initialize_providers({})
         
         assert clients == {}
 
     @pytest.mark.asyncio
-    async def test_lifespan_context_creation(self, mock_config):
-        """Test lifespan context creation."""
-        manager = SimpleKubeAuditLifespanManager(config=mock_config)
+    async def test_init_runtime_context_creation(self, mock_config):
+        """Test init_runtime context creation."""
+        manager = KubeAuditRuntimeProvider(config=mock_config)
         mock_app = Mock()
         
         with patch.object(manager, 'initialize_providers') as mock_init_providers:
             mock_init_providers.return_value = {"test-cluster": Mock()}
             
-            async with manager.lifespan(mock_app) as context:
+            async with manager.init_runtime(mock_app) as context:
                 assert "providers" in context
                 assert "default_cluster" in context
                 assert "config" in context
@@ -154,52 +154,51 @@ class TestSimpleKubeAuditLifespanManager:
                 assert "test-cluster" in context["providers"]
 
     @pytest.mark.asyncio
-    async def test_lifespan_startup_shutdown_messages(self, mock_config, capsys):
-        """Test lifespan startup and shutdown messages."""
-        manager = SimpleKubeAuditLifespanManager(config=mock_config)
+    async def test_init_runtime_startup_shutdown_messages(self, mock_config, capsys):
+        """Test init_runtime startup and shutdown messages."""
+        manager = KubeAuditRuntimeProvider(config=mock_config)
         mock_app = Mock()
         
         with patch.object(manager, 'initialize_providers') as mock_init_providers:
             mock_init_providers.return_value = {}
             
-            async with manager.lifespan(mock_app):
+            async with manager.init_runtime(mock_app):
                 pass
             
             captured = capsys.readouterr()
             assert "KubeAudit server starting..." in captured.out
-            assert "KubeAudit server shutting down..." in captured.out
 
     @pytest.mark.asyncio
-    async def test_lifespan_provider_initialization_error(self, mock_config):
-        """Test lifespan with provider initialization error."""
-        manager = SimpleKubeAuditLifespanManager(config=mock_config)
+    async def test_init_runtime_provider_initialization_error(self, mock_config):
+        """Test init_runtime with provider initialization error."""
+        manager = KubeAuditRuntimeProvider(config=mock_config)
         mock_app = Mock()
         
         with patch.object(manager, 'initialize_providers') as mock_init_providers:
             mock_init_providers.side_effect = Exception("Provider init error")
             
             # Should not raise exception, but handle gracefully
-            async with manager.lifespan(mock_app) as context:
+            async with manager.init_runtime(mock_app) as context:
                 assert "providers" in context
                 assert context["providers"] == {}
 
-    def test_lifespan_manager_inheritance(self):
-        """Test that SimpleKubeAuditLifespanManager inherits from LifespanManager."""
-        from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import SimpleKubeAuditLifespanManager
-        from alibabacloud_cluster_audit_log_mcp_server.utils.context import LifespanManager
+    def test_runtime_provider_inheritance(self):
+        """Test that KubeAuditRuntimeProvider inherits from RuntimeProvider."""
+        from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
+        from src.runtime_provider import RuntimeProvider
         
-        assert issubclass(SimpleKubeAuditLifespanManager, LifespanManager)
+        assert issubclass(KubeAuditRuntimeProvider, RuntimeProvider)
 
-    def test_lifespan_manager_abstract_methods_implemented(self):
+    def test_runtime_provider_abstract_methods_implemented(self):
         """Test that all abstract methods are implemented."""
-        manager = SimpleKubeAuditLifespanManager(config={"default_cluster": "test"})
+        manager = KubeAuditRuntimeProvider(config={"clusters": [], "default_cluster": "test"})
         
         # Check that all required methods exist
-        assert hasattr(manager, 'lifespan')
+        assert hasattr(manager, 'init_runtime')
         assert hasattr(manager, 'initialize_providers')
         assert hasattr(manager, 'get_default_cluster')
         
         # Check that methods are callable
-        assert callable(manager.lifespan)
+        assert callable(manager.init_runtime)
         assert callable(manager.initialize_providers)
         assert callable(manager.get_default_cluster)

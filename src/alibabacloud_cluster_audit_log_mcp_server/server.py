@@ -14,6 +14,33 @@ from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import K
 from alibabacloud_cluster_audit_log_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
 
 
+def create_mcp_server(config: Optional[dict] = None) -> FastMCP:
+    """Create MCP server instance for proxy mounting.
+    
+    Args:
+        config: Server configuration dictionary
+        
+    Returns:
+        Configured FastMCP server instance
+    """
+    # Extract audit configuration from config dict
+    audit_config_path = None
+    audit_config_dict = None
+    
+    if config:
+        audit_config_path = config.get("audit_config_path")
+        audit_config_dict = config.get("audit_config_dict")
+    
+    # Use the existing create_server function
+    return create_server(
+        config_path=audit_config_path,
+        config_dict=audit_config_dict,
+        transport="stdio",  # Default for proxy mounting
+        host="127.0.0.1",
+        port=8000
+    )
+
+
 def create_server(
         config_path: Optional[str] = None,
         config_dict: Optional[dict] = None,

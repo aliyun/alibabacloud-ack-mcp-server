@@ -8,7 +8,7 @@ WORKDIR /app
 RUN pip install uv
 
 # Copy dependency definition files
-COPY pyproject.toml uv.lock* ./
+COPY ../src/ack-mcp-server/pyproject.toml uv.lock* ./
 
 # Install dependencies into a separate layer.
 # This leverages Docker's layer caching, so dependencies are only re-installed
@@ -26,7 +26,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy the application code
-COPY app ./app
+COPY ../src/ack-mcp-server/app ./app
 
 # Expose the port the app runs on
 EXPOSE 8080
