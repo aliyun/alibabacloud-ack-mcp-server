@@ -1,0 +1,26 @@
+# Example configuration file for alibabacloud-ack-mcp-server
+# This file demonstrates how to configure multiple clusters and providers
+
+default_cluster: "production"
+
+clusters:
+  - name: "production"
+    description: "Production Kubernetes cluster"
+    provider:
+      name: "alibaba-sls"
+      alibaba_sls:
+        endpoint: "cn-hangzhou.log.aliyuncs.com"
+        project: "k8s-audit-logs"
+        logstore: "audit-log-store"
+        region: "cn-hangzhou"
+
+  - name: "staging"
+    description: "Staging Kubernetes cluster"
+    provider:
+      name: "alibaba-sls"
+      alibaba_sls:
+        endpoint: "cn-shanghai.log.aliyuncs.com"
+        project: "k8s-audit-logs-staging"
+        logstore: "audit-log-store"
+        region: "cn-shanghai"
+
