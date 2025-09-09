@@ -8,7 +8,6 @@ MCP servers should follow this basic structure:
 
 ```python
 alibabacloud-ack-mcp-server/
-├── README.md               # Project description, setup instructions
 ├── CHANGELOG.md            # Version history and changes
 ├── LICENSE                 # License information
 ├── NOTICE                  # Additional copyright notices
@@ -18,6 +17,7 @@ alibabacloud-ack-mcp-server/
 ├── src/                # Source code directory
 │   ├── __init__.py         # Package initialization
 │   ├── main_server.py      # Main server entry point
+│   ├── tests/              # Test directory
 |   ├── interfaces/         # Interfaces directory
 │       ├── runtime_provider.py       # Interfaces for runtime provider, implement mcp server's dependencies resources with fastmcp lifespan
 │   └── your_mcp_server/    # Your mcp server package
@@ -26,8 +26,9 @@ alibabacloud-ack-mcp-server/
 │       ├── models.py       # Pydantic models
 │       ├── server.py       # MCP server implementation, support sub mcp server for main_server.py or support main() to run mcp server as a standalone program.
 │       ├── consts.py       # Constants definition
+│       ├── tests/          # Test directory for this mcp server
 │       └── ...             # Additional modules
-└── tests/                  # Test directory
+└── README.md               # Project description, setup instructions
 ```
 
 ## Code Organization
