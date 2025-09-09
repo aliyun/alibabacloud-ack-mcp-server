@@ -5,16 +5,18 @@ Service for providing cluster and observability context.
 
 import json
 import os
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 
-from aliyunsdkcs.request.v20151215 import DescribeClusterDetailRequest, DescribeClustersV1Request
+from aliyunsdkcs.request.v20151215 import (
+    DescribeClusterDetailRequest,
+    DescribeClustersV1Request,
+)
 from aliyunsdksts.request.v20150401 import GetCallerIdentityRequest
-from kubernetes import config
-from tenacity import retry, stop_after_attempt, wait_fixed
-
 from app.config import get_logger
 from app.models import ClusterDetail, ClusterInfo, ErrorContext, ObservabilityContext
 from app.services.base import BaseService
+from kubernetes import config
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = get_logger()
 
@@ -45,8 +47,7 @@ class ContextService(BaseService):
             response = client.do_action_with_exception(request)
             if not response:
                 logger.error("Failed to get a response from Alibaba Cloud STS")
-                raise Exception(
-                    "Failed to get a response from Alibaba Cloud STS")
+                raise Exception("Failed to get a response from Alibaba Cloud STS")
 
             result = json.loads(response)
             account_id = result.get("AccountId")
@@ -61,29 +62,36 @@ class ContextService(BaseService):
             logger.error(f"Failed to get Account ID. Error: {e}")
             raise
 
-    async def get_observability_context(self, cluster_id: str) -> ObservabilityContext | ErrorContext:
+    async def get_observability_context(
+        self, cluster_id: str
+    ) -> ObservabilityContext | ErrorContext:
         """
         Retrieve observability context for a specified Alibaba Cloud ACK cluster.
         It assumes the region_id is always provided in the credentials.
         """
-        logger.info(
-            f"Building observability context for cluster_id: {cluster_id}")
+        logger.info(f"Building observability context for cluster_id: {cluster_id}")
 
         # The region is expected to be in the credentials, injected by the middleware.
         region_id = self.credentials.get("region")
         if not region_id:
             logger.error(
-                f"Region ID not found in credentials for cluster {cluster_id}. It must be provided via 'X-Aliyun-Region' header.")
-            return ErrorContext(error="MissingRegionID", message="Region ID must be provided via 'X-Aliyun-Region' header.")
+                f"Region ID not found in credentials for cluster {cluster_id}. It must be provided via 'X-Aliyun-Region' header."
+            )
+            return ErrorContext(
+                error="MissingRegionID",
+                message="Region ID must be provided via 'X-Aliyun-Region' header.",
+            )
 
         logger.info(f"Using Region ID '{region_id}' from credentials.")
 
         account_id = self._get_account_id()
 
         if not account_id:
-            logger.error(
-                f"Failed to retrieve Account ID for cluster {cluster_id}")
-            return ErrorContext(error="FailedToRetrieveAccountID", message="Failed to retrieve Account ID")
+            logger.error(f"Failed to retrieve Account ID for cluster {cluster_id}")
+            return ErrorContext(
+                error="FailedToRetrieveAccountID",
+                message="Failed to retrieve Account ID",
+            )
 
         return ObservabilityContext(
             cluster_id=cluster_id,

@@ -1,6 +1,7 @@
 """
 使用 Pydantic 进行强类型配置管理，并提供日志记录器实例。
 """
+
 import logging
 import sys
 from functools import lru_cache
@@ -15,8 +16,7 @@ class Configs(BaseSettings):
     """
 
     # .env 文件路径
-    model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # 服务监听的端口
     HTTP_PORT: int = 8080

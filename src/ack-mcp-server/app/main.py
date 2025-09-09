@@ -1,18 +1,18 @@
 """
 应用主入口，负责组装和启动服务。
 """
-import uvicorn
-from fastapi import FastAPI, Request
-from fastmcp import FastMCP
 
+import uvicorn
 from app.config import get_logger, get_settings
-from app.context import app_context, AppContext
+from app.context import AppContext, app_context
 from app.middleware.auth import AuthAndContextMiddleware
 from app.middleware.context_injection import ContextInjectionMiddleware
 from app.services.aliyun_service import AliyunService
 from app.services.kubectl_service import KubectlService
 from app.services.observability_service import ObservabilityService
 from app.tools.registry import register_all_tools
+from fastapi import FastAPI, Request
+from fastmcp import FastMCP
 
 # 1. 初始化配置和日志
 settings_dict = get_settings()
@@ -38,8 +38,7 @@ mcp_server.add_middleware(ContextInjectionMiddleware())
 logger.info("AuthAndContextMiddleware added to MCP server.")
 
 # 5. 注册所有定义的工具，并注入服务实例
-register_all_tools(mcp_server, aliyun_service,
-                   kubectl_service, observability_service)
+register_all_tools(mcp_server, aliyun_service, kubectl_service, observability_service)
 logger.info("All tools have been registered.")
 
 # 5. 创建 MCP 服务器的 ASGI 应用
@@ -69,6 +68,7 @@ async def set_request_context_middleware(request: Request, call_next):
     app_context.set(ctx)
     response = await call_next(request)
     return response
+
 
 # 8. 将 MCP 应用挂载到 FastAPI 应用的特定路径下
 app.mount("/mcp", mcp_app)

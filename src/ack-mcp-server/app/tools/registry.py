@@ -1,11 +1,11 @@
 """
 统一注册所有可用的 MCP 工具。
 """
-from fastmcp import FastMCP
 
 from app.services.aliyun_service import AliyunService
 from app.services.kubectl_service import KubectlService
 from app.services.observability_service import ObservabilityService
+from fastmcp import FastMCP
 
 from . import aliyun_tools, kubectl_tools, observability_tools
 

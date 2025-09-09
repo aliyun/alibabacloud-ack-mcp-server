@@ -1,13 +1,13 @@
 """
 封装与阿里云可观测性（SLS）API 的所有交互。
 """
+
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
-from alibabacloud_sls20201230.client import Client as SlsClient
 from alibabacloud_sls20201230 import models as sls_models
+from alibabacloud_sls20201230.client import Client as SlsClient
 from alibabacloud_tea_util import models as util_models
-
 from app.config import get_logger, get_settings
 from app.services.base import BaseAliyunService
 
@@ -101,10 +101,9 @@ class ObservabilityService(BaseAliyunService):
             tool_name="text_to_promql",
             params=params,
             # The region of the target metric store must be passed in the request body.
-            region_id=target_region
+            region_id=target_region,
         )
-        runtime = util_models.RuntimeOptions(
-            read_timeout=60000, connect_timeout=60000)
+        runtime = util_models.RuntimeOptions(read_timeout=60000, connect_timeout=60000)
 
         try:
             response = sls_client.call_ai_tools_with_options(
@@ -113,14 +112,16 @@ class ObservabilityService(BaseAliyunService):
             data = response.body
             if not isinstance(data, str):
                 raise ValueError(
-                    f"Failed to get a valid PromQL query from AI tool, response: {data}")
+                    f"Failed to get a valid PromQL query from AI tool, response: {data}"
+                )
             if "------answer------\n" in data:
                 data = data.split("------answer------\n")[1]
             logger.info(f"Successfully translated text to PromQL: {data}")
             return data.strip()
         except Exception as e:
             logger.error(
-                f"Failed to call CMS AI tool 'text_to_promql': {e}", exc_info=True)
+                f"Failed to call CMS AI tool 'text_to_promql': {e}", exc_info=True
+            )
             raise
 
     def execute_promql_query(
@@ -140,16 +141,16 @@ class ObservabilityService(BaseAliyunService):
         )
         sls_client = self._create_client(credentials)
 
-        formatted_query = self._spl_container.get_spl(
-            "raw-promql-template").replace("<PROMQL>", query)
+        formatted_query = self._spl_container.get_spl("raw-promql-template").replace(
+            "<PROMQL>", query
+        )
 
         request = sls_models.GetLogsRequest(
             query=formatted_query,
             from_=from_timestamp,
             to=to_timestamp,
         )
-        runtime = util_models.RuntimeOptions(
-            read_timeout=60000, connect_timeout=60000)
+        runtime = util_models.RuntimeOptions(read_timeout=60000, connect_timeout=60000)
 
         try:
             response = sls_client.get_logs_with_options(
@@ -202,12 +203,9 @@ class ObservabilityService(BaseAliyunService):
             "sys.query": self._append_current_time(text),
         }
         request = sls_models.CallAiToolsRequest(
-            tool_name="text_to_sql",
-            params=params,
-            region_id=target_region
+            tool_name="text_to_sql", params=params, region_id=target_region
         )
-        runtime = util_models.RuntimeOptions(
-            read_timeout=60000, connect_timeout=60000)
+        runtime = util_models.RuntimeOptions(read_timeout=60000, connect_timeout=60000)
 
         try:
             response = sls_client.call_ai_tools_with_options(
@@ -216,14 +214,14 @@ class ObservabilityService(BaseAliyunService):
             data = response.body
             if not isinstance(data, str):
                 raise ValueError(
-                    f"Failed to get a valid SQL query from AI tool, response: {data}")
+                    f"Failed to get a valid SQL query from AI tool, response: {data}"
+                )
             if "------answer------\n" in data:
                 data = data.split("------answer------\n")[1]
             logger.info(f"Successfully translated text to SQL: {data}")
             return data.strip()
         except Exception as e:
-            logger.error(
-                f"Failed to call AI tool 'text_to_sql': {e}", exc_info=True)
+            logger.error(f"Failed to call AI tool 'text_to_sql': {e}", exc_info=True)
             raise
 
     def execute_sql(
@@ -250,8 +248,7 @@ class ObservabilityService(BaseAliyunService):
             to=to_timestamp,
             line=limit,
         )
-        runtime = util_models.RuntimeOptions(
-            read_timeout=60000, connect_timeout=60000)
+        runtime = util_models.RuntimeOptions(read_timeout=60000, connect_timeout=60000)
 
         try:
             response = sls_client.get_logs_with_options(
@@ -295,12 +292,9 @@ class ObservabilityService(BaseAliyunService):
             "sys.query": query_to_diagnose,
         }
         request = sls_models.CallAiToolsRequest(
-            tool_name="diagnosis_sql",
-            params=params,
-            region_id=target_region
+            tool_name="diagnosis_sql", params=params, region_id=target_region
         )
-        runtime = util_models.RuntimeOptions(
-            read_timeout=60000, connect_timeout=60000)
+        runtime = util_models.RuntimeOptions(read_timeout=60000, connect_timeout=60000)
 
         try:
             response = sls_client.call_ai_tools_with_options(
@@ -309,12 +303,12 @@ class ObservabilityService(BaseAliyunService):
             data = response.body
             if not isinstance(data, str):
                 raise ValueError(
-                    f"Failed to get a valid diagnosis from AI tool, response: {data}")
+                    f"Failed to get a valid diagnosis from AI tool, response: {data}"
+                )
             if "------answer------\n" in data:
                 data = data.split("------answer------\n")[1]
             logger.info("Successfully diagnosed query.")
             return data.strip()
         except Exception as e:
-            logger.error(
-                f"Failed to call AI tool 'diagnosis_sql': {e}", exc_info=True)
+            logger.error(f"Failed to call AI tool 'diagnosis_sql': {e}", exc_info=True)
             raise

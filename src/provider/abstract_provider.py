@@ -2,12 +2,14 @@
 
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any, Optional
+from typing import Any, AsyncIterator, Dict, Optional
+
 from mcp.server.fastmcp import FastMCP
 
 """
 MCP Server的依赖Provider抽象类
 """
+
 
 class ProviderManager(ABC):
     """Abstract base class for provider management."""
@@ -17,10 +19,10 @@ class ProviderManager(ABC):
     async def initialize(self, app: FastMCP) -> AsyncIterator[Dict[str, Any]]:
         """
         Abstract provider method to be implemented by subclasses.
-        
+
         Args:
-            app: The FastMCP server instance 
-            
+            app: The FastMCP server instance
+
         Yields:
             A dictionary containing context objects
         """

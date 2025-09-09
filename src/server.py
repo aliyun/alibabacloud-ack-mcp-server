@@ -14,18 +14,31 @@
 
 
 import argparse
-from AlibabaCloudlabs.ContainerService_mcp_server.cloudwatch_handler import CloudWatchHandler
-from AlibabaCloudlabs.ContainerService_mcp_server.cloudwatch_metrics_guidance_handler import CloudWatchMetricsHandler
-from AlibabaCloudlabs.ContainerService_mcp_server.ContainerService_kb_handler import ContainerServiceKnowledgeBaseHandler
-from AlibabaCloudlabs.ContainerService_mcp_server.ContainerService_stack_handler import ContainerServiceStackHandler
+
+from AlibabaCloudlabs.ContainerService_mcp_server.cloudwatch_handler import (
+    CloudWatchHandler,
+)
+from AlibabaCloudlabs.ContainerService_mcp_server.cloudwatch_metrics_guidance_handler import (
+    CloudWatchMetricsHandler,
+)
+from AlibabaCloudlabs.ContainerService_mcp_server.ContainerService_kb_handler import (
+    ContainerServiceKnowledgeBaseHandler,
+)
+from AlibabaCloudlabs.ContainerService_mcp_server.ContainerService_stack_handler import (
+    ContainerServiceStackHandler,
+)
 from AlibabaCloudlabs.ContainerService_mcp_server.iam_handler import IAMHandler
-from AlibabaCloudlabs.ContainerService_mcp_server.insights_handler import InsightsHandler
+from AlibabaCloudlabs.ContainerService_mcp_server.insights_handler import (
+    InsightsHandler,
+)
 from AlibabaCloudlabs.ContainerService_mcp_server.k8s_handler import K8sHandler
-from AlibabaCloudlabs.ContainerService_mcp_server.vpc_config_handler import VpcConfigHandler
+from AlibabaCloudlabs.ContainerService_mcp_server.vpc_config_handler import (
+    VpcConfigHandler,
+)
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from src.config import get_settings, Configs
+from src.config import Configs, get_settings
 
 # Define server instructions and dependencies
 # TODO
@@ -36,14 +49,14 @@ SERVER_INSTRUCTIONS = """
 SERVER_NAME = "alibabacloud-cs-mcp-server"
 
 SERVER_DEPENDENCIES = [
-    'pydantic',
-    'loguru',
-    'boto3',
-    'kubernetes',
-    'requests',
-    'pyyaml',
-    'cachetools',
-    'requests_auth_AlibabaCloud_sigv4',
+    "pydantic",
+    "loguru",
+    "boto3",
+    "kubernetes",
+    "requests",
+    "pyyaml",
+    "cachetools",
+    "requests_auth_AlibabaCloud_sigv4",
 ]
 
 # Global reference to the MCP server instance for testing purposes
@@ -66,13 +79,13 @@ def main():
     global settings_dict
 
     parser = argparse.ArgumentParser(
-        description='An AlibabaCloud Model Context Protocol (MCP) server for ContainerService'
+        description="An AlibabaCloud Model Context Protocol (MCP) server for ContainerService"
     )
     parser.add_argument(
-        '--allow-write',
+        "--allow-write",
         action=argparse.BooleanOptionalAction,
         default=False,
-        help='Enable write access mode (allow mutating operations)',
+        help="Enable write access mode (allow mutating operations)",
     )
 
     args = parser.parse_args()
@@ -83,10 +96,10 @@ def main():
     # Log startup mode
     mode_info = []
     if not allow_write:
-        mode_info.append('read-only mode')
+        mode_info.append("read-only mode")
 
-    mode_str = ' in ' + ', '.join(mode_info) if mode_info else ''
-    logger.info(f'Starting ContainerService MCP Server{mode_str}')
+    mode_str = " in " + ", ".join(mode_info) if mode_info else ""
+    logger.info(f"Starting ContainerService MCP Server{mode_str}")
 
     # Create the MCP server instance
     mcp = create_server()
@@ -94,12 +107,11 @@ def main():
     # Initialize handlers - all tools are always registered, access control is handled within tools
     K8sHandler(mcp, allow_write, settings_dict)
 
-
     # Run server
     mcp.run()
 
     return mcp
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

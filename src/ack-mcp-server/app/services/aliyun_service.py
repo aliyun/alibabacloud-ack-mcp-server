@@ -1,13 +1,13 @@
 """
 封装与阿里云容器服务 API 的所有交互。
 """
+
 from typing import Any, Dict, List, Optional, Type
 
 # 导入阿里云 SDK
 from alibabacloud_cs20151215 import models as cs_models
 from alibabacloud_cs20151215.client import Client as CsClient
 from alibabacloud_tea_util import models as util_models
-
 from app.config import get_logger
 from app.services.base import BaseAliyunService
 
@@ -34,7 +34,7 @@ class AliyunService(BaseAliyunService):
         cluster_id: str,
         nodepool_id: str,
         count: int,
-        credentials: Optional[Dict[str, Any]] = None
+        credentials: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         扩容指定的节点池。
@@ -59,16 +59,15 @@ class AliyunService(BaseAliyunService):
                 cluster_id, nodepool_id, request, {}, runtime
             )
             logger.info(
-                f"Scale request sent successfully. Task ID: {response.body.task_id}")
+                f"Scale request sent successfully. Task ID: {response.body.task_id}"
+            )
             return response.body.to_map()
         except Exception as e:
             logger.error(f"Failed to scale nodepool: {e}", exc_info=True)
             raise
 
     def describe_task_info(
-        self,
-        task_id: str,
-        credentials: Optional[Dict[str, Any]] = None
+        self, task_id: str, credentials: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         查询指定任务的详细信息。
@@ -84,8 +83,7 @@ class AliyunService(BaseAliyunService):
 
         runtime = util_models.RuntimeOptions()
         try:
-            response = cs_client.describe_task_info_with_options(
-                task_id, {}, runtime)
+            response = cs_client.describe_task_info_with_options(task_id, {}, runtime)
             return response.body.to_map()
         except Exception as e:
             logger.error(f"Failed to describe task info: {e}", exc_info=True)
@@ -99,7 +97,7 @@ class AliyunService(BaseAliyunService):
         release_node: bool,
         drain_node: bool = True,
         concurrency: bool = False,
-        credentials: Optional[Dict[str, Any]] = None
+        credentials: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         从指定的节点池中移除一个或多个节点。
@@ -126,7 +124,7 @@ class AliyunService(BaseAliyunService):
             instance_ids=instance_ids,
             release_node=release_node,
             drain_node=drain_node,
-            concurrency=concurrency
+            concurrency=concurrency,
         )
         runtime = util_models.RuntimeOptions()
         try:
@@ -146,7 +144,7 @@ class AliyunService(BaseAliyunService):
         cluster_id: str,
         diagnosis_type: str,
         target: Optional[Dict[str, Any]] = None,
-        credentials: Optional[Dict[str, Any]] = None
+        credentials: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         为指定的集群创建诊断。
@@ -158,14 +156,15 @@ class AliyunService(BaseAliyunService):
             credentials: 认证凭证
         """
         logger.info(
-            f"Creating diagnosis of type '{diagnosis_type}' for cluster '{cluster_id}' with target: {target}.")
+            f"Creating diagnosis of type '{diagnosis_type}' for cluster '{cluster_id}' with target: {target}."
+        )
 
         # 创建客户端
         cs_client = self._create_client(credentials)
 
-        request_params: Dict[str, Any] = {'type': diagnosis_type}
+        request_params: Dict[str, Any] = {"type": diagnosis_type}
         if target:
-            request_params['target'] = target
+            request_params["target"] = target
         request = cs_models.CreateClusterDiagnosisRequest(**request_params)
         runtime = util_models.RuntimeOptions()
         try:
@@ -177,15 +176,14 @@ class AliyunService(BaseAliyunService):
             )
             return response.body.to_map()
         except Exception as e:
-            logger.error(
-                f"Failed to create cluster diagnosis: {e}", exc_info=True)
+            logger.error(f"Failed to create cluster diagnosis: {e}", exc_info=True)
             raise
 
     def get_cluster_diagnosis_result(
         self,
         cluster_id: str,
         diagnosis_id: str,
-        credentials: Optional[Dict[str, Any]] = None
+        credentials: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         获取指定集群诊断的结果。
@@ -196,7 +194,8 @@ class AliyunService(BaseAliyunService):
             credentials: 认证凭证
         """
         logger.info(
-            f"Getting diagnosis result for cluster '{cluster_id}' and diagnosis '{diagnosis_id}'.")
+            f"Getting diagnosis result for cluster '{cluster_id}' and diagnosis '{diagnosis_id}'."
+        )
 
         # 创建客户端
         cs_client = self._create_client(credentials)
@@ -209,6 +208,5 @@ class AliyunService(BaseAliyunService):
             )
             return response.body.to_map()
         except Exception as e:
-            logger.error(
-                f"Failed to get cluster diagnosis result: {e}", exc_info=True)
+            logger.error(f"Failed to get cluster diagnosis result: {e}", exc_info=True)
             raise

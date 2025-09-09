@@ -1,15 +1,17 @@
-""" lifespan manager implementation for Kubernetes audit log querying."""
+"""lifespan manager implementation for Kubernetes audit log querying."""
+
+from contextlib import asynccontextmanager
+from pathlib import Path
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 import yaml
-from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any, Optional, List
-from pathlib import Path
 from mcp.server.fastmcp import FastMCP
 from utils.context import LifespanManager
 
 
 class ConfigValidationError(Exception):
     """Raised when configuration validation fails."""
+
     pass
 
 
@@ -17,14 +19,9 @@ class ConfigLoader:
     """Configuration loader with validation and error handling."""
 
     def __init__(self):
-        self.required_fields = {
-            "clusters": list
-        }
+        self.required_fields = {"clusters": list}
 
-        self.required_cluster_fields = {
-            "name": str,
-            "provider": dict
-        }
+        self.required_cluster_fields = {"name": str, "provider": dict}
 
         self.supported_providers = {
             "alibaba_sls": ["endpoint", "project", "logstore", "region"],
@@ -32,13 +29,13 @@ class ConfigLoader:
 
     def load_config_from_file(self, config_path: str) -> Dict[str, Any]:
         """Load and validate configuration from YAML file.
-        
+
         Args:
             config_path: Path to the configuration file
-            
+
         Returns:
             Validated configuration dictionary
-            
+
         Raises:
             ConfigValidationError: If configuration is invalid
             FileNotFoundError: If configuration file doesn't exist
@@ -55,14 +52,16 @@ class ConfigLoader:
             raise ConfigValidationError(f"Path is not a file: {config_path}")
 
         try:
-            with open(config_path, 'r', encoding='utf-8') as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = yaml.safe_load(f)
         except yaml.YAMLError as e:
             raise ConfigValidationError(f"Invalid YAML format in {config_path}: {e}")
         except PermissionError as e:
             raise ConfigValidationError(f"Permission denied reading {config_path}: {e}")
         except Exception as e:
-            raise ConfigValidationError(f"Failed to read configuration file {config_path}: {e}")
+            raise ConfigValidationError(
+                f"Failed to read configuration file {config_path}: {e}"
+            )
 
         # Validate configuration
         self.validate_config(config)
@@ -71,10 +70,10 @@ class ConfigLoader:
 
     def validate_config(self, config: Dict[str, Any]) -> None:
         """Validate configuration structure and content.
-        
+
         Args:
             config: Configuration dictionary to validate
-            
+
         Raises:
             ConfigValidationError: If configuration is invalid
         """
@@ -107,10 +106,10 @@ class ConfigLoader:
 
     def _validate_clusters(self, clusters: List[Dict[str, Any]]) -> None:
         """Validate clusters configuration.
-        
+
         Args:
             clusters: List of cluster configurations
-            
+
         Raises:
             ConfigValidationError: If clusters configuration is invalid
         """
@@ -126,7 +125,9 @@ class ConfigLoader:
             # Check required cluster fields
             for field, expected_type in self.required_cluster_fields.items():
                 if field not in cluster:
-                    raise ConfigValidationError(f"Cluster {i} missing required field: {field}")
+                    raise ConfigValidationError(
+                        f"Cluster {i} missing required field: {field}"
+                    )
 
                 if not isinstance(cluster[field], expected_type):
                     raise ConfigValidationError(
@@ -145,16 +146,18 @@ class ConfigLoader:
 
     def _validate_provider(self, provider: Dict[str, Any], cluster_name: str) -> None:
         """Validate provider configuration.
-        
+
         Args:
             provider: Provider configuration dictionary
             cluster_name: Name of the cluster (for error messages)
-            
+
         Raises:
             ConfigValidationError: If provider configuration is invalid
         """
         if not isinstance(provider, dict):
-            raise ConfigValidationError(f"Provider for cluster '{cluster_name}' must be a dictionary")
+            raise ConfigValidationError(
+                f"Provider for cluster '{cluster_name}' must be a dictionary"
+            )
 
         # Find the provider type by checking which supported provider config is present
         provider_type = None
@@ -172,14 +175,16 @@ class ConfigLoader:
         # Validate provider-specific configuration
         self._validate_provider_config(provider, provider_type, cluster_name)
 
-    def _validate_provider_config(self, provider: Dict[str, Any], provider_name: str, cluster_name: str) -> None:
+    def _validate_provider_config(
+        self, provider: Dict[str, Any], provider_name: str, cluster_name: str
+    ) -> None:
         """Validate provider-specific configuration.
-        
+
         Args:
             provider: Provider configuration dictionary
             provider_name: Name of the provider
             cluster_name: Name of the cluster
-            
+
         Raises:
             ConfigValidationError: If provider configuration is invalid
         """
@@ -213,13 +218,15 @@ class ConfigLoader:
 class KubeAuditLifespanManager(LifespanManager):
     """Implementation of LifespanManager for Kubernetes audit log querying."""
 
-    def __init__(self, config_path: Optional[str] = None, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, config_path: Optional[str] = None, config: Optional[Dict[str, Any]] = None
+    ):
         """Initialize the lifespan manager with configuration.
-        
+
         Args:
             config_path: Path to configuration file (YAML format)
             config: Configuration dictionary (alternative to config_path)
-            
+
         Raises:
             ConfigValidationError: If configuration is invalid
             FileNotFoundError: If configuration file doesn't exist
@@ -242,13 +249,14 @@ class KubeAuditLifespanManager(LifespanManager):
 
     def _load_config_from_file(self, config_path: str):
         """Load configuration from YAML file.
-        
+
         Args:
             config_path: Path to the configuration file
         """
         try:
             import yaml
-            with open(config_path, 'r', encoding='utf-8') as f:
+
+            with open(config_path, "r", encoding="utf-8") as f:
                 self._config = yaml.safe_load(f)
         except Exception as e:
             print(f"Warning: Failed to load config from {config_path}: {e}")
@@ -269,7 +277,7 @@ class KubeAuditLifespanManager(LifespanManager):
         context = {
             "providers": self._clients,
             "default_cluster": self._default_cluster,
-            "config": self._config
+            "config": self._config,
         }
 
         yield context
@@ -297,7 +305,9 @@ class KubeAuditLifespanManager(LifespanManager):
                     break
 
             if not provider_type:
-                print(f"Warning: No supported provider configuration found for cluster '{cluster_name}'")
+                print(
+                    f"Warning: No supported provider configuration found for cluster '{cluster_name}'"
+                )
                 continue
 
             # Create provider instance based on provider type
@@ -306,6 +316,7 @@ class KubeAuditLifespanManager(LifespanManager):
                     sls_config = provider_config.get("alibaba_sls", {})
                     # Load credentials from environment variables
                     import os
+
                     access_key_id = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
                     access_key_secret = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
 
@@ -319,18 +330,23 @@ class KubeAuditLifespanManager(LifespanManager):
                     sls_config["access_key_secret"] = access_key_secret
 
                     # Import here to avoid circular imports
-                    from alibabacloud_cluster_aduit_log_mcp_server.provider.provider import AlibabaSLSProvider
+                    from alibabacloud_cluster_aduit_log_mcp_server.provider.provider import (
+                        AlibabaSLSProvider,
+                    )
+
                     clients[cluster_name] = AlibabaSLSProvider(sls_config)
                 else:
                     print(f"Warning: Unknown provider type: {provider_type}")
             except Exception as e:
-                print(f"Warning: Failed to initialize provider {provider_type} for cluster {cluster_name}: {e}")
+                print(
+                    f"Warning: Failed to initialize provider {provider_type} for cluster {cluster_name}: {e}"
+                )
 
         return clients
 
     def get_default_cluster(self, config: Dict[str, Any]) -> str:
         """Get the default cluster name from configuration.
-        
+
         If default_cluster is not specified, use the first cluster.
         """
         if "default_cluster" in config:

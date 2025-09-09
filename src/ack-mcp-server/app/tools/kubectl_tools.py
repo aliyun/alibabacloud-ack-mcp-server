@@ -1,14 +1,14 @@
 """
 定义所有与 Kubectl 相关的 MCP 工具。
 """
-import re
-from typing import Annotated, Tuple, Literal
 
+import re
+from typing import Annotated, Literal, Tuple
+
+from app.services.kubectl_service import KubectlError, KubectlService
 from fastmcp import FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field
-
-from app.services.kubectl_service import KubectlError, KubectlService
 
 
 def is_interactive_command(command: str) -> Tuple[bool, str]:
@@ -97,14 +97,20 @@ def register_kubectl_tools(mcp_server: FastMCP, kubectl_svc: KubectlService):
 
     @mcp_server.tool("kubectl")
     async def kubectl(
-        command: Annotated[str, Field(
-            description="要执行的完整 kubectl 命令，必须以 'kubectl' 开头。对于多行命令，建议使用 heredoc 语法。",
-            min_length=1,
-            max_length=5000
-        )],
-        modifies_resource: Annotated[Literal["yes", "no", "unknown"], Field(
-            description="命令是否会修改 Kubernetes 资源。'yes' 表示会修改（如 apply, delete），'no' 表示只读（如 get, describe），'unknown' 表示不确定。"
-        )] = "unknown",
+        command: Annotated[
+            str,
+            Field(
+                description="要执行的完整 kubectl 命令，必须以 'kubectl' 开头。对于多行命令，建议使用 heredoc 语法。",
+                min_length=1,
+                max_length=5000,
+            ),
+        ],
+        modifies_resource: Annotated[
+            Literal["yes", "no", "unknown"],
+            Field(
+                description="命令是否会修改 Kubernetes 资源。'yes' 表示会修改（如 apply, delete），'no' 表示只读（如 get, describe），'unknown' 表示不确定。"
+            ),
+        ] = "unknown",
     ) -> str:
         """
         在用户的 Kubernetes 集群上执行 kubectl 命令。

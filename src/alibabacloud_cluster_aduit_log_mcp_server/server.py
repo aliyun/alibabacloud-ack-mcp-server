@@ -1,35 +1,39 @@
 """AlibabaCloud ACK MCP Server - Main server implementation."""
 
 import argparse
-import sys
-import os
 import asyncio
+import os
+import sys
 from pathlib import Path
-from typing import Optional, Literal
+from typing import Literal, Optional
 
 from mcp.server.fastmcp import FastMCP
 from mcp.server.stdio import stdio_server
 
-from alibabacloud_cluster_aduit_log_mcp_server.context.lifespan_manager import KubeAuditLifespanManager
-from alibabacloud_cluster_aduit_log_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
+from alibabacloud_cluster_aduit_log_mcp_server.context.lifespan_manager import (
+    KubeAuditLifespanManager,
+)
+from alibabacloud_cluster_aduit_log_mcp_server.toolkits.kube_aduit_tool import (
+    KubeAuditTool,
+)
 
 
 def create_server(
-        config_path: Optional[str] = None,
-        config_dict: Optional[dict] = None,
-        transport: Literal["stdio", "sse"] = "stdio",
-        host: str = "127.0.0.1",
-        port: int = 8000
+    config_path: Optional[str] = None,
+    config_dict: Optional[dict] = None,
+    transport: Literal["stdio", "sse"] = "stdio",
+    host: str = "127.0.0.1",
+    port: int = 8000,
 ) -> FastMCP:
     """Create and configure the MCP server.
-    
+
     Args:
         config_path: Path to configuration file
         config_dict: Configuration dictionary
         transport: Transport method ("stdio" or "sse")
         host: Host for SSE transport
         port: Port for SSE transport
-        
+
     Returns:
         Configured FastMCP server instance
     """
@@ -42,7 +46,9 @@ def create_server(
         # Try to find default config file
         default_config_path = Path(__file__).parent / "config.yaml"
         if default_config_path.exists():
-            lifespan_manager = KubeAuditLifespanManager(config_path=str(default_config_path))
+            lifespan_manager = KubeAuditLifespanManager(
+                config_path=str(default_config_path)
+            )
         else:
             raise FileNotFoundError("No configuration file found!")
 
@@ -51,7 +57,7 @@ def create_server(
         "alibabacloud-cluster-aduit-log-mcp-server",
         lifespan=lifespan_manager.lifespan,
         host=host,
-        port=port
+        port=port,
     )
 
     # Initialize and register tools
@@ -64,14 +70,14 @@ def create_server(
 
 
 def run_server(
-        config_path: Optional[str] = None,
-        config_dict: Optional[dict] = None,
-        transport: Literal["stdio", "sse"] = "stdio",
-        host: str = "localhost",
-        port: int = 8000
+    config_path: Optional[str] = None,
+    config_dict: Optional[dict] = None,
+    transport: Literal["stdio", "sse"] = "stdio",
+    host: str = "localhost",
+    port: int = 8000,
 ):
     """Run the MCP server with specified transport.
-    
+
     Args:
         config_path: Path to configuration file
         config_dict: Configuration dictionary
@@ -84,7 +90,7 @@ def run_server(
         config_dict=config_dict,
         transport=transport,
         host=host,
-        port=port
+        port=port,
     )
 
     print(f"Starting AlibabaCloud ACK MCP Server with {transport} transport...")
@@ -111,10 +117,7 @@ def main():
         description="AlibabaCloud ACK MCP Server - Kubernetes audit log querying server"
     )
     parser.add_argument(
-        "--config",
-        "-c",
-        type=str,
-        help="Path to configuration file (YAML format)"
+        "--config", "-c", type=str, help="Path to configuration file (YAML format)"
     )
     parser.add_argument(
         "--transport",
@@ -122,27 +125,22 @@ def main():
         type=str,
         choices=["stdio", "sse"],
         default="stdio",
-        help="Transport method (default: stdio)"
+        help="Transport method (default: stdio)",
     )
     parser.add_argument(
         "--host",
         type=str,
         default="localhost",
-        help="Host for SSE transport (default: localhost)"
+        help="Host for SSE transport (default: localhost)",
     )
     parser.add_argument(
         "--port",
         "-p",
         type=int,
         default=8000,
-        help="Port for SSE transport (default: 8000)"
+        help="Port for SSE transport (default: 8000)",
     )
-    parser.add_argument(
-        "--version",
-        "-v",
-        action="version",
-        version="%(prog)s 0.1.0"
-    )
+    parser.add_argument("--version", "-v", action="version", version="%(prog)s 0.1.0")
 
     args = parser.parse_args()
 
@@ -152,7 +150,7 @@ def main():
             config_path=args.config,
             transport=args.transport,
             host=args.host,
-            port=args.port
+            port=args.port,
         )
 
     except KeyboardInterrupt:

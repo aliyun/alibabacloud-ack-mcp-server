@@ -1,14 +1,14 @@
 """
 定义所有与阿里云相关的 MCP 工具。
 """
-from typing import Annotated, Any, Dict, List, Literal, Optional
 
-from fastmcp import FastMCP
-from fastmcp.exceptions import ToolError
-from pydantic import Field
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from app.context import app_context
 from app.services.aliyun_service import AliyunService
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from pydantic import Field
 
 
 def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
@@ -16,23 +16,25 @@ def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
 
     @mcp_server.tool("scale_cluster_nodepool")
     async def scale_cluster_nodepool(
-        cluster_id: Annotated[str, Field(
-            description="阿里云容器服务Kubernetes集群的唯一标识符",
-            pattern=r"^c[0-9a-f]+$",
-            min_length=10,
-            max_length=50
-        )],
-        nodepool_id: Annotated[str, Field(
-            description="节点池的唯一标识符",
-            pattern=r"^np[0-9a-f]+$",
-            min_length=10,
-            max_length=50
-        )],
-        count: Annotated[int, Field(
-            description="需要增加的节点数量",
-            ge=1,
-            le=500
-        )],
+        cluster_id: Annotated[
+            str,
+            Field(
+                description="阿里云容器服务Kubernetes集群的唯一标识符",
+                pattern=r"^c[0-9a-f]+$",
+                min_length=10,
+                max_length=50,
+            ),
+        ],
+        nodepool_id: Annotated[
+            str,
+            Field(
+                description="节点池的唯一标识符",
+                pattern=r"^np[0-9a-f]+$",
+                min_length=10,
+                max_length=50,
+            ),
+        ],
+        count: Annotated[int, Field(description="需要增加的节点数量", ge=1, le=500)],
     ) -> Dict[str, Any]:
         """
         对指定集群的节点池进行扩容操作。此操作为异步操作。
@@ -61,11 +63,14 @@ def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
 
     @mcp_server.tool("describe_task_info")
     async def describe_task_info(
-        task_id: Annotated[str, Field(
-            description="任务的唯一标识符，通常由其他操作（如扩容、缩容等）返回",
-            min_length=1,
-            max_length=100
-        )],
+        task_id: Annotated[
+            str,
+            Field(
+                description="任务的唯一标识符，通常由其他操作（如扩容、缩容等）返回",
+                min_length=1,
+                max_length=100,
+            ),
+        ],
     ) -> Dict[str, Any]:
         """
         查询阿里云异步任务的详细信息和执行状态。
@@ -84,40 +89,57 @@ def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
 
         try:
             return aliyun_svc.describe_task_info(
-                task_id=task_id,
-                credentials=credentials
+                task_id=task_id, credentials=credentials
             )
         except Exception as e:
             raise ToolError(f"Failed to describe task info: {e}") from e
 
     @mcp_server.tool("remove_nodepool_nodes")
     async def remove_nodepool_nodes(
-        cluster_id: Annotated[str, Field(
-            description="阿里云容器服务Kubernetes集群的唯一标识符",
-            pattern=r"^c[0-9a-f]+$",
-            min_length=10,
-            max_length=50
-        )],
-        nodepool_id: Annotated[str, Field(
-            description="节点池的唯一标识符",
-            pattern=r"^np[0-9a-f]+$",
-            min_length=10,
-            max_length=50
-        )],
-        instance_ids: Annotated[List[str], Field(
-            description="待移除的ECS实例ID列表，每个实例ID格式如 'i-1234567890abcdef'",
-            min_length=1,
-            max_length=100
-        )],
-        release_node: Annotated[bool, Field(
-            description="是否同时释放ECS实例资源。True表示释放实例，False表示保留实例"
-        )] = False,
-        drain_node: Annotated[bool, Field(
-            description="是否在移除前排空节点上的Pod。True表示优雅移除（推荐），False表示强制移除"
-        )] = True,
-        concurrency: Annotated[bool, Field(
-            description="是否并发执行移除操作。True表示并发执行（更快），False表示串行执行（更安全）"
-        )] = False,
+        cluster_id: Annotated[
+            str,
+            Field(
+                description="阿里云容器服务Kubernetes集群的唯一标识符",
+                pattern=r"^c[0-9a-f]+$",
+                min_length=10,
+                max_length=50,
+            ),
+        ],
+        nodepool_id: Annotated[
+            str,
+            Field(
+                description="节点池的唯一标识符",
+                pattern=r"^np[0-9a-f]+$",
+                min_length=10,
+                max_length=50,
+            ),
+        ],
+        instance_ids: Annotated[
+            List[str],
+            Field(
+                description="待移除的ECS实例ID列表，每个实例ID格式如 'i-1234567890abcdef'",
+                min_length=1,
+                max_length=100,
+            ),
+        ],
+        release_node: Annotated[
+            bool,
+            Field(
+                description="是否同时释放ECS实例资源。True表示释放实例，False表示保留实例"
+            ),
+        ] = False,
+        drain_node: Annotated[
+            bool,
+            Field(
+                description="是否在移除前排空节点上的Pod。True表示优雅移除（推荐），False表示强制移除"
+            ),
+        ] = True,
+        concurrency: Annotated[
+            bool,
+            Field(
+                description="是否并发执行移除操作。True表示并发执行（更快），False表示串行执行（更安全）"
+            ),
+        ] = False,
     ) -> Dict[str, Any]:
         """
         从指定节点池中移除特定的节点实例。此操作为异步操作。
@@ -149,16 +171,27 @@ def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
 
     @mcp_server.tool("create_cluster_diagnosis")
     async def create_cluster_diagnosis(
-        cluster_id: Annotated[str, Field(
-            description="需要创建诊断的集群ID",
-            pattern=r"^c[0-9a-f]+$",
-        )],
-        diagnosis_type: Annotated[Literal["cluster", "node", "pod", "network", "ingress", "memory", "service"], Field(
-            description="诊断类型",
-        )] = "cluster",
-        target: Annotated[Optional[Dict[str, Any]], Field(
-            description="诊断目标，其结构取决于 `diagnosis_type`。例如，对于 'node' 类型，应为 {'name': 'node-name'}。",
-        )] = None,
+        cluster_id: Annotated[
+            str,
+            Field(
+                description="需要创建诊断的集群ID",
+                pattern=r"^c[0-9a-f]+$",
+            ),
+        ],
+        diagnosis_type: Annotated[
+            Literal[
+                "cluster", "node", "pod", "network", "ingress", "memory", "service"
+            ],
+            Field(
+                description="诊断类型",
+            ),
+        ] = "cluster",
+        target: Annotated[
+            Optional[Dict[str, Any]],
+            Field(
+                description="诊断目标，其结构取决于 `diagnosis_type`。例如，对于 'node' 类型，应为 {'name': 'node-name'}。",
+            ),
+        ] = None,
     ) -> Dict[str, Any]:
         """
         为指定的集群创建诊断任务。
@@ -194,13 +227,19 @@ def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
 
     @mcp_server.tool("get_cluster_diagnosis_result")
     async def get_cluster_diagnosis_result(
-        cluster_id: Annotated[str, Field(
-            description="诊断所属的集群ID",
-            pattern=r"^c[0-9a-f]+$",
-        )],
-        diagnosis_id: Annotated[str, Field(
-            description="诊断任务的唯一标识符",
-        )],
+        cluster_id: Annotated[
+            str,
+            Field(
+                description="诊断所属的集群ID",
+                pattern=r"^c[0-9a-f]+$",
+            ),
+        ],
+        diagnosis_id: Annotated[
+            str,
+            Field(
+                description="诊断任务的唯一标识符",
+            ),
+        ],
     ) -> Dict[str, Any]:
         """
         获取指定集群诊断任务的结果。
@@ -222,5 +261,4 @@ def register_aliyun_tools(mcp_server: FastMCP, aliyun_svc: AliyunService):
                 credentials=credentials,
             )
         except Exception as e:
-            raise ToolError(
-                f"Failed to get cluster diagnosis result: {e}") from e
+            raise ToolError(f"Failed to get cluster diagnosis result: {e}") from e

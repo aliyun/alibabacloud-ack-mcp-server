@@ -1,14 +1,14 @@
 """
 阿里云服务的基础类，封装通用的客户端创建和认证逻辑。
 """
+
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional, Type
 
-from aliyunsdkcore.client import AcsClient
 from alibabacloud_credentials.client import Client as CredentialsClient
 from alibabacloud_credentials.models import Config as CredentialsConfig
 from alibabacloud_tea_openapi import models as openapi_models
-
+from aliyunsdkcore.client import AcsClient
 from app.config import get_logger, get_settings
 
 logger = get_logger()
@@ -35,8 +35,7 @@ class BaseService(ABC):
 
         # Ensure credentials are provided
         if not self.ak_id or not self.ak_secret:
-            raise ValueError(
-                "AccessKey ID and Secret are required to create a client.")
+            raise ValueError("AccessKey ID and Secret are required to create a client.")
 
         return AcsClient(self.ak_id, self.ak_secret, final_region)
 
@@ -53,8 +52,7 @@ class BaseAliyunService(ABC):
         """
         初始化基础阿里云服务。
         """
-        logger.info(
-            f"Initializing {self.__class__.__name__} with client caching.")
+        logger.info(f"Initializing {self.__class__.__name__} with client caching.")
         self._client_cache: Dict[tuple, Any] = {}
 
     @abstractmethod
@@ -101,7 +99,8 @@ class BaseAliyunService(ABC):
         # 如果存在 STS token，则不使用缓存，因为它会过期
         if sts_token:
             logger.info(
-                "STS token provided. Bypassing cache and creating a new client.")
+                "STS token provided. Bypassing cache and creating a new client."
+            )
             return self._build_new_client(creds)
 
         # 使用 AK ID 和区域作为缓存键
@@ -129,8 +128,7 @@ class BaseAliyunService(ABC):
         ak_id = credentials.get("ak_id", "").strip()
         ak_secret = credentials.get("ak_secret", "").strip()
         sts_token = credentials.get("sts_token", "").strip()
-        region = credentials.get(
-            "region", "").strip() or settings_dict.ALIYUN_REGION
+        region = credentials.get("region", "").strip() or settings_dict.ALIYUN_REGION
 
         logger.info(f"Building new Aliyun client for region: {region}")
 
@@ -141,14 +139,15 @@ class BaseAliyunService(ABC):
             if sts_token:
                 if not ak_id or not ak_secret:
                     raise ValueError(
-                        "STS token is provided, but access key ID or secret is missing")
+                        "STS token is provided, but access key ID or secret is missing"
+                    )
 
                 logger.info("Using STS token credentials")
                 credentials_config = CredentialsConfig(
-                    type='sts',
+                    type="sts",
                     access_key_id=ak_id,
                     access_key_secret=ak_secret,
-                    security_token=sts_token
+                    security_token=sts_token,
                 )
                 credential_client = CredentialsClient(credentials_config)
 
@@ -156,9 +155,7 @@ class BaseAliyunService(ABC):
                 # 2. 第二优先级：使用 AccessKey 凭证
                 logger.info("Using AccessKey credentials")
                 credentials_config = CredentialsConfig(
-                    type='access_key',
-                    access_key_id=ak_id,
-                    access_key_secret=ak_secret
+                    type="access_key", access_key_id=ak_id, access_key_secret=ak_secret
                 )
                 credential_client = CredentialsClient(credentials_config)
 
@@ -186,12 +183,9 @@ class BaseAliyunService(ABC):
             if client is None:
                 raise RuntimeError(f"Failed to create {client_class.__name__}")
 
-            logger.info(
-                f"Successfully built new Aliyun {client_class.__name__}")
+            logger.info(f"Successfully built new Aliyun {client_class.__name__}")
             return client
 
         except Exception as e:
-            logger.error(
-                f"Failed to build Aliyun client: {e}", exc_info=True)
-            raise RuntimeError(
-                f"Failed to build Aliyun client: {e}") from e
+            logger.error(f"Failed to build Aliyun client: {e}", exc_info=True)
+            raise RuntimeError(f"Failed to build Aliyun client: {e}") from e

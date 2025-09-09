@@ -1,10 +1,11 @@
 """alibabacloud ack-mcp-server Security Toolkit implementation."""
 
 from datetime import datetime, timedelta
-from typing import Optional
-from mcp.server.fastmcp import FastMCP, Context
-from typing import List, Dict, Any
+from typing import Any, Dict, List, Optional
+
+from mcp.server.fastmcp import Context, FastMCP
 from pydantic import Field
+
 from alibabacloud_cluster_aduit_log_mcp_server.provider.provider import Provider
 
 
@@ -44,7 +45,9 @@ class KubeAuditTool:
         if server:
             self._register_tools()
 
-    def _normalize_params(self, params: Dict[str, Any], ctx: Context = None) -> Dict[str, Any]:
+    def _normalize_params(
+        self, params: Dict[str, Any], ctx: Context = None
+    ) -> Dict[str, Any]:
         """Normalize parameters similar to the Go implementation."""
         # Set default cluster if not provided
         if not params.get("cluster_name"):
@@ -52,7 +55,7 @@ class KubeAuditTool:
             if ctx:
                 # Get from context using request_context.lifespan_context
                 lifespan_context = ctx.request_context.lifespan_context
-                
+
                 default_cluster = lifespan_context.get("default_cluster", "")
                 params["cluster_name"] = default_cluster
         if params["cluster_name"] == "":
@@ -97,28 +100,28 @@ class KubeAuditTool:
 
         # Try ISO 8601 format first
         try:
-            return datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+            return datetime.fromisoformat(time_str.replace("Z", "+00:00"))
         except ValueError:
             pass
 
         # Try relative time format
-        if time_str.endswith('w'):
+        if time_str.endswith("w"):
             weeks = int(time_str[:-1])
             return datetime.utcnow() - timedelta(weeks=weeks)
-        elif time_str.endswith('d'):
+        elif time_str.endswith("d"):
             days = int(time_str[:-1])
             return datetime.utcnow() - timedelta(days=days)
         else:
             # Parse other duration formats
             try:
                 # Handle common duration formats like "1h", "30m", etc.
-                if time_str.endswith('h'):
+                if time_str.endswith("h"):
                     hours = int(time_str[:-1])
                     return datetime.utcnow() - timedelta(hours=hours)
-                elif time_str.endswith('m'):
+                elif time_str.endswith("m"):
                     minutes = int(time_str[:-1])
                     return datetime.utcnow() - timedelta(minutes=minutes)
-                elif time_str.endswith('s'):
+                elif time_str.endswith("s"):
                     seconds = int(time_str[:-1])
                     return datetime.utcnow() - timedelta(seconds=seconds)
             except ValueError:
@@ -127,15 +130,17 @@ class KubeAuditTool:
         # Default to current time if parsing fails
         return datetime.utcnow()
 
-    def _get_provider_from_context(self, ctx: Context, cluster_name: str = "default") -> Optional[Provider]:
+    def _get_provider_from_context(
+        self, ctx: Context, cluster_name: str = "default"
+    ) -> Optional[Provider]:
         """Get provider instance from the request context.
-        
+
         This method retrieves the provider from the lifespan context in the request.
-        
+
         Args:
             ctx: FastMCP Context object
             cluster_name: Name of the cluster to get provider for
-            
+
         Returns:
             Provider instance or None if not found
         """
@@ -167,21 +172,21 @@ class KubeAuditTool:
 
     async def list_clusters(self, ctx: Context) -> Dict[str, Any]:
         """List all configured clusters in the MCP server.
-        
+
         Args:
             ctx: FastMCP Context object
-            
+
         Returns:
             Dictionary containing cluster information
         """
         try:
             # Get the lifespan context from the FastMCP context
             lifespan_context = ctx.request_context.lifespan_context
-            
+
             # Get configuration from the lifespan context
             providers = lifespan_context.get("providers", {})
             default_cluster = lifespan_context.get("default_cluster", "default")
-            
+
             # Build cluster information
             clusters = []
             for cluster_name, provider in providers.items():
@@ -190,33 +195,28 @@ class KubeAuditTool:
                     "description": f"Cluster {cluster_name}",
                     "alias": [],
                     "disabled": False,
-                    "provider": provider.__class__.__name__.replace("Provider", "").lower()
+                    "provider": provider.__class__.__name__.replace(
+                        "Provider", ""
+                    ).lower(),
                 }
                 clusters.append(cluster_info)
-            
-            return {
-                "default_cluster": default_cluster,
-                "clusters": clusters
-            }
+
+            return {"default_cluster": default_cluster, "clusters": clusters}
         except Exception as e:
-            return {
-                "default_cluster": "default",
-                "clusters": [],
-                "error": str(e)
-            }
+            return {"default_cluster": "default", "clusters": [], "error": str(e)}
 
     def query_audit_log_sync(
-            self,
-            ctx: Context,
-            namespace: Optional[str] = None,
-            verbs: Optional[List[str]] = None,
-            resource_types: Optional[List[str]] = None,
-            resource_name: Optional[str] = None,
-            user: Optional[str] = None,
-            start_time: str = "24h",
-            end_time: Optional[str] = None,
-            limit: int = 10,
-            cluster_name: Optional[str] = None
+        self,
+        ctx: Context,
+        namespace: Optional[str] = None,
+        verbs: Optional[List[str]] = None,
+        resource_types: Optional[List[str]] = None,
+        resource_name: Optional[str] = None,
+        user: Optional[str] = None,
+        start_time: str = "24h",
+        end_time: Optional[str] = None,
+        limit: int = 10,
+        cluster_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Query Kubernetes audit logs (synchronous version)."""
         # Collect parameters into a dict
@@ -229,44 +229,41 @@ class KubeAuditTool:
             "start_time": start_time,
             "end_time": end_time,
             "limit": limit,
-            "cluster_name": cluster_name
+            "cluster_name": cluster_name,
         }
-        
+
         # Normalize parameters
         normalized_params = self._normalize_params(params, ctx)
-        
+
         try:
             # Try to get the provider from the context first
             provider = self._get_provider_from_context(ctx, cluster_name)
-            
+
             # If no provider in context, create a default one for demonstration
             if not provider:
                 raise ValueError("no provider found")
-            
+
             # Query the audit logs using the provider (sync version)
             result = provider.query_audit_log(normalized_params)
-            
+
             # 直接返回provider的结果，参考AuditLogResult格式
             return result
         except Exception as e:
             # Return error message in the expected format
-            return {
-                "error": str(e),
-                "params": normalized_params
-            }
+            return {"error": str(e), "params": normalized_params}
 
     async def query_audit_log(
-            self,
-            ctx: Context,
-            namespace: Optional[str] = None,
-            verbs: Optional[List[str]] = None,
-            resource_types: Optional[List[str]] = None,
-            resource_name: Optional[str] = None,
-            user: Optional[str] = None,
-            start_time: str = "24h",
-            end_time: Optional[str] = None,
-            limit: int = 10,
-            cluster_name: Optional[str] = None
+        self,
+        ctx: Context,
+        namespace: Optional[str] = None,
+        verbs: Optional[List[str]] = None,
+        resource_types: Optional[List[str]] = None,
+        resource_name: Optional[str] = None,
+        user: Optional[str] = None,
+        start_time: str = "24h",
+        end_time: Optional[str] = None,
+        limit: int = 10,
+        cluster_name: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Query Kubernetes audit logs (async version for MCP tools)."""
         # 直接调用同步版本
@@ -280,7 +277,7 @@ class KubeAuditTool:
             start_time=start_time,
             end_time=end_time,
             limit=limit,
-            cluster_name=cluster_name
+            cluster_name=cluster_name,
         )
 
     def _register_tools(self):
@@ -303,20 +300,20 @@ class KubeAuditTool:
       or ask the user to provide the corresponding one.
     - You can use the list_clusters() tool to view available clusters and their names.
     - By default, it queries the audit logs for the last 24 hours. The number of returned records is limited to 10 by default.
-    """
+    """,
         )
         async def query_audit_log_tool(
-                ctx: Context,
-                namespace: Optional[str] = Field(
-                    None,
-                    description="""(Optional) Match by namespace. 
+            ctx: Context,
+            namespace: Optional[str] = Field(
+                None,
+                description="""(Optional) Match by namespace. 
     Supports exact matching and suffix wildcards:
     - Exact match: "default", "kube-system", "kube-public"
-    - Suffix wildcard: "kube*", "app-*" (matches namespaces that start with the specified prefix)"""
-                ),
-                verbs: Optional[List[str]] = Field(
-                    None,
-                    description="""(Optional) Filter by action verbs, multiple values are allowed.
+    - Suffix wildcard: "kube*", "app-*" (matches namespaces that start with the specified prefix)""",
+            ),
+            verbs: Optional[List[str]] = Field(
+                None,
+                description="""(Optional) Filter by action verbs, multiple values are allowed.
 
     Common values:
     - "get": Get a resource
@@ -325,59 +322,60 @@ class KubeAuditTool:
     - "update": Update a resource
     - "delete": Delete a resource
     - "patch": Partially update a resource
-    - "watch": Watch for changes to a resource"""
-                ),
-                resource_types: Optional[List[str]] = Field(
-                    None,
-                    description="""(Optional) K8s resource type, multiple values are allowed.
+    - "watch": Watch for changes to a resource""",
+            ),
+            resource_types: Optional[List[str]] = Field(
+                None,
+                description="""(Optional) K8s resource type, multiple values are allowed.
 
     Supports full names and short names. Common values:
     - Core: pods(pod), services(svc), configmaps(cm), secrets, nodes, namespaces(ns)
     - App: deployments(deploy), replicasets(rs), daemonsets(ds), statefulsets(sts)
     - Storage: persistentvolumes(pv), persistentvolumeclaims(pvc)
     - Network: ingresses(ing), networkpolicies
-    - RBAC: roles, rolebindings, clusterroles, clusterrolebindings"""
-                ),
-                resource_name: Optional[str] = Field(
-                    None,
-                    description="""(Optional) Match by resource name. 
+    - RBAC: roles, rolebindings, clusterroles, clusterrolebindings""",
+            ),
+            resource_name: Optional[str] = Field(
+                None,
+                description="""(Optional) Match by resource name. 
     Supports exact matching and suffix wildcards:
     - Exact match: "nginx-deployment", "my-service"
     - Suffix wildcard: "nginx-*", "app-*" (matches resource names that start with the specified prefix)
-    """
-                ),
-                user: Optional[str] = Field(
-                    None,
-                    description="""(Optional) Match by user name. 
+    """,
+            ),
+            user: Optional[str] = Field(
+                None,
+                description="""(Optional) Match by user name. 
     Supports exact matching and suffix wildcards:
     - Exact match: "system:admin", "kubernetes-admin"
-    - Suffix wildcard: "system:*", "kube*" """
-                ),
-                start_time: str = Field(
-                    "24h",
-                    description="""(Optional) Query start time. 
+    - Suffix wildcard: "system:*", "kube*" """,
+            ),
+            start_time: str = Field(
+                "24h",
+                description="""(Optional) Query start time. 
     Formats:
     - ISO 8601: "2024-01-01T10:00:00"
     - Relative: "30m", "1h", "24h", "7d"
-    Defaults to 24h."""
-                ),
-                end_time: Optional[str] = Field(
-                    None,
-                    description="""(Optional) Query end time.
+    Defaults to 24h.""",
+            ),
+            end_time: Optional[str] = Field(
+                None,
+                description="""(Optional) Query end time.
     Formats:
     - ISO 8601: "2024-01-01T10:00:00"
     - Relative: "30m", "1h", "24h", "7d"
-    Defaults to current time."""
-                ),
-                limit: int = Field(
-                    10,
-                    ge=1, le=100,
-                    description="(Optional) Result limit, defaults to 10. Maximum is 100."
-                ),
-                cluster_name: Optional[str] = Field(
-                    None,
-                    description="(Optional) The name of the cluster to query audit logs from."
-                )
+    Defaults to current time.""",
+            ),
+            limit: int = Field(
+                10,
+                ge=1,
+                le=100,
+                description="(Optional) Result limit, defaults to 10. Maximum is 100.",
+            ),
+            cluster_name: Optional[str] = Field(
+                None,
+                description="(Optional) The name of the cluster to query audit logs from.",
+            ),
         ) -> Dict[str, Any]:
             """Query Kubernetes audit logs."""
             return await self.query_audit_log(
@@ -390,18 +388,17 @@ class KubeAuditTool:
                 start_time=start_time,
                 end_time=end_time,
                 limit=limit,
-                cluster_name=cluster_name
+                cluster_name=cluster_name,
             )
 
         @self.server.tool(
             name="list_clusters",
-            description="List all configured clusters in the MCP server."
+            description="List all configured clusters in the MCP server.",
         )
         async def list_clusters_tool(ctx: Context) -> Dict[str, Any]:
             """List all configured clusters in the MCP server.
-            
+
             Returns information about all available clusters including their names,
             descriptions, providers, and status.
             """
             return await self.list_clusters(ctx=ctx)
-

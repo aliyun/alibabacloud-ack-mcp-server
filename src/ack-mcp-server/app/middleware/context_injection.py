@@ -1,11 +1,11 @@
 """
 Middleware for injecting observability context into the application context.
 """
+
 from typing import Any
 
-from fastmcp.server.middleware import Middleware, MiddlewareContext
-
 from app.config import get_logger
+from fastmcp.server.middleware import Middleware, MiddlewareContext
 
 logger = get_logger()
 

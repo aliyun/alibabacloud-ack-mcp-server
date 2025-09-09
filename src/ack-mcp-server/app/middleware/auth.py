@@ -1,13 +1,13 @@
 """
 核心认证与上下文注入中间件。
 """
-from typing import Any, Dict
 
-from fastmcp.server.middleware import Middleware, MiddlewareContext
-from mcp import McpError, ErrorData
+from typing import Any, Dict
 
 from app.config import get_logger, get_settings
 from app.context import app_context
+from fastmcp.server.middleware import Middleware, MiddlewareContext
+from mcp import ErrorData, McpError
 
 logger = get_logger()
 settings_dict = get_settings()
@@ -33,8 +33,7 @@ class AuthAndContextMiddleware(Middleware):
         # 1. 从 ContextVar 中安全地读取 Request 对象
         context_obj = app_context.get()
         if not context_obj or not context_obj.request:
-            logger.error(
-                "Auth middleware: Cannot access HTTP request context.")
+            logger.error("Auth middleware: Cannot access HTTP request context.")
             raise McpError(
                 ErrorData(
                     code=-32001,
@@ -53,8 +52,9 @@ class AuthAndContextMiddleware(Middleware):
         # 4. 将凭证直接注入到当前请求的 scope 中，以便下游工具可以访问
         if aliyun_creds:
             logger.info(
-                "Auth middleware: Injecting Aliyun credentials into request scope.")
-            request.scope['credentials'] = aliyun_creds
+                "Auth middleware: Injecting Aliyun credentials into request scope."
+            )
+            request.scope["credentials"] = aliyun_creds
 
         # 5. 继续执行中间件链
         return await call_next(context)
@@ -65,8 +65,7 @@ class AuthAndContextMiddleware(Middleware):
         """
         required_token = settings_dict.MCP_AUTH_TOKEN
         if not required_token:
-            logger.info(
-                "Auth middleware: Bearer token authentication is disabled.")
+            logger.info("Auth middleware: Bearer token authentication is disabled.")
             return  # 如果未配置 Token，则跳过认证
 
         if not auth_header:
@@ -77,8 +76,7 @@ class AuthAndContextMiddleware(Middleware):
 
         parts = auth_header.split()
         if len(parts) != 2 or parts[0].lower() != "bearer":
-            logger.warning(
-                "Auth middleware: Invalid Authorization header format.")
+            logger.warning("Auth middleware: Invalid Authorization header format.")
             raise McpError(
                 ErrorData(
                     code=401,
@@ -89,8 +87,7 @@ class AuthAndContextMiddleware(Middleware):
         token = parts[1]
         if token != required_token:
             logger.warning("Auth middleware: Invalid authorization token.")
-            raise McpError(
-                ErrorData(code=401, message="Invalid authorization token."))
+            raise McpError(ErrorData(code=401, message="Invalid authorization token."))
 
         logger.info("Auth middleware: Bearer token validated successfully.")
 

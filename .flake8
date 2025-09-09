@@ -1,0 +1,33 @@
+[flake8]
+# Set the maximum line length
+max-line-length = 88
+
+# Set the maximum complexity
+max-complexity = 10
+
+# Ignore some common flake8 errors
+# E203: Whitespace before ':'
+# E266: Too many leading '#' for block comment
+# E501: Line too long (using black's line length instead)
+# W503: Line break occurred before binary operator (conflicts with black)
+# W504: Line break occurred after binary operator (conflicts with black)
+ignore = E203,E266,E501,W503,W504
+
+# Exclude directories
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    build,
+    dist,
+    *.egg-info
+
+# Set the number of parallel jobs
+jobs = auto
+
+# Show the source code with the error
+show-source = True
+
+# Show the pep8 standard for each error
+show-pep8 = False

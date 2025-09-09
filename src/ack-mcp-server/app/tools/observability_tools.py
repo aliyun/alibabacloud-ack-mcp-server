@@ -1,18 +1,18 @@
 """
 定义所有与阿里云可观测性相关的 MCP 工具。
 """
+
 import time
 from typing import Annotated, Any, Dict, List, Optional
-
-from fastmcp import FastMCP
-from fastmcp.exceptions import ToolError
-from pydantic import Field
 
 from app.config import get_logger
 from app.context import app_context
 from app.models import ErrorContext
 from app.services.context_service import ContextService
 from app.services.observability_service import ObservabilityService
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from pydantic import Field
 
 logger = get_logger()
 
@@ -38,10 +38,12 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
         if isinstance(obs_context, ErrorContext):
             raise ToolError(
-                f"Failed to get observability context: {obs_context.message}")
+                f"Failed to get observability context: {obs_context.message}"
+            )
 
         logger.info(
-            f"Using observability context for project: {obs_context.arms_project}, metric_store: {obs_context.arms_metric_store}")
+            f"Using observability context for project: {obs_context.arms_project}, metric_store: {obs_context.arms_metric_store}"
+        )
 
         final_creds = credentials.copy()
         final_creds["region"] = obs_context.region_id
@@ -57,10 +59,14 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
     async def cms_execute_promql_query(
         cluster_id: Annotated[str, Field(description="目标集群的ID。")],
         query: Annotated[str, Field(description="要执行的 PromQL 查询语句。")],
-        from_timestamp: Annotated[Optional[int], Field(
-            description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。")] = None,
-        to_timestamp: Annotated[Optional[int], Field(
-            description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。")] = None,
+        from_timestamp: Annotated[
+            Optional[int],
+            Field(description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。"),
+        ] = None,
+        to_timestamp: Annotated[
+            Optional[int],
+            Field(description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。"),
+        ] = None,
     ) -> List[Dict[str, Any]]:
         """
         在指定集群的 ARMS 指标库中执行 PromQL 查询并返回结果。
@@ -81,10 +87,12 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
         if isinstance(obs_context, ErrorContext):
             raise ToolError(
-                f"Failed to get observability context: {obs_context.message}")
+                f"Failed to get observability context: {obs_context.message}"
+            )
 
         logger.info(
-            f"Executing PromQL query with context for project: {obs_context.arms_project}, metric_store: {obs_context.arms_metric_store}")
+            f"Executing PromQL query with context for project: {obs_context.arms_project}, metric_store: {obs_context.arms_metric_store}"
+        )
 
         final_creds = credentials.copy()
         final_creds["region"] = obs_context.region_id
@@ -109,10 +117,15 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
     @mcp_server.tool("sls_translate_text_to_sql_query")
     async def sls_translate_text_to_sql_query(
         cluster_id: Annotated[str, Field(description="目标集群的ID。")],
-        text: Annotated[str, Field(description="用于生成 SLS SQL 查询的自然语言文本。")],
-        logstore: Annotated[Optional[str], Field(
-            description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。除非您需要查询特定的非默认日志库，否则建议不填写此项。"
-        )] = None,
+        text: Annotated[
+            str, Field(description="用于生成 SLS SQL 查询的自然语言文本。")
+        ],
+        logstore: Annotated[
+            Optional[str],
+            Field(
+                description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。除非您需要查询特定的非默认日志库，否则建议不填写此项。"
+            ),
+        ] = None,
     ) -> str:
         """
         将自然语言文本转换为指定集群日志库的 SLS Log-SQL 查询语句。
@@ -133,11 +146,13 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
         if isinstance(obs_context, ErrorContext):
             raise ToolError(
-                f"Failed to get observability context: {obs_context.message}")
+                f"Failed to get observability context: {obs_context.message}"
+            )
 
         final_logstore = logstore or obs_context.sls_log_store
         logger.info(
-            f"Using observability context for project: {obs_context.sls_project}, logstore: {final_logstore}")
+            f"Using observability context for project: {obs_context.sls_project}, logstore: {final_logstore}"
+        )
 
         final_creds = credentials.copy()
         final_creds["region"] = obs_context.region_id
@@ -150,23 +165,31 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
                 credentials=final_creds,
             )
         except Exception as e:
-            logger.error(
-                f"Failed to translate text to SQL: {e}", exc_info=True)
+            logger.error(f"Failed to translate text to SQL: {e}", exc_info=True)
             raise ToolError(f"Failed to translate text to SQL: {e}") from e
 
     @mcp_server.tool("sls_execute_sql_query")
     async def sls_execute_sql_query(
         cluster_id: Annotated[str, Field(description="目标集群的ID。")],
         query: Annotated[str, Field(description="要执行的 Log-SQL 查询语句。")],
-        logstore: Annotated[Optional[str], Field(
-            description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。除非您需要查询特定的非默认日志库，否则建议不填写此项。"
-        )] = None,
-        limit: Annotated[int, Field(
-            description="返回结果的最大数量，范围1-100，默认100。", ge=1, le=100)] = 100,
-        from_timestamp: Annotated[Optional[int], Field(
-            description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。")] = None,
-        to_timestamp: Annotated[Optional[int], Field(
-            description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。")] = None,
+        logstore: Annotated[
+            Optional[str],
+            Field(
+                description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。除非您需要查询特定的非默认日志库，否则建议不填写此项。"
+            ),
+        ] = None,
+        limit: Annotated[
+            int,
+            Field(description="返回结果的最大数量，范围1-100，默认100。", ge=1, le=100),
+        ] = 100,
+        from_timestamp: Annotated[
+            Optional[int],
+            Field(description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。"),
+        ] = None,
+        to_timestamp: Annotated[
+            Optional[int],
+            Field(description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。"),
+        ] = None,
     ) -> List[Dict[str, Any]]:
         """
         在指定集群的 SLS 日志库中执行 Log-SQL 查询并返回结果。
@@ -187,11 +210,13 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
         if isinstance(obs_context, ErrorContext):
             raise ToolError(
-                f"Failed to get observability context: {obs_context.message}")
+                f"Failed to get observability context: {obs_context.message}"
+            )
 
         final_logstore = logstore or obs_context.sls_log_store
         logger.info(
-            f"Executing SQL query with context for project: {obs_context.sls_project}, logstore: {final_logstore}")
+            f"Executing SQL query with context for project: {obs_context.sls_project}, logstore: {final_logstore}"
+        )
 
         final_creds = credentials.copy()
         final_creds["region"] = obs_context.region_id
@@ -233,10 +258,12 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
         if isinstance(obs_context, ErrorContext):
             raise ToolError(
-                f"Failed to get observability context: {obs_context.message}")
+                f"Failed to get observability context: {obs_context.message}"
+            )
 
         logger.info(
-            f"Diagnosing query with context for project: {obs_context.sls_project}, logstore: {obs_context.sls_log_store}")
+            f"Diagnosing query with context for project: {obs_context.sls_project}, logstore: {obs_context.sls_log_store}"
+        )
 
         final_creds = credentials.copy()
         final_creds["region"] = obs_context.region_id

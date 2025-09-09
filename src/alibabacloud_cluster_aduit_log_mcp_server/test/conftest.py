@@ -1,10 +1,11 @@
 """Pytest configuration and shared fixtures."""
 
-import pytest
 import asyncio
 import tempfile
-import yaml
 from unittest.mock import Mock
+
+import pytest
+import yaml
 
 
 @pytest.fixture
@@ -30,11 +31,11 @@ def mock_config():
                         "endpoint": "test.log.aliyuncs.com",
                         "project": "test-project",
                         "logstore": "test-logstore",
-                        "region": "test-region"
-                    }
-                }
+                        "region": "test-region",
+                    },
+                },
             }
-        ]
+        ],
     }
 
 
@@ -47,10 +48,8 @@ def mock_alibaba_config():
         "logstore": "test-logstore",
         "region": "cn-hangzhou",
         "access_key_id": "test-access-key",
-        "access_key_secret": "test-secret-key"
+        "access_key_secret": "test-secret-key",
     }
-
-
 
 
 @pytest.fixture
@@ -65,7 +64,7 @@ def mock_query_params():
         "start_time": "1h",
         "end_time": None,
         "limit": 10,
-        "cluster_name": "test-cluster"
+        "cluster_name": "test-cluster",
     }
 
 
@@ -74,18 +73,10 @@ def mock_audit_log_entry():
     """Mock audit log entry."""
     return {
         "timestamp": "2024-01-01T10:00:00Z",
-        "user": {
-            "username": "test-user"
-        },
+        "user": {"username": "test-user"},
         "verb": "get",
-        "objectRef": {
-            "namespace": "default",
-            "resource": "pods",
-            "name": "test-pod"
-        },
-        "responseStatus": {
-            "code": 200
-        }
+        "objectRef": {"namespace": "default", "resource": "pods", "name": "test-pod"},
+        "responseStatus": {"code": 200},
     }
 
 
@@ -97,28 +88,24 @@ def mock_audit_log_result():
         "entries": [
             {
                 "timestamp": "2024-01-01T10:00:00Z",
-                "user": {
-                    "username": "test-user"
-                },
+                "user": {"username": "test-user"},
                 "verb": "get",
                 "objectRef": {
                     "namespace": "default",
                     "resource": "pods",
-                    "name": "test-pod"
+                    "name": "test-pod",
                 },
-                "responseStatus": {
-                    "code": 200
-                }
+                "responseStatus": {"code": 200},
             }
         ],
-        "total": 1
+        "total": 1,
     }
 
 
 @pytest.fixture
 def temp_config_file(mock_config):
     """Create a temporary configuration file."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
         yaml.dump(mock_config, f)
         yield f.name
 
@@ -131,17 +118,13 @@ def mock_sls_client():
     return client
 
 
-
-
 @pytest.fixture
 def mock_context():
     """Mock FastMCP Context."""
     context = Mock()
     context.lifespan_context = {
-        "providers": {
-            "test-cluster": Mock()
-        },
+        "providers": {"test-cluster": Mock()},
         "default_cluster": "test-cluster",
-        "config": {}
+        "config": {},
     }
     return context

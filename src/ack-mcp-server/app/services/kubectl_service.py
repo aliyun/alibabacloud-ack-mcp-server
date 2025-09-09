@@ -1,6 +1,7 @@
 """
 封装执行 kubectl 命令的逻辑。
 """
+
 import asyncio
 import shlex
 from typing import Any
@@ -66,5 +67,6 @@ class KubectlService:
 
         stdout_str = stdout.decode("utf-8").strip()
         logger.info(
-            f"Kubectl command executed successfully. Stdout length: {len(stdout_str)}")
+            f"Kubectl command executed successfully. Stdout length: {len(stdout_str)}"
+        )
         return stdout_str
