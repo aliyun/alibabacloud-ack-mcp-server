@@ -9,7 +9,7 @@ from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):
+class Configs(BaseSettings):
     """
     应用配置模型，从环境变量或 .env 文件加载。
     """
@@ -25,13 +25,16 @@ class Settings(BaseSettings):
     # 用于客户端认证的 Bearer Token (可选)
     MCP_AUTH_TOKEN: Optional[str] = None
 
+    def __init__(self, args_dict: dict, values=None):
+        super().__init__(**values)
+
 
 @lru_cache
-def get_settings() -> Settings:
+def get_settings() -> Configs:
     """
     返回一个缓存的 Settings 实例。
     """
-    return Settings()
+    return Configs()
 
 
 @lru_cache

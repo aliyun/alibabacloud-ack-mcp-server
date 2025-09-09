@@ -10,7 +10,7 @@ from app.config import get_logger, get_settings
 from app.context import app_context
 
 logger = get_logger()
-settings = get_settings()
+settings_dict = get_settings()
 
 ALIYUN_CREDENTIALS_KEY = "aliyun_credentials"
 """MCP上下文中存储阿里云凭证的键。"""
@@ -63,7 +63,7 @@ class AuthAndContextMiddleware(Middleware):
         """
         校验 Bearer Token。
         """
-        required_token = settings.MCP_AUTH_TOKEN
+        required_token = settings_dict.MCP_AUTH_TOKEN
         if not required_token:
             logger.info(
                 "Auth middleware: Bearer token authentication is disabled.")

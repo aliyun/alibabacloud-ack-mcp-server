@@ -15,7 +15,7 @@ from app.services.observability_service import ObservabilityService
 from app.tools.registry import register_all_tools
 
 # 1. 初始化配置和日志
-settings = get_settings()
+settings_dict = get_settings()
 logger = get_logger()
 
 # 2. 在应用启动时创建服务实例
@@ -84,11 +84,11 @@ def health_check():
 
 
 if __name__ == "__main__":
-    logger.info(f"Starting server on port {settings.HTTP_PORT}...")
+    logger.info(f"Starting server on port {settings_dict.HTTP_PORT}...")
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=settings.HTTP_PORT,
+        port=settings_dict.HTTP_PORT,
         reload=True,
         log_level="info",
     )

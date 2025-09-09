@@ -12,7 +12,7 @@ from app.config import get_logger, get_settings
 from app.services.base import BaseAliyunService
 
 logger = get_logger()
-settings = get_settings()
+settings_dict = get_settings()
 
 
 class CMSSPLContainer:
@@ -81,7 +81,7 @@ class ObservabilityService(BaseAliyunService):
         将自然语言文本转换为 PromQL 查询语句。
         """
         creds = credentials or {}
-        target_region = creds.get("region", settings.ALIYUN_REGION)
+        target_region = creds.get("region", settings_dict.ALIYUN_REGION)
         logger.info(
             f"Translating text to PromQL for project='{project}' in region '{target_region}'"
         )
@@ -186,7 +186,7 @@ class ObservabilityService(BaseAliyunService):
         将自然语言文本转换为 SLS SQL 查询语句。
         """
         creds = credentials or {}
-        target_region = creds.get("region", settings.ALIYUN_REGION)
+        target_region = creds.get("region", settings_dict.ALIYUN_REGION)
         logger.info(
             f"Translating text to SQL for project='{project}' in region '{target_region}'"
         )
@@ -275,7 +275,7 @@ class ObservabilityService(BaseAliyunService):
         诊断 SLS 查询语句。
         """
         creds = credentials or {}
-        target_region = creds.get("region", settings.ALIYUN_REGION)
+        target_region = creds.get("region", settings_dict.ALIYUN_REGION)
         logger.info(
             f"Diagnosing query for project='{project}' in region '{target_region}'"
         )

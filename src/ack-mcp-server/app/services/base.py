@@ -12,7 +12,7 @@ from alibabacloud_tea_openapi import models as openapi_models
 from app.config import get_logger, get_settings
 
 logger = get_logger()
-settings = get_settings()
+settings_dict = get_settings()
 
 
 class BaseService(ABC):
@@ -96,7 +96,7 @@ class BaseAliyunService(ABC):
         ak_id = creds.get("ak_id", "").strip()
         ak_secret = creds.get("ak_secret", "").strip()
         sts_token = creds.get("sts_token", "").strip()
-        region = creds.get("region", "").strip() or settings.ALIYUN_REGION
+        region = creds.get("region", "").strip() or settings_dict.ALIYUN_REGION
 
         # 如果存在 STS token，则不使用缓存，因为它会过期
         if sts_token:
@@ -130,7 +130,7 @@ class BaseAliyunService(ABC):
         ak_secret = credentials.get("ak_secret", "").strip()
         sts_token = credentials.get("sts_token", "").strip()
         region = credentials.get(
-            "region", "").strip() or settings.ALIYUN_REGION
+            "region", "").strip() or settings_dict.ALIYUN_REGION
 
         logger.info(f"Building new Aliyun client for region: {region}")
 
