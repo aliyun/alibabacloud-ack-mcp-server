@@ -15,7 +15,7 @@ import traceback
 from pathlib import Path
 
 # Add src directory to Python path
-src_path = Path(__file__).parent / "src"
+src_path = Path(__file__).parent.parent
 sys.path.insert(0, str(src_path))
 
 def test_sub_server_imports():
