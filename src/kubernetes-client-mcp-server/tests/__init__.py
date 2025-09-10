@@ -1,0 +1,1 @@
+"""Tests for Kubernetes Client MCP Server."""
