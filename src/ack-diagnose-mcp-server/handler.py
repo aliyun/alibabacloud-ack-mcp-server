@@ -103,7 +103,7 @@ class ACKDiagnoseHandler:
         async def get_cluster_diagnosis_result(
             cluster_id: str,
             diagnosis_id: str,
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis result.
             
@@ -164,7 +164,7 @@ class ACKDiagnoseHandler:
             cluster_id: str,
             diagnosis_type: Optional[str] = "all",
             lang: Optional[str] = "zh",
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis check items.
             
@@ -286,7 +286,7 @@ class ACKDiagnoseHandler:
         async def get_cluster_inspect_report_detail(
             cluster_id: str,
             report_id: str,
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection report detail.
             
@@ -345,7 +345,7 @@ class ACKDiagnoseHandler:
         async def run_cluster_inspect(
             cluster_id: str,
             inspect_type: Optional[str] = "all",
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Run cluster inspection.
             
@@ -408,7 +408,7 @@ class ACKDiagnoseHandler:
         async def create_cluster_inspect_config(
             cluster_id: str,
             inspect_config: Dict[str, Any],
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Create cluster inspection configuration.
             
@@ -469,7 +469,7 @@ class ACKDiagnoseHandler:
             cluster_id: str,
             config_id: str,
             inspect_config: Dict[str, Any],
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Update cluster inspection configuration.
             
@@ -531,7 +531,7 @@ class ACKDiagnoseHandler:
         async def get_cluster_inspect_config(
             cluster_id: str,
             config_id: str,
-            ctx = None
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection configuration.
             

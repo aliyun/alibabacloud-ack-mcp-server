@@ -1,8 +1,10 @@
 """Observability Aliyun CloudMonitor Resource Monitor Handler."""
 
 from typing import Dict, Any, Optional, List
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from loguru import logger
+from alibabacloud_cms20190101 import models as cms20190101_models
+from alibabacloud_tea_util import models as util_models
 
 
 class ObservabilityAliyunCloudMonitorResourceMonitorHandler:
@@ -38,7 +40,8 @@ class ObservabilityAliyunCloudMonitorResourceMonitorHandler:
             metric_name: str,
             start_time: Optional[str] = None,
             end_time: Optional[str] = None,
-            period: Optional[str] = None
+            period: Optional[str] = None,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get resource metrics from CloudMonitor.
             
@@ -70,7 +73,8 @@ class ObservabilityAliyunCloudMonitorResourceMonitorHandler:
             description="List available metrics for a resource type"
         )
         async def list_available_metrics(
-            resource_type: str
+            resource_type: str,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """List available metrics for resource type.
             
@@ -102,7 +106,8 @@ class ObservabilityAliyunCloudMonitorResourceMonitorHandler:
             resource_type: str,
             metric_name: str,
             condition: Dict[str, Any],
-            notification_config: Optional[Dict[str, Any]] = None
+            notification_config: Optional[Dict[str, Any]] = None,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Create alert rule in CloudMonitor.
             
@@ -137,7 +142,8 @@ class ObservabilityAliyunCloudMonitorResourceMonitorHandler:
         )
         async def get_resource_health_status(
             resource_type: Optional[str] = None,
-            resource_ids: Optional[List[str]] = None
+            resource_ids: Optional[List[str]] = None,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get resource health status.
             

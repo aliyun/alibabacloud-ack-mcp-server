@@ -1,8 +1,11 @@
 """Observability SLS Cluster APIServer Log Analysis Handler."""
 
 from typing import Dict, Any, Optional, List
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from loguru import logger
+from aliyun.log import LogException
+import json
+import time
 
 
 class ObservabilitySLSClusterAPIServerLogAnalysisHandler:
@@ -37,7 +40,8 @@ class ObservabilitySLSClusterAPIServerLogAnalysisHandler:
             start_time: Optional[str] = None,
             end_time: Optional[str] = None,
             project: Optional[str] = None,
-            logstore: Optional[str] = None
+            logstore: Optional[str] = None,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Execute SQL query in SLS.
             
@@ -69,7 +73,8 @@ class ObservabilitySLSClusterAPIServerLogAnalysisHandler:
         )
         async def sls_translate_text_to_sql_query(
             text: str,
-            context: Optional[str] = None
+            context: Optional[str] = None,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Translate natural language to SLS SQL query.
             
@@ -94,7 +99,8 @@ class ObservabilitySLSClusterAPIServerLogAnalysisHandler:
             description="Diagnose and optimize SLS query for APIServer logs"
         )
         async def sls_diagnose_query(
-            query: str
+            query: str,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Diagnose SLS query performance and optimization.
             
@@ -125,7 +131,8 @@ class ObservabilitySLSClusterAPIServerLogAnalysisHandler:
         )
         async def analyze_apiserver_errors(
             time_range: str = "1h",
-            error_threshold: int = 10
+            error_threshold: int = 10,
+            ctx: Context = None
         ) -> Dict[str, Any]:
             """Analyze APIServer error patterns.
             
