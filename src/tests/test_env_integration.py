@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""测试 .env 配置读取功能."""
+
+import os
+import sys
+from dotenv import load_dotenv
+from loguru import logger
+
+# 添加src目录到Python路径
+src_path = os.path.join(os.path.dirname(__file__), '..')
+sys.path.insert(0, src_path)
+
+def test_env_loading():
+    """测试 .env 文件加载."""
+    logger.info("🧪 测试 .env 配置读取功能")
+    logger.info("=" * 50)
+    
+    # 加载 .env 文件
+    load_dotenv()
+    
+    # 检查关键配置
+    configs_to_check = [
+        ("ACCESS_KEY_ID", "阿里云Access Key ID"),
+        ("ACCESS_KEY_SECRET", "阿里云Access Key Secret"),
+        ("REGION_ID", "地域ID"),
+        ("DEFAULT_CLUSTER_ID", "默认集群ID"),
+        ("CACHE_TTL", "缓存TTL"),
+        ("CACHE_MAX_SIZE", "缓存最大大小"),
+        ("FASTMCP_LOG_LEVEL", "日志级别"),
+        ("DEVELOPMENT", "开发模式"),
+    ]
+    
+    logger.info("📋 从 .env 文件读取的配置:")
+    for env_var, description in configs_to_check:
+        value = os.getenv(env_var)
+        if value:
+            # 隐藏敏感信息
+            if "SECRET" in env_var or "KEY" in env_var:
+                display_value = value[:8] + "***" if len(value) > 8 else "***"
+            else:
+                display_value = value
+            logger.info(f"  ✅ {description} ({env_var}): {display_value}")
+        else:
+            logger.warning(f"  ⚠️  {description} ({env_var}): 未配置")
+    
+    return True
+
+def test_runtime_provider():
+    """测试运行时提供器的配置读取."""
+    logger.info("\n🔧 测试运行时提供器配置读取")
+    logger.info("-" * 50)
+    
+    try:
+        # 导入运行时提供器
+        sys.path.append(os.path.join(src_path, 'ack-diagnose-mcp-server'))
+        from runtime_provider import ACKDiagnoseRuntimeProvider
+        
+        # 创建运行时提供器实例
+        provider = ACKDiagnoseRuntimeProvider()
+        
+        logger.info("✅ 运行时提供器创建成功")
+        logger.info(f"  地域: {provider.config.get('region_id')}")
+        logger.info(f"  默认集群: {provider.config.get('default_cluster_id', '未配置')}")
+        
+        if provider.config.get('access_key_id'):
+            logger.info(f"  Access Key: {provider.config['access_key_id'][:8]}***")
+        else:
+            logger.warning("  ⚠️  Access Key 未配置")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ 运行时提供器测试失败: {e}")
+        return False
+
+def test_server_creation():
+    """测试服务器创建."""
+    logger.info("\n🚀 测试服务器创建")
+    logger.info("-" * 50)
+    
+    try:
+        # 导入服务器模块
+        sys.path.append(os.path.join(src_path, 'ack-diagnose-mcp-server'))
+        from server import create_mcp_server
+        
+        # 创建测试配置
+        test_config = {
+            "allow_write": False,
+            "transport": "stdio"
+        }
+        
+        # 创建服务器实例
+        server = create_mcp_server(test_config)
+        
+        logger.info("✅ 服务器创建成功")
+        logger.info(f"  服务器名称: {server.name}")
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ 服务器创建测试失败: {e}")
+        return False
+
+def main():
+    """主测试函数."""
+    logger.remove()
+    logger.add(
+        sys.stderr,
+        format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{message}</cyan>",
+        level="INFO"
+    )
+    
+    logger.info("🎯 ACK Diagnose MCP Server .env 配置测试")
+    logger.info("=" * 60)
+    
+    tests = [
+        ("环境变量加载", test_env_loading),
+        ("运行时提供器", test_runtime_provider),
+        ("服务器创建", test_server_creation),
+    ]
+    
+    results = []
+    for test_name, test_func in tests:
+        try:
+            result = test_func()
+            results.append((test_name, result))
+        except Exception as e:
+            logger.error(f"❌ {test_name}测试异常: {e}")
+            results.append((test_name, False))
+    
+    # 输出测试结果
+    logger.info("\n📊 测试结果总结")
+    logger.info("=" * 60)
+    
+    passed = 0
+    for test_name, result in results:
+        if result:
+            logger.info(f"✅ {test_name}: 通过")
+            passed += 1
+        else:
+            logger.error(f"❌ {test_name}: 失败")
+    
+    total = len(results)
+    logger.info("")
+    logger.info(f"总计: {passed}/{total} 测试通过")
+    
+    if passed == total:
+        logger.info("🎉 所有测试都通过了！.env 配置读取功能正常工作")
+        return True
+    else:
+        logger.warning(f"⚠️  {total - passed} 个测试失败")
+        return False
+
+if __name__ == "__main__":
+    success = main()
+    sys.exit(0 if success else 1)

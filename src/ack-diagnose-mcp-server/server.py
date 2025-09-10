@@ -16,6 +16,14 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
+# 尝试导入python-dotenv
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+    logger.warning("python-dotenv not available, environment variables will be read from system")
+
 # 直接导入模块文件以避免相对导入问题
 try:
     from handler import ACKDiagnoseHandler
@@ -141,6 +149,13 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
 
 def main():
     """Run ACK Diagnose MCP server as standalone application."""
+    # 首先加载.env文件
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+        logger.info("Loaded configuration from .env file")
+    else:
+        logger.warning("python-dotenv not available, using system environment variables only")
+    
     parser = argparse.ArgumentParser(
         description="ACK Diagnose MCP Server"
     )
@@ -175,18 +190,22 @@ def main():
         "--region",
         "-r",
         type=str,
-        default="cn-hangzhou",
-        help="Alibaba Cloud region (default: cn-hangzhou)"
+        help="AlibabaCloud region (default: from env REGION_ID or cn-hangzhou)"
     )
     parser.add_argument(
         "--access-key-id",
         type=str,
-        help="Alibaba Cloud Access Key ID (can also use environment variable ACCESS_KEY_ID)"
+        help="AlibabaCloud Access Key ID (default: from env ACCESS_KEY_ID)"
     )
     parser.add_argument(
         "--access-key-secret",
         type=str,
-        help="Alibaba Cloud Access Key Secret (can also use environment variable ACCESS_KEY_SECRET)"
+        help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)"
+    )
+    parser.add_argument(
+        "--default-cluster-id",
+        type=str,
+        help="Default ACK cluster ID (default: from env DEFAULT_CLUSTER_ID)"
     )
     parser.add_argument(
         "--version",
@@ -201,21 +220,43 @@ def main():
     logger.remove()
     logger.add(sys.stderr, level=os.getenv('FASTMCP_LOG_LEVEL', 'INFO'))
     
-    # Prepare server configuration
+    # 构建完整的配置字典，优先级：命令行参数 > 环境变量 > 默认值
     config = {
+        # 基本配置
         "allow_write": args.allow_write,
-        "region_id": args.region,
-        "access_key_id": args.access_key_id or os.environ.get("ACCESS_KEY_ID"),
-        "access_key_secret": args.access_key_secret or os.environ.get("ACCESS_KEY_SECRET"),
-        "default_cluster_id": os.environ.get("DEFAULT_CLUSTER_ID", ""),
-        "cache_ttl": int(os.environ.get("CACHE_TTL", "300")),
-        "cache_max_size": int(os.environ.get("CACHE_MAX_SIZE", "1000")),
+        "transport": args.transport,
+        "host": args.host,
+        "port": args.port,
+        
+        # 阿里云认证配置
+        "region_id": args.region or os.getenv("REGION_ID", "cn-hangzhou"),
+        "access_key_id": args.access_key_id or os.getenv("ACCESS_KEY_ID"),
+        "access_key_secret": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),
+        "default_cluster_id": args.default_cluster_id or os.getenv("DEFAULT_CLUSTER_ID", ""),
+        
+        # 额外的环境配置
+        "cache_ttl": int(os.getenv("CACHE_TTL", "300")),
+        "cache_max_size": int(os.getenv("CACHE_MAX_SIZE", "1000")),
+        "fastmcp_log_level": os.getenv("FASTMCP_LOG_LEVEL", "INFO"),
+        "development": os.getenv("DEVELOPMENT", "false").lower() == "true",
     }
     
-    logger.info(f"Starting ACK Diagnose MCP Server (region: {args.region})")
+    # 验证必要的配置
+    if not config.get("access_key_id"):
+        logger.warning("⚠️  未配置ACCESS_KEY_ID，部分功能可能无法使用")
+    if not config.get("access_key_secret"):
+        logger.warning("⚠️  未配置ACCESS_KEY_SECRET，部分功能可能无法使用")
     
+    logger.info(f"Starting ACK Diagnose MCP Server (region: {config['region_id']})")
+    if config.get('default_cluster_id'):
+        logger.info(f"Default cluster: {config['default_cluster_id']}")
+    
+    # 记录敏感信息（隐藏部分内容）
+    if config.get('access_key_id'):
+        logger.info(f"Access Key ID: {config['access_key_id'][:8]}***")
+
     try:
-        # Create and run server
+        # Create and run server with full config
         server = create_mcp_server(config)
         
         if args.transport == "stdio":

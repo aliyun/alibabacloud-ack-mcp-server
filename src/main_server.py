@@ -28,6 +28,14 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
+# 尝试导入python-dotenv
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+    logger.warning("python-dotenv not available, environment variables will be read from system")
+
 from config import Configs, get_settings
 
 # Define main server configuration
@@ -248,6 +256,11 @@ def create_main_server(
 
 def main():
     """Run the main MCP server with CLI argument support."""
+    # 加载.env文件
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+        logger.info("Loaded configuration from .env file")
+    
     parser = argparse.ArgumentParser(
         description="AlibabaCloud Container Service Main MCP Server with Microservices Architecture"
     )
@@ -279,6 +292,27 @@ def main():
         help="Port for SSE transport (default: 8000)"
     )
     parser.add_argument(
+        "--region",
+        "-r",
+        type=str,
+        help="AlibabaCloud region (default: from env REGION_ID or cn-hangzhou)"
+    )
+    parser.add_argument(
+        "--access-key-id",
+        type=str,
+        help="AlibabaCloud Access Key ID (default: from env ACCESS_KEY_ID)"
+    )
+    parser.add_argument(
+        "--access-key-secret",
+        type=str,
+        help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)"
+    )
+    parser.add_argument(
+        "--default-cluster-id",
+        type=str,
+        help="Default ACK cluster ID (default: from env DEFAULT_CLUSTER_ID)"
+    )
+    parser.add_argument(
         "--audit-config",
         "-c",
         type=str,
@@ -297,18 +331,42 @@ def main():
     logger.remove()
     logger.add(sys.stderr, level=os.getenv('FASTMCP_LOG_LEVEL', 'INFO'))
     
-    # Prepare settings for sub-servers
+    # 构建完整的配置字典，优先级：命令行参数 > 环境变量 > 默认值
     settings_dict = {
+        # 基本配置
         "allow_write": args.allow_write,
+        "transport": args.transport,
+        "host": args.host,
+        "port": args.port,
+        
+        # 阿里云认证配置
+        "region_id": args.region or os.getenv("REGION_ID", "cn-hangzhou"),
+        "access_key_id": args.access_key_id or os.getenv("ACCESS_KEY_ID"),
+        "access_key_secret": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),
+        "default_cluster_id": args.default_cluster_id or os.getenv("DEFAULT_CLUSTER_ID", ""),
+        
+        # 审计日志配置
         "audit_config_path": args.audit_config,
-        "audit_config_dict": None,  # Could be populated from other sources
-        "access_key_id": os.environ.get("ACCESS_KEY_ID"),
-        "access_secret_key": os.environ.get("ACCESS_SECRET_KEY"), 
-        "region_id": os.environ.get("REGION_ID", "us-east-1"),
+        "audit_config_dict": None,
+        
+        # 额外的环境配置
+        "cache_ttl": int(os.getenv("CACHE_TTL", "300")),
+        "cache_max_size": int(os.getenv("CACHE_MAX_SIZE", "1000")),
+        "fastmcp_log_level": os.getenv("FASTMCP_LOG_LEVEL", "INFO"),
+        "development": os.getenv("DEVELOPMENT", "false").lower() == "true",
+        
+        # 兼容性配置
+        "access_secret_key": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),  # 兼容旧字段名
         "original_settings": Configs(vars(args)),
     }
+    
+    # 验证必要的配置
+    if not settings_dict.get("access_key_id"):
+        logger.warning("⚠️  未配置ACCESS_KEY_ID，部分功能可能无法使用")
+    if not settings_dict.get("access_key_secret"):
+        logger.warning("⚠️  未配置ACCESS_KEY_SECRET，部分功能可能无法使用")
 
-    # Log startup mode
+    # Log startup info with configuration
     mode_info = []
     if not args.allow_write:
         mode_info.append("read-only mode")
@@ -317,6 +375,13 @@ def main():
 
     mode_str = " in " + ", ".join(mode_info) if mode_info else ""
     logger.info(f"Starting AlibabaCloud Container Service Main MCP Server{mode_str}")
+    logger.info(f"Region: {settings_dict['region_id']}")
+    if settings_dict.get('default_cluster_id'):
+        logger.info(f"Default Cluster: {settings_dict['default_cluster_id']}")
+    
+    # 记录敏感信息（隐藏部分内容）
+    if settings_dict.get('access_key_id'):
+        logger.info(f"Access Key ID: {settings_dict['access_key_id'][:8]}***")
 
     try:
         # Create the main MCP server with proxy mounts
