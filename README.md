@@ -107,6 +107,50 @@
 
 完成以上步骤后，服务在重启时会自动发现并加载您的新工具。
 
+## 测试
+
+本项目使用 pytest 作为测试框架，提供了完整的架构验证测试套件。
+
+### 运行测试
+
+```bash
+# 运行所有测试
+pytest src/tests/ -v
+
+# 运行架构测试
+pytest src/tests/test_architecture.py -v
+
+# 使用测试脚本
+./run_tests.sh architecture  # 运行架构测试
+./run_tests.sh all          # 运行所有测试
+./run_tests.sh fast         # 运行快速测试
+./run_tests.sh verbose      # 详细输出
+
+# 使用 Makefile
+make test              # 运行所有测试
+make test-architecture # 运行架构测试
+make test-coverage     # 运行覆盖率测试
+```
+
+### 测试内容
+
+架构测试验证以下功能：
+- ✅ **接口验证**: RuntimeProvider 抽象接口正确实现
+- ✅ **服务导入**: 所有 9 个子 MCP 服务器模块可以正确导入
+- ✅ **服务创建**: 所有子服务器实例可以成功创建
+- ✅ **主服务器**: 主服务器可以正确初始化和挂载子服务
+- ✅ **微服务架构**: FastMCP proxy mount 机制正常工作
+
+### 测试要求
+
+```bash
+# 安装测试依赖
+pip install pytest pytest-asyncio
+
+# 或使用 uv
+uv add pytest pytest-asyncio
+```
+
 
 # Installation and Setup
 

@@ -117,3 +117,5 @@ yarl==1.20.1
 zstd==1.5.7.2
 
 loguru~=0.7.3
+pytest~=8.3.3
+pytest-asyncio~=0.24.0

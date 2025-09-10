@@ -1,56 +1,48 @@
-# Makefile for formatting and linting Python code
+# Makefile for AlibabaCloud Container Service MCP Server
+.PHONY: help test test-verbose test-architecture test-coverage install clean
 
-# Default Python command
-PYTHON ?= python3
-SRC_DIR ?= src
+help: ## Show this help message
+	@echo "Available commands:"
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-# Help target
-.PHONY: help
-help:
-	@echo "Available targets:"
-	@echo "  format     - Format code with black"
-	@echo "  isort      - Sort imports with isort"
-	@echo "  lint       - Lint code with pylint"
-	@echo "  flake8     - Lint code with flake8"
-	@echo "  mypy       - Type check with mypy"
-	@echo "  check      - Run all checks"
-	@echo "  fix        - Auto-fix issues"
-	@echo "  install    - Install dev dependencies"
+install: ## Install dependencies using uv
+	uv sync
 
-# Install development dependencies
-.PHONY: install
-install:
-	$(PYTHON) -m pip install black pylint flake8 mypy isort
+test: ## Run all tests
+	python -m pytest src/tests/ -v
 
-# Format code
-.PHONY: format
-format:
-	black $(SRC_DIR)
+test-verbose: ## Run tests with verbose output
+	python -m pytest src/tests/ -vv
 
-# Sort imports
-.PHONY: isort
-isort:
-	isort $(SRC_DIR)
+test-architecture: ## Run architecture tests only
+	python -m pytest src/tests/test_architecture.py -v
 
-# Lint code
-.PHONY: lint
-lint:
-	pylint --rcfile=.pylintrc $(SRC_DIR)
+test-coverage: ## Run tests with coverage report
+	python -m pytest src/tests/ --cov=src --cov-report=html --cov-report=term
 
-# Lint with flake8
-.PHONY: flake8
-flake8:
-	flake8 --config=.flake8 $(SRC_DIR)
+test-fast: ## Run tests excluding slow tests
+	python -m pytest src/tests/ -v -m "not slow"
 
-# Type checking
-.PHONY: mypy
-mypy:
-	mypy --config-file=mypy.ini $(SRC_DIR)
+test-integration: ## Run integration tests only
+	python -m pytest src/tests/ -v -m "integration"
 
-# Run all checks
-.PHONY: check
-check: format isort lint flake8 mypy
+test-unit: ## Run unit tests only
+	python -m pytest src/tests/ -v -m "unit"
 
-# Auto-fix issues
-.PHONY: fix
-fix: format isort
+clean: ## Clean up cache and temporary files
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete
+	rm -rf htmlcov/ .coverage
+
+lint: ## Run code linting
+	python -m ruff check src/
+	python -m mypy src/ --ignore-missing-imports
+
+format: ## Format code
+	python -m ruff format src/
+
+dev-setup: install ## Set up development environment
+	@echo "Development environment setup complete!"
+
+.DEFAULT_GOAL := help
