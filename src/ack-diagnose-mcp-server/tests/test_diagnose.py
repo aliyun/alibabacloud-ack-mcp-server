@@ -2,12 +2,25 @@
 """Unit tests for ACK Diagnose MCP Server."""
 
 import pytest
+import sys
+import os
 from unittest.mock import Mock
 from typing import Dict, Any
 
-from .. import create_mcp_server
-from ..handler import ACKDiagnoseHandler
-from ..runtime_provider import ACKDiagnoseRuntimeProvider
+# 添加src目录到Python路径
+src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
+
+# 直接导入模块文件
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+from handler import ACKDiagnoseHandler
+from runtime_provider import ACKDiagnoseRuntimeProvider
+from server import create_mcp_server
+
+
+# 配置pytest以支持asyncio
+pytest_plugins = ('pytest_asyncio',)
 
 
 @pytest.fixture
@@ -33,7 +46,7 @@ class TestACKDiagnoseServer:
         
     def test_runtime_provider_initialization(self, test_config):
         """Test runtime provider initialization."""
-        provider = ACKDiagnoseRuntimeProvider(settings=test_config)
+        provider = ACKDiagnoseRuntimeProvider(config=test_config)
         assert provider.config == test_config
         
     @pytest.mark.asyncio

@@ -16,8 +16,18 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from .handler import ACKDiagnoseHandler
-from .runtime_provider import ACKDiagnoseRuntimeProvider
+# 直接导入模块文件以避免相对导入问题
+try:
+    from handler import ACKDiagnoseHandler
+    from runtime_provider import ACKDiagnoseRuntimeProvider
+except ImportError:
+    # 如果直接导入失败，尝试相对导入（用于子模块调用）
+    try:
+        from .handler import ACKDiagnoseHandler
+        from .runtime_provider import ACKDiagnoseRuntimeProvider
+    except ImportError as e:
+        print(f"Failed to import modules: {e}")
+        raise
 
 # Server configuration
 SERVER_NAME = "ack-diagnose-mcp-server"
