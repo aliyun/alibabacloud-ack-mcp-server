@@ -121,29 +121,38 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     """Create ACK Diagnose MCP server instance.
     
     Args:
-        config: Server configuration dictionary
+        config: Server configuration dictionary containing:
+               - host: Server host (default: localhost)
+               - port: Server port (default: 8003)
+               - Other server configurations
         
     Returns:
         Configured FastMCP server instance
     """
     config = config or {}
     
+    # Extract server parameters from config
+    host = config.get("host", "localhost")
+    port = config.get("port", 8003)
+    
     # Create runtime provider
     runtime_provider = ACKDiagnoseRuntimeProvider(config)
     
-    # Create FastMCP server with runtime provider
+    # Create FastMCP server with runtime provider and server parameters
     server = FastMCP(
         name=SERVER_NAME,
         instructions=SERVER_INSTRUCTIONS,
         dependencies=SERVER_DEPENDENCIES,
         lifespan=runtime_provider.init_runtime,
+        host=host,
+        port=port,
     )
     
     # Initialize handler
     allow_write = config.get("allow_write", False)
     ACKDiagnoseHandler(server, allow_write, config)
     
-    logger.info("ACK Diagnose MCP Server created successfully")
+    logger.info(f"ACK Diagnose MCP Server created successfully on {host}:{port}")
     return server
 
 

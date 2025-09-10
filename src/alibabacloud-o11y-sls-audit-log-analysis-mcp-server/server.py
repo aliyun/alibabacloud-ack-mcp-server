@@ -18,26 +18,32 @@ def create_mcp_server(config: Optional[dict] = None) -> FastMCP:
     """Create MCP server instance for proxy mounting.
     
     Args:
-        config: Server configuration dictionary
+        config: Server configuration dictionary containing:
+               - audit_config_path: Path to audit configuration file
+               - audit_config_dict: Audit configuration dictionary
+               - Other standard MCP server configurations
         
     Returns:
         Configured FastMCP server instance
     """
-    # Extract audit configuration from config dict
-    audit_config_path = None
-    audit_config_dict = None
+    config = config or {}
     
-    if config:
-        audit_config_path = config.get("audit_config_path")
-        audit_config_dict = config.get("audit_config_dict")
+    # Extract audit configuration from config dict
+    audit_config_path = config.get("audit_config_path")
+    audit_config_dict = config.get("audit_config_dict")
+    
+    # Extract transport settings from config if available
+    transport = config.get("transport", "stdio")
+    host = config.get("host", "127.0.0.1")
+    port = config.get("port", 8000)
     
     # Use the existing create_server function
     return create_server(
         config_path=audit_config_path,
         config_dict=audit_config_dict,
-        transport="stdio",  # Default for proxy mounting
-        host="127.0.0.1",
-        port=8000
+        transport=transport,
+        host=host,
+        port=port,
     )
 
 

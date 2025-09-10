@@ -14,6 +14,14 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
+# 尝试导入python-dotenv
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+    logger.warning("python-dotenv not available, environment variables will be read from system")
+
 from .handler import ObservabilityAliyunPrometheusHandler
 from .runtime_provider import ObservabilityAliyunPrometheusRuntimeProvider
 
@@ -64,34 +72,50 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     """Create Observability Aliyun Prometheus MCP server instance.
     
     Args:
-        config: Server configuration dictionary
+        config: Server configuration dictionary containing:
+               - host: Server host (default: localhost)
+               - port: Server port (default: 8005)
+               - Other server configurations
         
     Returns:
         Configured FastMCP server instance
     """
     config = config or {}
     
+    # Extract server parameters from config
+    host = config.get("host", "localhost")
+    port = config.get("port", 8005)
+    
     # Create runtime provider
     runtime_provider = ObservabilityAliyunPrometheusRuntimeProvider(config)
     
-    # Create FastMCP server with runtime provider
+    # Create FastMCP server with runtime provider and server parameters
     server = FastMCP(
         name=SERVER_NAME,
         instructions=SERVER_INSTRUCTIONS,
         dependencies=SERVER_DEPENDENCIES,
         lifespan=runtime_provider.init_runtime,
+        host=host,
+        port=port,
     )
     
     # Initialize handler
     allow_write = config.get("allow_write", False)
     ObservabilityAliyunPrometheusHandler(server, allow_write, config)
     
-    logger.info("Observability Aliyun Prometheus MCP Server created successfully")
+    logger.info(f"Observability Aliyun Prometheus MCP Server created successfully on {host}:{port}")
     return server
 
 
 def main():
     """Run Observability Aliyun Prometheus MCP server as standalone application."""
+    # 首先加载.env文件
+    if DOTENV_AVAILABLE:
+        load_dotenv()
+        logger.info("Loaded configuration from .env file")
+    else:
+        logger.warning("python-dotenv not available, using system environment variables only")
+    
     parser = argparse.ArgumentParser(
         description="Observability Aliyun Prometheus MCP Server"
     )
@@ -126,8 +150,22 @@ def main():
         "--region",
         "-r",
         type=str,
-        default="cn-hangzhou",
-        help="AlibabaCloud region (default: cn-hangzhou)"
+        help="AlibabaCloud region (default: from env REGION_ID or cn-hangzhou)"
+    )
+    parser.add_argument(
+        "--access-key-id",
+        type=str,
+        help="AlibabaCloud Access Key ID (default: from env ACCESS_KEY_ID)"
+    )
+    parser.add_argument(
+        "--access-key-secret",
+        type=str,
+        help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)"
+    )
+    parser.add_argument(
+        "--default-cluster-id",
+        type=str,
+        help="Default ACK cluster ID (default: from env DEFAULT_CLUSTER_ID)"
     )
     parser.add_argument(
         "--version",
@@ -142,26 +180,47 @@ def main():
     logger.remove()
     logger.add(sys.stderr, level=os.getenv('FASTMCP_LOG_LEVEL', 'INFO'))
     
-    # Prepare server configuration
+    # 构建完整的配置字典，优先级：命令行参数 > 环境变量 > 默认值
     config = {
+        # 基本配置
         "allow_write": args.allow_write,
-        "access_key_id": os.environ.get("ACCESS_KEY_ID"),
-        "access_secret_key": os.environ.get("ACCESS_SECRET_KEY"),
-        "region_id": args.region,
-        "default_cluster_id": os.environ.get("DEFAULT_CLUSTER_ID", ""),
-        "query_timeout": int(os.environ.get("QUERY_TIMEOUT", "30")),
-        "max_series": int(os.environ.get("MAX_SERIES", "10000")),
+        "transport": args.transport,
+        "host": args.host,
+        "port": args.port,
+        
+        # 阿里云认证配置
+        "region_id": args.region or os.getenv("REGION_ID", "cn-hangzhou"),
+        "access_key_id": args.access_key_id or os.getenv("ACCESS_KEY_ID"),
+        "access_key_secret": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),
+        "default_cluster_id": args.default_cluster_id or os.getenv("DEFAULT_CLUSTER_ID", ""),
+        
+        # Prometheus特有配置
+        "query_timeout": int(os.getenv("QUERY_TIMEOUT", "30")),
+        "max_series": int(os.getenv("MAX_SERIES", "10000")),
+        
+        # 额外的环境配置
+        "cache_ttl": int(os.getenv("CACHE_TTL", "300")),
+        "cache_max_size": int(os.getenv("CACHE_MAX_SIZE", "1000")),
+        "fastmcp_log_level": os.getenv("FASTMCP_LOG_LEVEL", "INFO"),
+        "development": os.getenv("DEVELOPMENT", "false").lower() == "true",
     }
     
-    # Validate credentials
-    if not config["access_key_id"] or not config["access_secret_key"]:
-        logger.warning("ACCESS_KEY_ID and ACCESS_SECRET_KEY environment variables not set")
-        logger.warning("Server will run in mock mode")
+    # 验证必要的配置
+    if not config.get("access_key_id"):
+        logger.warning("⚠️  未配置ACCESS_KEY_ID，部分功能可能无法使用")
+    if not config.get("access_key_secret"):
+        logger.warning("⚠️  未配置ACCESS_KEY_SECRET，部分功能可能无法使用")
     
-    logger.info(f"Starting Observability Aliyun Prometheus MCP Server (region: {args.region})")
+    logger.info(f"Starting Observability Aliyun Prometheus MCP Server (region: {config['region_id']})")
+    if config.get('default_cluster_id'):
+        logger.info(f"Default cluster: {config['default_cluster_id']}")
+    
+    # 记录敏感信息（隐藏部分内容）
+    if config.get('access_key_id'):
+        logger.info(f"Access Key ID: {config['access_key_id'][:8]}***")
     
     try:
-        # Create and run server
+        # Create and run server with full config
         server = create_mcp_server(config)
         
         if args.transport == "stdio":
@@ -169,7 +228,7 @@ def main():
             server.run()
         elif args.transport == "sse":
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            server.run(transport="sse", host=args.host, port=args.port)
+            server.run(transport="sse")
             
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")
