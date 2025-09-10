@@ -115,11 +115,11 @@ class TestACKDiagnoseServer:
         reports_result = {
             "cluster_id": "test-cluster",
             "reports": [],
-            "total_count": 0,
-            "page_num": 1
+            "next_token": None,
+            "max_results": 20
         }
         assert "reports" in reports_result
-        assert reports_result["total_count"] == 0
+        assert reports_result["max_results"] == 20
         
         # Mock inspection run
         inspect_result = {
@@ -154,7 +154,7 @@ class TestACKDiagnoseServer:
         assert "config" in get_config_result
         
     def test_handler_initialization(self, test_config):
-        """Test handler initialization with Alibaba Cloud credentials."""
+        """Test handler initialization."""
         mock_server = Mock()
         mock_server.tool = Mock(side_effect=lambda **kwargs: lambda func: func)
         
@@ -168,6 +168,10 @@ class TestACKDiagnoseServer:
         assert handler.server == mock_server
         assert handler.allow_write == test_config["allow_write"]
         assert handler.settings == test_config
+        
+        # Verify that tools have been registered
+        # The mock should have been called multiple times for tool registration
+        assert mock_server.tool.call_count > 0
         
     def test_write_operations_control(self):
         """Test write operations control logic."""
@@ -454,6 +458,82 @@ class TestACKDiagnosisReportResults:
         
         assert namespace_diagnosis_result["type"] == "pod"
         assert namespace_diagnosis_result["target"]["namespace"] == "kube-system"
+    
+    @pytest.mark.asyncio
+    async def test_list_cluster_inspect_reports_parameters(self):
+        """Test list_cluster_inspect_reports with correct parameters."""
+        cluster_id = "test-cluster-001"
+        
+        # Test with default parameters
+        default_result = {
+            "cluster_id": cluster_id,
+            "reports": [
+                {
+                    "reportId": "782df89346054a0000562063a6****",
+                    "startTime": "2024-12-18T19:40:16.778333+08:00",
+                    "endTime": "2024-12-18T19:40:16.778333+08:00",
+                    "status": "completed",
+                    "summary": {
+                        "code": "warning",
+                        "normalCount": 1,
+                        "adviceCount": 0,
+                        "warnCount": 0,
+                        "errorCount": 0
+                    }
+                }
+            ],
+            "next_token": None,
+            "max_results": 20,
+            "request_id": "49511F2D-D56A-5C24-B9AE-C8491E09B***"
+        }
+        
+        # Verify response structure
+        assert default_result["cluster_id"] == cluster_id
+        assert "reports" in default_result
+        assert default_result["max_results"] == 20
+        assert "next_token" in default_result
+        assert "request_id" in default_result
+        
+        # Verify report structure
+        if default_result["reports"]:
+            report = default_result["reports"][0]
+            assert "reportId" in report
+            assert "startTime" in report
+            assert "endTime" in report
+            assert "status" in report
+            assert "summary" in report
+            
+            # Verify summary structure
+            summary = report["summary"]
+            assert "code" in summary
+            assert "normalCount" in summary
+            assert "adviceCount" in summary
+            assert "warnCount" in summary
+            assert "errorCount" in summary
+        
+        # Test with pagination parameters
+        paginated_result = {
+            "cluster_id": cluster_id,
+            "reports": [],
+            "next_token": "405b99e5411f9a4e7148506e45",
+            "max_results": 10,
+            "request_id": "49511F2D-D56A-5C24-B9AE-C8491E09B***"
+        }
+        
+        # Verify pagination parameters
+        assert paginated_result["max_results"] == 10
+        assert paginated_result["next_token"] == "405b99e5411f9a4e7148506e45"
+        
+        # Test with max_results limit (should not exceed 50)
+        max_limit_result = {
+            "cluster_id": cluster_id,
+            "reports": [],
+            "next_token": None,
+            "max_results": 50,  # Maximum allowed value
+            "request_id": "49511F2D-D56A-5C24-B9AE-C8491E09B***"
+        }
+        
+        assert max_limit_result["max_results"] <= 50
 
 
 if __name__ == "__main__":

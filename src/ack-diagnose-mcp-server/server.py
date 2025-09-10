@@ -65,7 +65,7 @@ This server provides comprehensive Alibaba Cloud Container Service (ACK) cluster
 
 4. **list_cluster_inspect_reports**: List cluster inspection reports
    - Get paginated list of historical inspection reports
-   - Filter reports by time range and status
+   - Support pagination with next_token and max_results parameters
    - Access inspection report metadata
 
 5. **get_cluster_inspect_report_detail**: Get detailed inspection report
@@ -170,7 +170,7 @@ def main():
         "-t",
         type=str,
         choices=["stdio", "sse"],
-        default="stdio",
+        default="sse",
         help="Transport method (default: stdio)"
     )
     parser.add_argument(
@@ -264,7 +264,7 @@ def main():
             server.run()
         elif args.transport == "sse":
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            server.run(transport="sse", host=args.host, port=args.port)
+            server.run(transport="sse")
             
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")

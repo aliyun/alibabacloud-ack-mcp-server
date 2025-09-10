@@ -111,10 +111,13 @@ class ACKDiagnoseRuntimeProvider(RuntimeProvider):
         try:
             # Initialize Alibaba Cloud CS client
             region = config.get("region_id", "cn-hangzhou")
-            
+
             # Use credential client for secure authentication
             credential = CredentialClient()
             cs_config = open_api_models.Config(credential=credential)
+            cs_config.access_key_id = config.get("access_key_id")
+            cs_config.access_key_secret = config.get("access_key_secret")
+            cs_config.region_id = region
             cs_config.endpoint = f'cs.{region}.aliyuncs.com'
             
             cs_client = CS20151215Client(cs_config)

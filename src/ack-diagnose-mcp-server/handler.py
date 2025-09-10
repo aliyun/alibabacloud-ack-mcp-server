@@ -1,13 +1,10 @@
 """ACK Diagnose Handler - Alibaba Cloud Container Service Diagnosis."""
 
 from typing import Dict, Any, Optional, List
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import FastMCP, Context
 from loguru import logger
-from alibabacloud_cs20151215.client import Client as CS20151215Client
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
-from alibabacloud_tea_openapi import models as open_api_models
-from alibabacloud_credentials.client import Client as CredentialClient
 
 
 class ACKDiagnoseHandler:
@@ -24,32 +21,11 @@ class ACKDiagnoseHandler:
         self.server = server
         self.allow_write = allow_write
         self.settings = settings or {}
-        self.cs_client = None
-        
-        # Initialize Alibaba Cloud CS client
-        self._init_cs_client()
         
         # Register tools
         self._register_tools()
         
         logger.info("ACK Diagnose Handler initialized")
-    
-    def _init_cs_client(self):
-        """Initialize Alibaba Cloud Container Service client."""
-        try:
-            # Use credential client for secure authentication
-            credential = CredentialClient()
-            config = open_api_models.Config(credential=credential)
-            
-            # Set endpoint based on region
-            region = self.settings.get("region_id", "cn-hangzhou")
-            config.endpoint = f'cs.{region}.aliyuncs.com'
-            
-            self.cs_client = CS20151215Client(config)
-            logger.info(f"CS client initialized for region: {region}")
-        except Exception as e:
-            logger.error(f"Failed to initialize CS client: {e}")
-            self.cs_client = None
     
     def _register_tools(self):
         """Register cluster diagnosis and inspection related tools."""
@@ -62,7 +38,8 @@ class ACKDiagnoseHandler:
         async def create_cluster_diagnosis(
             cluster_id: str,
             diagnosis_type: Optional[str] = "all",
-            target: Optional[Dict[str, Any]] = None
+            target: Optional[Dict[str, Any]] = None,
+            ctx: Context = None,
         ) -> Dict[str, Any]:
             """Create cluster diagnosis task.
             
@@ -70,6 +47,7 @@ class ACKDiagnoseHandler:
                 cluster_id: Target cluster ID
                 diagnosis_type: Type of diagnosis (all, node, pod, network, etc.)
                 target: Target specification for diagnosis
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Diagnosis task creation result
@@ -77,8 +55,17 @@ class ACKDiagnoseHandler:
             if not self.allow_write:
                 return {"error": "Write operations are disabled"}
             
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.CreateClusterDiagnosisRequest(
@@ -88,7 +75,7 @@ class ACKDiagnoseHandler:
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.create_cluster_diagnosis_with_options_async(
+                response = await cs_client.create_cluster_diagnosis_with_options_async(
                     cluster_id, request, headers, runtime
                 )
                 
@@ -115,26 +102,37 @@ class ACKDiagnoseHandler:
         )
         async def get_cluster_diagnosis_result(
             cluster_id: str,
-            diagnosis_id: str
+            diagnosis_id: str,
+            ctx = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis result.
             
             Args:
                 cluster_id: Target cluster ID
                 diagnosis_id: Diagnosis task ID
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Diagnosis result
             """
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.GetClusterDiagnosisResultRequest()
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.get_cluster_diagnosis_result_with_options_async(
+                response = await cs_client.get_cluster_diagnosis_result_with_options_async(
                     cluster_id, diagnosis_id, request, headers, runtime
                 )
                 
@@ -165,7 +163,8 @@ class ACKDiagnoseHandler:
         async def get_cluster_diagnosis_check_items(
             cluster_id: str,
             diagnosis_type: Optional[str] = "all",
-            lang: Optional[str] = "zh"
+            lang: Optional[str] = "zh",
+            ctx = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis check items.
             
@@ -173,12 +172,22 @@ class ACKDiagnoseHandler:
                 cluster_id: Target cluster ID
                 diagnosis_type: Type of diagnosis checks
                 lang: Language for check items (zh, en)
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Available diagnosis check items
             """
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.GetClusterDiagnosisCheckItemsRequest(
@@ -188,7 +197,7 @@ class ACKDiagnoseHandler:
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.get_cluster_diagnosis_check_items_with_options_async(
+                response = await cs_client.get_cluster_diagnosis_check_items_with_options_async(
                     cluster_id, request, headers, runtime
                 )
                 
@@ -215,40 +224,50 @@ class ACKDiagnoseHandler:
         )
         async def list_cluster_inspect_reports(
             cluster_id: str,
-            page_num: Optional[int] = 1,
-            page_size: Optional[int] = 10
+            next_token: Optional[str] = None,
+            max_results: Optional[int] = 20,
+            ctx: Context = None,
         ) -> Dict[str, Any]:
             """List cluster inspection reports.
             
             Args:
                 cluster_id: Target cluster ID
-                page_num: Page number for pagination
-                page_size: Page size for pagination
+                next_token: Pagination token for next page
+                max_results: Maximum number of results to return (max 50)
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 List of inspection reports
             """
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.ListClusterInspectReportsRequest(
-                    page_num=page_num,
-                    page_size=page_size
+                    next_token=next_token,
+                    max_results=max_results
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.list_cluster_inspect_reports_with_options_async(
+                response = await cs_client.list_cluster_inspect_reports_with_options_async(
                     cluster_id, request, headers, runtime
                 )
                 
                 return {
                     "cluster_id": cluster_id,
                     "reports": response.body.reports,
-                    "page_num": page_num,
-                    "page_size": page_size,
-                    "total_count": response.body.total_count,
+                    "next_token": response.body.next_token,
+                    "max_results": max_results,
                     "request_id": response.body.request_id
                 }
                 
@@ -266,26 +285,37 @@ class ACKDiagnoseHandler:
         )
         async def get_cluster_inspect_report_detail(
             cluster_id: str,
-            report_id: str
+            report_id: str,
+            ctx = None
         ) -> Dict[str, Any]:
             """Get cluster inspection report detail.
             
             Args:
                 cluster_id: Target cluster ID
                 report_id: Inspection report ID
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Detailed inspection report
             """
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.GetClusterInspectReportDetailRequest()
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.get_cluster_inspect_report_detail_with_options_async(
+                response = await cs_client.get_cluster_inspect_report_detail_with_options_async(
                     cluster_id, report_id, request, headers, runtime
                 )
                 
@@ -314,13 +344,15 @@ class ACKDiagnoseHandler:
         )
         async def run_cluster_inspect(
             cluster_id: str,
-            inspect_type: Optional[str] = "all"
+            inspect_type: Optional[str] = "all",
+            ctx = None
         ) -> Dict[str, Any]:
             """Run cluster inspection.
             
             Args:
                 cluster_id: Target cluster ID
                 inspect_type: Type of inspection (all, security, performance, etc.)
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Inspection run result
@@ -328,8 +360,17 @@ class ACKDiagnoseHandler:
             if not self.allow_write:
                 return {"error": "Write operations are disabled"}
             
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.RunClusterInspectRequest(
@@ -338,7 +379,7 @@ class ACKDiagnoseHandler:
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.run_cluster_inspect_with_options_async(
+                response = await cs_client.run_cluster_inspect_with_options_async(
                     cluster_id, request, headers, runtime
                 )
                 
@@ -366,13 +407,15 @@ class ACKDiagnoseHandler:
         )
         async def create_cluster_inspect_config(
             cluster_id: str,
-            inspect_config: Dict[str, Any]
+            inspect_config: Dict[str, Any],
+            ctx = None
         ) -> Dict[str, Any]:
             """Create cluster inspection configuration.
             
             Args:
                 cluster_id: Target cluster ID
                 inspect_config: Inspection configuration
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Configuration creation result
@@ -380,8 +423,17 @@ class ACKDiagnoseHandler:
             if not self.allow_write:
                 return {"error": "Write operations are disabled"}
             
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.CreateClusterInspectConfigRequest(
@@ -390,7 +442,7 @@ class ACKDiagnoseHandler:
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.create_cluster_inspect_config_with_options_async(
+                response = await cs_client.create_cluster_inspect_config_with_options_async(
                     cluster_id, request, headers, runtime
                 )
                 
@@ -416,7 +468,8 @@ class ACKDiagnoseHandler:
         async def update_cluster_inspect_config(
             cluster_id: str,
             config_id: str,
-            inspect_config: Dict[str, Any]
+            inspect_config: Dict[str, Any],
+            ctx = None
         ) -> Dict[str, Any]:
             """Update cluster inspection configuration.
             
@@ -424,6 +477,7 @@ class ACKDiagnoseHandler:
                 cluster_id: Target cluster ID
                 config_id: Configuration ID
                 inspect_config: Updated inspection configuration
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Configuration update result
@@ -431,8 +485,17 @@ class ACKDiagnoseHandler:
             if not self.allow_write:
                 return {"error": "Write operations are disabled"}
             
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.UpdateClusterInspectConfigRequest(
@@ -441,7 +504,7 @@ class ACKDiagnoseHandler:
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.update_cluster_inspect_config_with_options_async(
+                response = await cs_client.update_cluster_inspect_config_with_options_async(
                     cluster_id, config_id, request, headers, runtime
                 )
                 
@@ -467,26 +530,37 @@ class ACKDiagnoseHandler:
         )
         async def get_cluster_inspect_config(
             cluster_id: str,
-            config_id: str
+            config_id: str,
+            ctx = None
         ) -> Dict[str, Any]:
             """Get cluster inspection configuration.
             
             Args:
                 cluster_id: Target cluster ID
                 config_id: Configuration ID
+                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Inspection configuration
             """
-            if not self.cs_client:
-                return {"error": "CS client not initialized"}
+            # Get CS client from lifespan context
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
             try:
                 request = cs20151215_models.GetClusterInspectConfigRequest()
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await self.cs_client.get_cluster_inspect_config_with_options_async(
+                response = await cs_client.get_cluster_inspect_config_with_options_async(
                     cluster_id, config_id, request, headers, runtime
                 )
                 
