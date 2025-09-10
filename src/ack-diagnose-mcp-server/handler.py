@@ -37,7 +37,7 @@ class ACKDiagnoseHandler:
         )
         async def create_cluster_diagnosis(
             cluster_id: str,
-            diagnosis_type: Optional[str] = "all",
+            diagnosis_type: Optional[str] = "cluster",
             target: Optional[Dict[str, Any]] = None,
             ctx: Context = None,
         ) -> Dict[str, Any]:
@@ -45,7 +45,7 @@ class ACKDiagnoseHandler:
             
             Args:
                 cluster_id: Target cluster ID
-                diagnosis_type: Type of diagnosis (all, node, pod, network, etc.)
+                diagnosis_type: Type of diagnosis (node, ingress, cluster, memory, pod, service, network)
                 target: Target specification for diagnosis
                 ctx: FastMCP context containing lifespan providers
                 
@@ -139,11 +139,14 @@ class ACKDiagnoseHandler:
                 return {
                     "cluster_id": cluster_id,
                     "diagnosis_id": diagnosis_id,
-                    "status": response.body.phase,
-                    "result": response.body.result,
-                    "created_time": response.body.created_time,
-                    "finished_time": response.body.finished_time,
-                    "progress": response.body.progress,
+                    "status": response.body.status,  # 诊断状态：0/1/2
+                    "code": response.body.code,      # 诊断结果代码：0成功/1失败
+                    "message": response.body.message, # 诊断状态信息
+                    "result": response.body.result,   # 诊断结果
+                    "created": response.body.created, # 诊断发起时间
+                    "finished": response.body.finished, # 诊断完成时间
+                    "target": response.body.target,   # 诊断对象
+                    "type": response.body.type,       # 诊断类型
                     "request_id": response.body.request_id
                 }
                 
@@ -162,16 +165,16 @@ class ACKDiagnoseHandler:
         )
         async def get_cluster_diagnosis_check_items(
             cluster_id: str,
-            diagnosis_type: Optional[str] = "all",
-            lang: Optional[str] = "zh",
+            diagnosis_id: str,
+            language: Optional[str] = "zh_CN",
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis check items.
             
             Args:
                 cluster_id: Target cluster ID
-                diagnosis_type: Type of diagnosis checks
-                lang: Language for check items (zh, en)
+                diagnosis_id: Diagnosis ID
+                language: Language for check items (zh_CN, en)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -191,28 +194,30 @@ class ACKDiagnoseHandler:
             
             try:
                 request = cs20151215_models.GetClusterDiagnosisCheckItemsRequest(
-                    type=diagnosis_type,
-                    lang=lang
+                    language=language
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
                 response = await cs_client.get_cluster_diagnosis_check_items_with_options_async(
-                    cluster_id, request, headers, runtime
+                    cluster_id, diagnosis_id, request, headers, runtime
                 )
                 
                 return {
                     "cluster_id": cluster_id,
+                    "diagnosis_id": diagnosis_id,
+                    "request_id": response.body.request_id,
+                    "code": response.body.code,
+                    "is_success": response.body.is_success,
                     "check_items": response.body.check_items,
-                    "type": diagnosis_type,
-                    "lang": lang,
-                    "request_id": response.body.request_id
+                    "language": language
                 }
                 
             except Exception as e:
                 logger.error(f"Failed to get cluster diagnosis check items: {e}")
                 return {
                     "cluster_id": cluster_id,
+                    "diagnosis_id": diagnosis_id,
                     "error": str(e),
                     "status": "error"
                 }
@@ -286,6 +291,13 @@ class ACKDiagnoseHandler:
         async def get_cluster_inspect_report_detail(
             cluster_id: str,
             report_id: str,
+            language: Optional[str] = "zh_CN",
+            category: Optional[str] = None,
+            target_type: Optional[str] = None,
+            level: Optional[str] = None,
+            enable_filter: Optional[bool] = False,
+            next_token: Optional[str] = None,
+            max_results: Optional[int] = 20,
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection report detail.
@@ -293,6 +305,13 @@ class ACKDiagnoseHandler:
             Args:
                 cluster_id: Target cluster ID
                 report_id: Inspection report ID
+                language: Query language (zh_CN, en_US)
+                category: Inspection category (security, performance, stability, limitation, cost)
+                target_type: Target type filter
+                level: Level filter (advice, warning, error, critical)
+                enable_filter: Only return abnormal items when True
+                next_token: Pagination token
+                max_results: Maximum results per page (max 50)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -311,7 +330,15 @@ class ACKDiagnoseHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                request = cs20151215_models.GetClusterInspectReportDetailRequest()
+                request = cs20151215_models.GetClusterInspectReportDetailRequest(
+                    language=language,
+                    category=category,
+                    target_type=target_type,
+                    level=level,
+                    enable_filter=enable_filter,
+                    next_token=next_token,
+                    max_results=max_results
+                )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
@@ -322,11 +349,13 @@ class ACKDiagnoseHandler:
                 return {
                     "cluster_id": cluster_id,
                     "report_id": report_id,
-                    "report_detail": response.body.report,
+                    "request_id": response.body.request_id,
+                    "next_token": response.body.next_token,
+                    "start_time": response.body.start_time,
+                    "end_time": response.body.end_time,
                     "status": response.body.status,
-                    "created_time": response.body.created_time,
-                    "finished_time": response.body.finished_time,
-                    "request_id": response.body.request_id
+                    "summary": response.body.summary,
+                    "check_item_results": response.body.check_item_results
                 }
                 
             except Exception as e:
@@ -344,14 +373,14 @@ class ACKDiagnoseHandler:
         )
         async def run_cluster_inspect(
             cluster_id: str,
-            inspect_type: Optional[str] = "all",
+            client_token: Optional[str] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Run cluster inspection.
             
             Args:
                 cluster_id: Target cluster ID
-                inspect_type: Type of inspection (all, security, performance, etc.)
+                client_token: Idempotent token (optional)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -374,7 +403,7 @@ class ACKDiagnoseHandler:
             
             try:
                 request = cs20151215_models.RunClusterInspectRequest(
-                    type=inspect_type
+                    client_token=client_token
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
@@ -385,11 +414,10 @@ class ACKDiagnoseHandler:
                 
                 return {
                     "cluster_id": cluster_id,
-                    "inspect_id": response.body.inspect_id,
-                    "status": "started",
-                    "type": inspect_type,
-                    "created_time": response.body.created_time,
-                    "request_id": response.body.request_id
+                    "report_id": response.body.report_id,    # 巡检报告 ID
+                    "task_id": response.body.task_id,        # 巡检任务 ID
+                    "request_id": response.body.request_id,  # 请求 ID
+                    "status": "started"
                 }
                 
             except Exception as e:
@@ -407,14 +435,18 @@ class ACKDiagnoseHandler:
         )
         async def create_cluster_inspect_config(
             cluster_id: str,
-            inspect_config: Dict[str, Any],
+            enabled: bool,
+            recurrence: str,
+            disabled_check_items: Optional[List[str]] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Create cluster inspection configuration.
             
             Args:
                 cluster_id: Target cluster ID
-                inspect_config: Inspection configuration
+                enabled: Whether to enable inspection
+                recurrence: Inspection schedule using RFC5545 syntax (e.g., "FREQ=DAILY;BYHOUR=10;BYMINUTE=15")
+                disabled_check_items: List of disabled check items
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -437,7 +469,9 @@ class ACKDiagnoseHandler:
             
             try:
                 request = cs20151215_models.CreateClusterInspectConfigRequest(
-                    config=inspect_config
+                    enabled=enabled,
+                    recurrence=recurrence,
+                    disabled_check_items=disabled_check_items or []
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
@@ -448,9 +482,8 @@ class ACKDiagnoseHandler:
                 
                 return {
                     "cluster_id": cluster_id,
-                    "config_id": response.body.config_id,
-                    "status": "created",
-                    "request_id": response.body.request_id
+                    "request_id": response.body.request_id,
+                    "status": "created"
                 }
                 
             except Exception as e:
@@ -467,16 +500,18 @@ class ACKDiagnoseHandler:
         )
         async def update_cluster_inspect_config(
             cluster_id: str,
-            config_id: str,
-            inspect_config: Dict[str, Any],
+            enabled: Optional[bool] = None,
+            schedule_time: Optional[str] = None,
+            disabled_check_items: Optional[List[str]] = None,
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Update cluster inspection configuration.
             
             Args:
                 cluster_id: Target cluster ID
-                config_id: Configuration ID
-                inspect_config: Updated inspection configuration
+                enabled: Whether to enable inspection
+                schedule_time: Inspection schedule using RFC5545 syntax
+                disabled_check_items: List of disabled check items
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -499,27 +534,27 @@ class ACKDiagnoseHandler:
             
             try:
                 request = cs20151215_models.UpdateClusterInspectConfigRequest(
-                    config=inspect_config
+                    enabled=enabled,
+                    schedule_time=schedule_time,
+                    disabled_check_items=disabled_check_items
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
                 response = await cs_client.update_cluster_inspect_config_with_options_async(
-                    cluster_id, config_id, request, headers, runtime
+                    cluster_id, request, headers, runtime
                 )
                 
                 return {
                     "cluster_id": cluster_id,
-                    "config_id": config_id,
-                    "status": "updated",
-                    "request_id": response.body.request_id
+                    "request_id": response.body.request_id,
+                    "status": "updated"
                 }
                 
             except Exception as e:
                 logger.error(f"Failed to update cluster inspect config: {e}")
                 return {
                     "cluster_id": cluster_id,
-                    "config_id": config_id,
                     "error": str(e),
                     "status": "failed"
                 }
@@ -530,14 +565,12 @@ class ACKDiagnoseHandler:
         )
         async def get_cluster_inspect_config(
             cluster_id: str,
-            config_id: str,
             ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection configuration.
             
             Args:
                 cluster_id: Target cluster ID
-                config_id: Configuration ID
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -556,29 +589,25 @@ class ACKDiagnoseHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                request = cs20151215_models.GetClusterInspectConfigRequest()
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
                 response = await cs_client.get_cluster_inspect_config_with_options_async(
-                    cluster_id, config_id, request, headers, runtime
+                    cluster_id, headers, runtime
                 )
                 
                 return {
                     "cluster_id": cluster_id,
-                    "config_id": config_id,
-                    "config": response.body.config,
-                    "status": response.body.status,
-                    "created_time": response.body.created_time,
-                    "updated_time": response.body.updated_time,
-                    "request_id": response.body.request_id
+                    "request_id": response.body.request_id,
+                    "enabled": response.body.enabled,
+                    "recurrence": response.body.recurrence,
+                    "disabled_check_items": response.body.disabled_check_items
                 }
                 
             except Exception as e:
                 logger.error(f"Failed to get cluster inspect config: {e}")
                 return {
                     "cluster_id": cluster_id,
-                    "config_id": config_id,
                     "error": str(e),
                     "status": "error"
                 }
