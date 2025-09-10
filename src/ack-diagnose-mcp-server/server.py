@@ -1,9 +1,11 @@
-"""K8s Diagnose MCP Server.
+"""ACK Diagnose MCP Server.
 
-This server provides Kubernetes diagnosis capabilities including:
-- Diagnose cluster health
-- Diagnose pod issues  
-- Diagnose network connectivity
+This server provides Alibaba Cloud Container Service (ACK) diagnosis capabilities including:
+- Create cluster diagnosis tasks
+- Get diagnosis results and check items
+- List and get cluster inspection reports
+- Run cluster inspections
+- Manage inspection configurations
 """
 
 import argparse
@@ -14,36 +16,72 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from .handler import K8sDiagnoseHandler
-from .runtime_provider import K8sDiagnoseRuntimeProvider
+from .handler import ACKDiagnoseHandler
+from .runtime_provider import ACKDiagnoseRuntimeProvider
 
 # Server configuration
 SERVER_NAME = "ack-diagnose-mcp-server"
 SERVER_INSTRUCTIONS = """
-K8s Diagnose MCP Server
+ACK Diagnose MCP Server
 
-This server provides comprehensive Kubernetes cluster diagnosis capabilities:
+This server provides comprehensive Alibaba Cloud Container Service (ACK) cluster diagnosis and inspection capabilities:
 
-## Available Tools:
+## Cluster Diagnosis Tools:
 
-1. **diagnose_cluster_health**: Diagnose overall cluster health
-   - Check node status and availability
-   - Verify core system components
-   - Analyze resource utilization and capacity
+1. **create_cluster_diagnosis**: Create a cluster diagnosis task
+   - Initiate comprehensive cluster health analysis
+   - Support various diagnosis types (all, node, pod, network, etc.)
+   - Return diagnosis task ID for result tracking
 
-2. **diagnose_pod_issues**: Diagnose pod-related issues  
-   - Identify pod scheduling problems
-   - Check resource constraints and limits
-   - Analyze container startup and runtime issues
+2. **get_cluster_diagnosis_result**: Get cluster diagnosis result
+   - Retrieve diagnosis results by task ID
+   - Get detailed diagnosis findings and recommendations
+   - Monitor diagnosis progress and status
 
-3. **diagnose_network_connectivity**: Diagnose network connectivity issues
-   - Test pod-to-pod communication
-   - Verify service discovery and DNS resolution
-   - Check ingress and load balancer connectivity
+3. **get_cluster_diagnosis_check_items**: Get available diagnosis check items
+   - List available diagnosis check categories
+   - Get localized check item descriptions
+   - Understand diagnosis scope and coverage
+
+## Cluster Inspection Tools:
+
+4. **list_cluster_inspect_reports**: List cluster inspection reports
+   - Get paginated list of historical inspection reports
+   - Filter reports by time range and status
+   - Access inspection report metadata
+
+5. **get_cluster_inspect_report_detail**: Get detailed inspection report
+   - Retrieve complete inspection report content
+   - Access detailed findings and recommendations
+   - Get inspection timing and status information
+
+6. **run_cluster_inspect**: Run cluster inspection
+   - Initiate on-demand cluster inspection
+   - Support different inspection types
+   - Generate new inspection reports
+
+## Inspection Configuration Tools:
+
+7. **create_cluster_inspect_config**: Create inspection configuration
+   - Define custom inspection parameters
+   - Set inspection schedules and scope
+   - Configure inspection rules and thresholds
+
+8. **update_cluster_inspect_config**: Update inspection configuration
+   - Modify existing inspection settings
+   - Update inspection frequency and scope
+   - Adjust inspection parameters
+
+9. **get_cluster_inspect_config**: Get inspection configuration
+   - Retrieve current inspection settings
+   - View configured inspection parameters
+   - Check inspection schedule and rules
 
 ## Authentication:
-Configure environment variables:
-- KUBECONFIG: Path to kubeconfig file (default: ~/.kube/config)
+Configure Alibaba Cloud credentials through environment variables or credential files:
+- ACCESS_KEY_ID: Alibaba Cloud Access Key ID
+- ACCESS_KEY_SECRET: Alibaba Cloud Access Key Secret
+- REGION_ID: Target region (default: cn-hangzhou)
 
 ## Usage:
 This server can run standalone or be mounted as a sub-server in the main
@@ -54,12 +92,15 @@ SERVER_DEPENDENCIES = [
     "fastmcp",
     "pydantic",
     "loguru", 
-    "kubernetes",  # Kubernetes Python client
+    "alibabacloud-cs20151215",  # Alibaba Cloud Container Service SDK
+    "alibabacloud-credentials",  # Alibaba Cloud credentials
+    "alibabacloud-tea-openapi",  # Alibaba Cloud OpenAPI SDK
+    "alibabacloud-tea-util",     # Alibaba Cloud utility SDK
 ]
 
 
 def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
-    """Create K8s Diagnose MCP server instance.
+    """Create ACK Diagnose MCP server instance.
     
     Args:
         config: Server configuration dictionary
@@ -70,7 +111,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     config = config or {}
     
     # Create runtime provider
-    runtime_provider = K8sDiagnoseRuntimeProvider(config)
+    runtime_provider = ACKDiagnoseRuntimeProvider(config)
     
     # Create FastMCP server with runtime provider
     server = FastMCP(
@@ -82,16 +123,16 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Initialize handler
     allow_write = config.get("allow_write", False)
-    K8sDiagnoseHandler(server, allow_write, config)
+    ACKDiagnoseHandler(server, allow_write, config)
     
-    logger.info("K8s Diagnose MCP Server created successfully")
+    logger.info("ACK Diagnose MCP Server created successfully")
     return server
 
 
 def main():
-    """Run K8s Diagnose MCP server as standalone application."""
+    """Run ACK Diagnose MCP server as standalone application."""
     parser = argparse.ArgumentParser(
-        description="K8s Diagnose MCP Server"
+        description="ACK Diagnose MCP Server"
     )
     parser.add_argument(
         "--allow-write",
@@ -121,11 +162,21 @@ def main():
         help="Port for SSE transport (default: 8003)"
     )
     parser.add_argument(
-        "--kubeconfig",
-        "-k",
+        "--region",
+        "-r",
         type=str,
-        default="~/.kube/config",
-        help="Path to kubeconfig file (default: ~/.kube/config)"
+        default="cn-hangzhou",
+        help="Alibaba Cloud region (default: cn-hangzhou)"
+    )
+    parser.add_argument(
+        "--access-key-id",
+        type=str,
+        help="Alibaba Cloud Access Key ID (can also use environment variable ACCESS_KEY_ID)"
+    )
+    parser.add_argument(
+        "--access-key-secret",
+        type=str,
+        help="Alibaba Cloud Access Key Secret (can also use environment variable ACCESS_KEY_SECRET)"
     )
     parser.add_argument(
         "--version",
@@ -143,13 +194,15 @@ def main():
     # Prepare server configuration
     config = {
         "allow_write": args.allow_write,
-        "kubeconfig_path": args.kubeconfig,
+        "region_id": args.region,
+        "access_key_id": args.access_key_id or os.environ.get("ACCESS_KEY_ID"),
+        "access_key_secret": args.access_key_secret or os.environ.get("ACCESS_KEY_SECRET"),
         "default_cluster_id": os.environ.get("DEFAULT_CLUSTER_ID", ""),
         "cache_ttl": int(os.environ.get("CACHE_TTL", "300")),
         "cache_max_size": int(os.environ.get("CACHE_MAX_SIZE", "1000")),
     }
     
-    logger.info(f"Starting K8s Diagnose MCP Server (kubeconfig: {args.kubeconfig})")
+    logger.info(f"Starting ACK Diagnose MCP Server (region: {args.region})")
     
     try:
         # Create and run server

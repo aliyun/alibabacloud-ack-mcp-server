@@ -3,10 +3,10 @@
 __version__ = "0.1.0"
 __author__ = "AlibabaCloud"
 __email__ = "support@alibabacloud.com"
-__description__ = "ACK Kubernetes Diagnosis MCP Server"
+__description__ = "AlibabaCloud ACK Cluster Diagnosis and Inspection MCP Server"
 
-from .handler import K8sDiagnoseHandler
-from .runtime_provider import K8sDiagnoseRuntimeProvider
+from .handler import ACKDiagnoseHandler
+from .runtime_provider import ACKDiagnoseRuntimeProvider
 from .server import create_mcp_server, main
 
 __all__ = [
@@ -14,8 +14,8 @@ __all__ = [
     "__author__", 
     "__email__",
     "__description__",
-    "K8sDiagnoseHandler",
-    "K8sDiagnoseRuntimeProvider",
+    "ACKDiagnoseHandler",
+    "ACKDiagnoseRuntimeProvider",
     "create_mcp_server",
     "main"
 ]

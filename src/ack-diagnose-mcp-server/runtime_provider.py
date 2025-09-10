@@ -1,15 +1,18 @@
-"""Runtime provider for K8s Diagnose MCP Server."""
+"""Runtime provider for ACK Diagnose MCP Server."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
+from alibabacloud_cs20151215.client import Client as CS20151215Client
+from alibabacloud_tea_openapi import models as open_api_models
+from alibabacloud_credentials.client import Client as CredentialClient
 
 from interfaces.runtime_provider import RuntimeProvider
 
 
-class K8sDiagnoseRuntimeProvider(RuntimeProvider):
-    """Runtime provider for K8s diagnosis operations."""
+class ACKDiagnoseRuntimeProvider(RuntimeProvider):
+    """Runtime provider for ACK cluster diagnosis and inspection operations."""
 
     def __init__(self, config: Dict[str, Any] = None):
         """Initialize the runtime provider.
@@ -22,7 +25,7 @@ class K8sDiagnoseRuntimeProvider(RuntimeProvider):
         
     @asynccontextmanager
     async def init_runtime(self, app: FastMCP) -> AsyncIterator[Dict[str, Any]]:
-        """Initialize runtime environment for K8s diagnosis.
+        """Initialize runtime environment for ACK diagnosis.
         
         Args:
             app: FastMCP server instance
@@ -30,7 +33,7 @@ class K8sDiagnoseRuntimeProvider(RuntimeProvider):
         Yields:
             Runtime context containing initialized providers
         """
-        logger.info("Initializing K8s Diagnose runtime environment")
+        logger.info("Initializing ACK Diagnose runtime environment")
         
         try:
             # Initialize providers
@@ -43,18 +46,18 @@ class K8sDiagnoseRuntimeProvider(RuntimeProvider):
                 "default_cluster": self.get_default_cluster(self.config)
             }
             
-            logger.info("K8s Diagnose runtime environment initialized successfully")
+            logger.info("ACK Diagnose runtime environment initialized successfully")
             yield runtime_context
             
         except Exception as e:
-            logger.error(f"Failed to initialize K8s Diagnose runtime: {e}")
+            logger.error(f"Failed to initialize ACK Diagnose runtime: {e}")
             raise
         finally:
             # Cleanup if needed
-            logger.info("Cleaning up K8s Diagnose runtime environment")
+            logger.info("Cleaning up ACK Diagnose runtime environment")
     
     def initialize_providers(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Initialize K8s diagnosis providers.
+        """Initialize ACK diagnosis providers.
         
         Args:
             config: Configuration dictionary
@@ -65,28 +68,45 @@ class K8sDiagnoseRuntimeProvider(RuntimeProvider):
         providers = {}
         
         try:
-            # Initialize Kubernetes client if kubeconfig is available
-            kubeconfig_path = config.get("kubeconfig_path", "~/.kube/config")
+            # Initialize Alibaba Cloud CS client
+            region = config.get("region_id", "cn-hangzhou")
             
-            # TODO: Initialize actual Kubernetes client
-            providers["k8s_client"] = {
-                "type": "kubernetes",
-                "kubeconfig": kubeconfig_path,
+            # Use credential client for secure authentication
+            credential = CredentialClient()
+            cs_config = open_api_models.Config(credential=credential)
+            cs_config.endpoint = f'cs.{region}.aliyuncs.com'
+            
+            cs_client = CS20151215Client(cs_config)
+            
+            providers["cs_client"] = {
+                "type": "alibaba_cloud_cs",
+                "client": cs_client,
+                "region": region,
                 "initialized": True
             }
             
-            # Initialize diagnostic tools
-            providers["diagnostic_tools"] = {
-                "type": "diagnostic_suite",
-                "health_checks": ["nodes", "pods", "services", "ingress"],
-                "network_tools": ["connectivity", "dns", "port_check"]
+            # Initialize diagnosis capabilities
+            providers["diagnosis_capabilities"] = {
+                "type": "ack_diagnosis",
+                "supported_operations": [
+                    "create_cluster_diagnosis",
+                    "get_cluster_diagnosis_result", 
+                    "get_cluster_diagnosis_check_items",
+                    "list_cluster_inspect_reports",
+                    "get_cluster_inspect_report_detail",
+                    "run_cluster_inspect",
+                    "create_cluster_inspect_config",
+                    "update_cluster_inspect_config",
+                    "get_cluster_inspect_config"
+                ],
+                "region": region
             }
             
-            logger.info("K8s diagnosis providers initialized successfully")
+            logger.info(f"ACK diagnosis providers initialized successfully for region: {region}")
             
         except Exception as e:
-            logger.error(f"Failed to initialize K8s diagnosis providers: {e}")
-            providers["k8s_client"] = {"type": "error", "error": str(e)}
+            logger.error(f"Failed to initialize ACK diagnosis providers: {e}")
+            providers["cs_client"] = {"type": "error", "error": str(e)}
         
         return providers
     
