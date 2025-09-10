@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 from typing import Optional
-from mcp.server.fastmcp import FastMCP, Context
+from fastmcp import FastMCP, Context
 from typing import List, Dict, Any
 from pydantic import Field
 from ..provider.provider import Provider

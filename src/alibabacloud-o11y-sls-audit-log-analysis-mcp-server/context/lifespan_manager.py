@@ -4,7 +4,7 @@ import yaml
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional, List
 from pathlib import Path
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from interfaces.runtime_provider import RuntimeProvider
 
 

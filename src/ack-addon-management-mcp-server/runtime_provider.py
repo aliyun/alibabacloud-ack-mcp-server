@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any
 from loguru import logger
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from alibabacloud_cs20151215.client import Client as CS20151215Client
 from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_credentials.client import Client as CredentialClient

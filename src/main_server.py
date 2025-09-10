@@ -26,7 +26,7 @@ import importlib
 from typing import Dict, Any, Optional, Literal
 
 from loguru import logger
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # 尝试导入python-dotenv
 try:
@@ -39,7 +39,7 @@ except ImportError:
 from config import Configs, get_settings
 
 # Define main server configuration
-MAIN_SERVER_NAME = "alibabacloud-cs-main-server"
+MAIN_SERVER_NAME = "alibabacloud-ack-mcp-server"
 MAIN_SERVER_INSTRUCTIONS = """
 AlibabaCloud Container Service Main MCP Server
 

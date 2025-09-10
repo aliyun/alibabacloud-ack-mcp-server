@@ -1,7 +1,7 @@
 """Observability Aliyun Prometheus Handler."""
 
 from typing import Dict, Any, Optional, List
-from mcp.server.fastmcp import FastMCP, Context
+from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cms20190101 import models as cms20190101_models
 from alibabacloud_tea_util import models as util_models

@@ -1,7 +1,7 @@
 """Observability SLS Cluster APIServer Log Analysis Handler."""
 
 from typing import Dict, Any, Optional, List
-from mcp.server.fastmcp import FastMCP, Context
+from fastmcp import FastMCP, Context
 from loguru import logger
 from aliyun.log import LogException
 import json

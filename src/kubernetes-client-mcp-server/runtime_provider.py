@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any
 from loguru import logger
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from kubernetes import client, config
 import yaml
 

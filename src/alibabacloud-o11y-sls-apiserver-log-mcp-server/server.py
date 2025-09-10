@@ -6,7 +6,7 @@ import sys
 from typing import Dict, Any, Optional, Literal
 
 from loguru import logger
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 # 尝试导入python-dotenv
 try:

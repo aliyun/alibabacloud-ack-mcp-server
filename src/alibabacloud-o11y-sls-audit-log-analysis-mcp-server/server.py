@@ -7,8 +7,7 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Literal
 
-from mcp.server.fastmcp import FastMCP
-from mcp.server.stdio import stdio_server
+from fastmcp import FastMCP
 
 from .context.lifespan_manager import KubeAuditRuntimeProvider
 from .toolkits.kube_aduit_tool import KubeAuditTool

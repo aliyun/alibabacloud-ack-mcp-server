@@ -1,7 +1,7 @@
 """Kubernetes Client Handler."""
 
 from typing import Dict, Any, Optional, List
-from mcp.server.fastmcp import FastMCP, Context
+from fastmcp import FastMCP, Context
 from loguru import logger
 import yaml
 from kubernetes.client.rest import ApiException

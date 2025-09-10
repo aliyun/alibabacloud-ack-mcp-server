@@ -7,7 +7,7 @@ including configuration management, service initialization, and resource lifecyc
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 
 class RuntimeProvider(ABC):

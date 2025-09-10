@@ -16,38 +16,34 @@ class Configs(BaseSettings):
     """
 
     # .env 文件路径
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", 
+        env_file_encoding="utf-8",
+        extra="allow"  # 允许额外的字段
+    )
 
-    # 服务监听的端口
-    HTTP_PORT: int = 8080
-    # 默认的阿里云区域
-    ALIYUN_REGION: str = "cn-beijing"
-    # 用于客户端认证的 Bearer Token (可选)
-    MCP_AUTH_TOKEN: Optional[str] = None
-
-    def __init__(self, args_dict: dict, values=None):
+    def __init__(self, args_dict: Optional[dict] = None, **values):
+        """
+        初始化配置实例。
+        
+        Args:
+            args_dict: 命令行参数字典（可选）
+            **values: 其他配置值
+        """
+        if args_dict:
+            # 将args_dict合并到values中
+            values.update(args_dict)
         super().__init__(**values)
 
 
-@lru_cache
-def get_settings() -> Configs:
+def get_settings(args_dict: Optional[dict] = None) -> Configs:
     """
-    返回一个缓存的 Settings 实例。
+    返回一个 Configs 实例。
+    
+    Args:
+        args_dict: 命令行参数字典（可选）
+        
+    Returns:
+        Configs 实例
     """
-    return Configs()
-
-
-@lru_cache
-def get_logger() -> logging.Logger:
-    """
-    配置并返回一个全局日志记录器。
-    """
-    logger = logging.getLogger("mcp_server")
-    logger.setLevel(logging.INFO)
-    handler = logging.StreamHandler(sys.stdout)
-    formatter = logging.Formatter(
-        "[%(asctime)s] [%(levelname)s] [%(name)s] - %(message)s"
-    )
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+    return Configs(args_dict)
