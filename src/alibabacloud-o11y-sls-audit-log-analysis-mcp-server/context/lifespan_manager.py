@@ -319,7 +319,7 @@ class KubeAuditRuntimeProvider(RuntimeProvider):
                     sls_config["access_key_secret"] = access_key_secret
 
                     # Import here to avoid circular imports
-                    from ack_cluster_audit_log_analysis_mcp_server.provider.provider import AlibabaSLSProvider
+                    from ..provider.provider import AlibabaSLSProvider
                     clients[cluster_name] = AlibabaSLSProvider(sls_config)
                 else:
                     print(f"Warning: Unknown provider type: {provider_type}")

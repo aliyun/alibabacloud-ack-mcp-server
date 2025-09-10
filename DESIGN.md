@@ -98,29 +98,47 @@ if __name__ == '__main__':
 
 1. **Package Entry Point**: Configure the entry point in `pyproject.toml`:
 
+
 ```toml
 [project.scripts]
-"aliyun.your-mcp-server" = "aliyun.your_mcp_server.server:main"
+"ack-[resource]-[service]-mcp-server" = "aliyun.your_mcp_server.server:main"
 ```
+
+for ack service capabilitys, you can use the following entry point:
 
 ## Package Naming and Versioning
 
+### Aliyun Container Service (ACK) Service Capatibilities
+
 1. **Package Naming**: Follow the established naming pattern:
-   - Namespace: `aliyun`
+   - Namespace: `ack`
    - Package name: lowercase with hyphens (in pyproject.toml)
-   - Python module: lowercase with underscores
+   - Python module: ack-[resource]-[capatility]-mcp-server lowercase with underscores
 
    Example:
 
    ```toml
    # In pyproject.toml
-   name = "aliyun.nova-canvas-mcp-server"
+   name = "aliyun-nodepool-management-mcp-server"
    ```
 
    ```python
    # In Python imports
    from aliyun.nova_canvas_mcp_server import models
    ```
+
+### Aliyun Other Services Capatilities
+
+1. **Package Naming**: Follow the established naming pattern:
+  - Namespace: `alibabacloud`
+  - Package name: lowercase with hyphens (in pyproject.toml)
+  - Python module: alibabacloud-[product]-[service]-[capatility]-mcp-server lowercase with underscores
+
+   Example:
+    alibabacloud-o11y-prometheus-mcp-server
+    alibabacloud-o11y-sls-apiserver-log-mcp-server
+    alibabacloud-o11y-sls-audit-log-analysis-mcp-server
+
 
 2. **Versioning**: Store version information in `__init__.py`:
 

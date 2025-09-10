@@ -5,7 +5,7 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP, Context
 from typing import List, Dict, Any
 from pydantic import Field
-from ack_cluster_audit_log_analysis_mcp_server.provider.provider import Provider
+from ..provider.provider import Provider
 
 
 class KubeAuditTool:

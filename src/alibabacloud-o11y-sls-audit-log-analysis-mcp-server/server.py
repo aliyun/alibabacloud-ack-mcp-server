@@ -10,8 +10,8 @@ from typing import Optional, Literal
 from mcp.server.fastmcp import FastMCP
 from mcp.server.stdio import stdio_server
 
-from ack_cluster_audit_log_analysis_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
-from ack_cluster_audit_log_analysis_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
+from .context.lifespan_manager import KubeAuditRuntimeProvider
+from .toolkits.kube_aduit_tool import KubeAuditTool
 
 
 def create_mcp_server(config: Optional[dict] = None) -> FastMCP:

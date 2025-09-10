@@ -47,10 +47,10 @@ def sub_servers() -> List[Tuple[str, str]]:
         ("ack-nodepool-management-mcp-server", "ack_nodepool_management_mcp_server"),
         ("kubernetes-client-mcp-server", "kubernetes_client_mcp_server"),
         ("ack-diagnose-mcp-server", "ack_diagnose_mcp_server"),
-        ("alibabacloud-ack-prometheus-mcp-server", "alibabacloud_ack_prometheus_mcp_server"),
-        ("ack-apiserver-log-analysis-mcp-server", "ack_apiserver_log_analysis_mcp_server"),
+        ("alibabacloud-o11y-prometheus-mcp-server", "alibabacloud_o11y_prometheus_mcp_server"),
+        ("alibabacloud-o11y-sls-apiserver-log-mcp-server", "alibabacloud_o11y_sls_apiserver_log_mcp_server"),
         ("alibabacloud-ack-cloudresource-monitor-mcp-server", "alibabacloud_ack_cloudresource_monitor_mcp_server"),
-        ("ack-cluster-audit-log-analysis-mcp-server", "ack_cluster_audit_log_analysis_mcp_server"),
+        ("alibabacloud-o11y-sls-audit-log-analysis-mcp-server", "alibabacloud_o11y_sls_audit_log_analysis_mcp_server"),
     ]
 
 
@@ -100,10 +100,10 @@ class TestSubServerImports:
         ("ack-nodepool-management-mcp-server", "ack_nodepool_management_mcp_server"),
         ("kubernetes-client-mcp-server", "kubernetes_client_mcp_server"),
         ("ack-diagnose-mcp-server", "ack_diagnose_mcp_server"),
-        ("alibabacloud-ack-prometheus-mcp-server", "alibabacloud_ack_prometheus_mcp_server"),
-        ("ack-apiserver-log-analysis-mcp-server", "ack_apiserver_log_analysis_mcp_server"),
+        ("alibabacloud-o11y-prometheus-mcp-server", "alibabacloud_o11y_prometheus_mcp_server"),
+        ("alibabacloud-o11y-sls-apiserver-log-mcp-server", "alibabacloud_o11y_sls_apiserver_log_mcp_server"),
         ("alibabacloud-ack-cloudresource-monitor-mcp-server", "alibabacloud_ack_cloudresource_monitor_mcp_server"),
-        ("ack-cluster-audit-log-analysis-mcp-server", "ack_cluster_audit_log_analysis_mcp_server"),
+        ("alibabacloud-o11y-sls-audit-log-analysis-mcp-server", "alibabacloud_o11y_sls_audit_log_analysis_mcp_server"),
     ])
     def test_sub_server_import(self, server_name: str, module_name: str):
         """Test if a sub-MCP server can be imported correctly."""
@@ -137,8 +137,8 @@ class TestSubServerCreation:
         ("ack-nodepool-management-mcp-server", "ack_nodepool_management_mcp_server"),
         ("kubernetes-client-mcp-server", "kubernetes_client_mcp_server"),
         ("ack-diagnose-mcp-server", "ack_diagnose_mcp_server"),
-        ("alibabacloud-ack-prometheus-mcp-server", "alibabacloud_ack_prometheus_mcp_server"),
-        ("ack-apiserver-log-analysis-mcp-server", "ack_apiserver_log_analysis_mcp_server"),
+        ("alibabacloud-o11y-prometheus-mcp-server", "alibabacloud_o11y_prometheus_mcp_server"),
+        ("alibabacloud-o11y-sls-apiserver-log-mcp-server", "alibabacloud_o11y_sls_apiserver_log_mcp_server"),
         ("alibabacloud-ack-cloudresource-monitor-mcp-server", "alibabacloud_ack_cloudresource_monitor_mcp_server"),
     ])
     def test_sub_server_creation(self, server_name: str, module_name: str, test_config: Dict[str, Any]):
@@ -163,8 +163,8 @@ class TestSubServerCreation:
             ("ack-nodepool-management-mcp-server", "ack_nodepool_management_mcp_server"),
             ("kubernetes-client-mcp-server", "kubernetes_client_mcp_server"),
             ("ack-diagnose-mcp-server", "ack_diagnose_mcp_server"),
-            ("alibabacloud-ack-prometheus-mcp-server", "alibabacloud_ack_prometheus_mcp_server"),
-            ("ack-apiserver-log-analysis-mcp-server", "ack_apiserver_log_analysis_mcp_server"),
+            ("alibabacloud-o11y-prometheus-mcp-server", "alibabacloud_o11y_prometheus_mcp_server"),
+            ("alibabacloud-o11y-sls-apiserver-log-mcp-server", "alibabacloud_o11y_sls_apiserver_log_mcp_server"),
             ("alibabacloud-ack-cloudresource-monitor-mcp-server", "alibabacloud_ack_cloudresource_monitor_mcp_server"),
         ]
         

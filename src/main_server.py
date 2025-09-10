@@ -129,14 +129,14 @@ SUB_SERVERS_CONFIG = {
         "module_name": "ack_diagnose_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "alibabacloud-ack-prometheus-mcp-server": {
+    "alibabacloud-o11y-prometheus-mcp-server": {
         "prefix": "observability-prometheus",
-        "module_name": "alibabacloud_ack_prometheus_mcp_server",
+        "module_name": "alibabacloud_o11y_prometheus_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "ack-apiserver-log-analysis-mcp-server": {
+    "alibabacloud-o11y-sls-apiserver-log-mcp-server": {
         "prefix": "observability-sls",
-        "module_name": "ack_apiserver_log_analysis_mcp_server", 
+        "module_name": "alibabacloud_o11y_sls_apiserver_log_mcp_server", 
         "create_function": "create_mcp_server"
     },
     "alibabacloud-ack-cloudresource-monitor-mcp-server": {
@@ -144,9 +144,9 @@ SUB_SERVERS_CONFIG = {
         "module_name": "alibabacloud_ack_cloudresource_monitor_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "ack-cluster-audit-log-analysis-mcp-server": {
+    "alibabacloud-o11y-sls-audit-log-analysis-mcp-server": {
         "prefix": "audit-log",
-        "module_name": "ack_cluster_audit_log_analysis_mcp_server",
+        "module_name": "alibabacloud_o11y_sls_audit_log_analysis_mcp_server",
         "create_function": "create_mcp_server"
     }
 }

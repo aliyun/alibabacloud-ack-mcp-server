@@ -27,7 +27,7 @@ from .server import (
 from .toolkits import KubeAuditTool
 
 
-# Define what gets imported with "from ack_cluster_audit_log_analysis_mcp_server import *"
+# Define what gets imported with "from alibabacloud_o11y_sls_audit_log_analysis_mcp_server import *"
 __all__ = [
     # Version info
     "__version__",

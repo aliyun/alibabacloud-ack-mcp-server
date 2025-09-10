@@ -5,7 +5,7 @@ import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
 
-from ack_cluster_audit_log_analysis_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
+from ..toolkits.kube_aduit_tool import KubeAuditTool
 
 
 class TestKubeAuditTool:
@@ -350,7 +350,7 @@ class TestKubeAuditTool:
         """Test provider registry contains expected providers."""
         tool = KubeAuditTool()
         
-        from ack_cluster_audit_log_analysis_mcp_server.provider.provider import (
+        from ..provider.provider import (
             AlibabaSLSProvider,
         )
         
