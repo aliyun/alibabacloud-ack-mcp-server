@@ -106,7 +106,7 @@ if __name__ == '__main__':
 ## Package Naming and Versioning
 
 1. **Package Naming**: Follow the established naming pattern:
-   - Namespace: `awslabs`
+   - Namespace: `aliyun`
    - Package name: lowercase with hyphens (in pyproject.toml)
    - Python module: lowercase with underscores
 
@@ -462,7 +462,7 @@ async def mcp_generate_image(
     negative_prompt: Optional[str] = Field(default=None),
     # ... other parameters
 ) -> McpImageGenerationResponse:
-    """Generate an image using Amazon Nova Canvas with text prompt."""
+    """Generate an image using Aliyun TongYiWanXiang with text prompt."""
 
     # ... implementation
 ```
@@ -745,7 +745,7 @@ MCP servers should support configuration through environment variables:
 ```python
 # Configuration via environment variables
 LOG_LEVEL = os.environ.get('FASTMCP_LOG_LEVEL', 'WARNING')
-REGION_ID = os.environ.get('REGION_ID', 'us-east-1')
+REGION_ID = os.environ.get('REGION_ID', 'cn-hangzhou')
 ACCESS_KEY_ID = os.environ.get('ACCESS_KEY_ID'
 ACCESS_SECRET_KEY = os.environ.get('ACCESS_SECRET_KEY')
 CUSTOM_SETTING = os.environ.get('CUSTOM_SETTING', 'default_value')
@@ -770,7 +770,7 @@ async def mcp_generate_image(
     prompt: str = Field(...),
     # ... other parameters
 ) -> McpImageGenerationResponse:
-    """Generate an image using Amazon Nova Canvas with text prompt."""
+    """Generate an image using Aliyun TongYiWanXiang with text prompt."""
 
     try:
         logger.info(f'Generating image with text prompt, quality: {quality}')
@@ -808,7 +808,7 @@ async def mcp_generate_image(
 All modules, classes, and functions should have comprehensive docstrings:
 
 ```python
-"""Query an Amazon Bedrock Knowledge Base using natural language.
+"""Query an Aliyun Container Service Knowledge Base using natural language.
 
 ## Usage Requirements
 - You MUST first use the `resource://knowledgebases` resource to get valid knowledge base IDs
@@ -844,17 +844,17 @@ Provide detailed instructions for LLMs using the MCP server:
 mcp = FastMCP(
     'ack-cluster-management-mcp-server',
     instructions=f"""
-# Amazon Nova Canvas Image Generation
+# Aliyun TongYiWanXiang Image Generation
 
-This MCP server provides tools for generating images using Amazon Nova Canvas through Amazon Bedrock.
+This MCP server provides tools for generating images using Aliyun TongYiWanXiang through Aliyun DashScope.
 
 ## Available Tools
 
 ### generate_image
-Generate an image from a text prompt using Amazon Nova Canvas.
+Generate an image from a text prompt using Aliyun TongYiWanXiang.
 
 ### generate_image_with_colors
-Generate an image from a text prompt and color palette using Amazon Nova Canvas.
+Generate an image from a text prompt and color palette using Aliyun TongYiWanXiang.
 
 ## Prompt Best Practices
 
@@ -862,7 +862,7 @@ Generate an image from a text prompt and color palette using Amazon Nova Canvas.
 """,
     dependencies=[
         'pydantic',
-        'boto3',
+        'alibabacloud_imageenhan20190930',
     ],
 )
 ```
