@@ -1,15 +1,15 @@
-"""Runtime provider for Observability SLS Cluster APIServer Log Analysis MCP Server."""
+"""Runtime provider for Observability Aliyun CloudMonitor Resource Monitor MCP Server."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from src.interfaces.runtime_provider import RuntimeProvider
+from interfaces.runtime_provider import RuntimeProvider
 
 
-class ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(RuntimeProvider):
-    """Runtime provider for SLS APIServer log analysis operations."""
+class ObservabilityAliyunCloudMonitorResourceMonitorRuntimeProvider(RuntimeProvider):
+    """Runtime provider for Aliyun CloudMonitor resource monitoring operations."""
 
     def __init__(self, config: Dict[str, Any] = None):
         """Initialize the runtime provider.
@@ -22,7 +22,7 @@ class ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(RuntimeProvider
         
     @asynccontextmanager
     async def init_runtime(self, app: FastMCP) -> AsyncIterator[Dict[str, Any]]:
-        """Initialize runtime environment for SLS APIServer log analysis.
+        """Initialize runtime environment for Aliyun CloudMonitor resource monitoring.
         
         Args:
             app: FastMCP server instance
@@ -30,7 +30,7 @@ class ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(RuntimeProvider
         Yields:
             Runtime context containing initialized providers
         """
-        logger.info("Initializing Observability SLS APIServer Log Analysis runtime environment")
+        logger.info("Initializing Observability Aliyun CloudMonitor Resource Monitor runtime environment")
         
         try:
             # Initialize providers
@@ -43,18 +43,18 @@ class ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(RuntimeProvider
                 "default_cluster": self.get_default_cluster(self.config)
             }
             
-            logger.info("Observability SLS APIServer Log Analysis runtime environment initialized successfully")
+            logger.info("Observability Aliyun CloudMonitor Resource Monitor runtime environment initialized successfully")
             yield runtime_context
             
         except Exception as e:
-            logger.error(f"Failed to initialize Observability SLS APIServer Log Analysis runtime: {e}")
+            logger.error(f"Failed to initialize Observability Aliyun CloudMonitor Resource Monitor runtime: {e}")
             raise
         finally:
             # Cleanup if needed
-            logger.info("Cleaning up Observability SLS APIServer Log Analysis runtime environment")
+            logger.info("Cleaning up Observability Aliyun CloudMonitor Resource Monitor runtime environment")
     
     def initialize_providers(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Initialize SLS APIServer log analysis providers.
+        """Initialize Aliyun CloudMonitor resource monitoring providers.
         
         Args:
             config: Configuration dictionary
@@ -65,44 +65,44 @@ class ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(RuntimeProvider
         providers = {}
         
         try:
-            # Initialize SLS client if credentials are available
+            # Initialize CloudMonitor client if credentials are available
             access_key_id = config.get("access_key_id")
             access_secret_key = config.get("access_secret_key")
             region_id = config.get("region_id", "cn-hangzhou")
             
             if access_key_id and access_secret_key:
-                # TODO: Initialize actual AlibabaCloud SLS client
-                providers["sls_client"] = {
-                    "type": "simple_log_service",
+                # TODO: Initialize actual AlibabaCloud CloudMonitor client
+                providers["cms_client"] = {
+                    "type": "cloudmonitor_service",
                     "region": region_id,
                     "initialized": True
                 }
-                logger.info(f"SLS client initialized for region: {region_id}")
+                logger.info(f"CloudMonitor client initialized for region: {region_id}")
             else:
-                logger.warning("SLS credentials not provided, using mock client")
-                providers["sls_client"] = {
+                logger.warning("CloudMonitor credentials not provided, using mock client")
+                providers["cms_client"] = {
                     "type": "mock",
                     "region": region_id,
                     "initialized": False
                 }
             
-            # Initialize SQL query engine
-            providers["sql_engine"] = {
-                "type": "sls_sql_engine",
-                "query_timeout": config.get("query_timeout", 60),
-                "max_results": config.get("max_results", 1000)
+            # Initialize metrics collector
+            providers["metrics_collector"] = {
+                "type": "metrics_collector",
+                "collection_interval": config.get("collection_interval", 60),
+                "metric_retention": config.get("metric_retention", 7)  # days
             }
             
-            # Initialize log analysis engine
-            providers["log_analyzer"] = {
-                "type": "apiserver_log_analyzer",
-                "error_patterns": ["error", "failed", "timeout", "denied"],
-                "warning_patterns": ["warning", "retry", "slow"]
+            # Initialize alert manager
+            providers["alert_manager"] = {
+                "type": "alert_manager",
+                "notification_channels": ["sms", "email", "webhook"],
+                "escalation_policy": config.get("escalation_policy", "default")
             }
             
         except Exception as e:
-            logger.error(f"Failed to initialize Observability SLS APIServer Log Analysis providers: {e}")
-            providers["sls_client"] = {"type": "error", "error": str(e)}
+            logger.error(f"Failed to initialize Observability Aliyun CloudMonitor Resource Monitor providers: {e}")
+            providers["cms_client"] = {"type": "error", "error": str(e)}
         
         return providers
     

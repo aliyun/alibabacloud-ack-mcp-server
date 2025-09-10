@@ -1,4 +1,4 @@
-"""Observability Aliyun CloudMonitor Resource Monitor MCP Server."""
+"""Observability SLS Cluster APIServer Log Analysis MCP Server."""
 
 import argparse
 import os
@@ -8,37 +8,37 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from .handler import ObservabilityAliyunCloudMonitorResourceMonitorHandler
-from .runtime_provider import ObservabilityAliyunCloudMonitorResourceMonitorRuntimeProvider
+from .handler import ObservabilitySLSClusterAPIServerLogAnalysisHandler
+from .runtime_provider import ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider
 
-SERVER_NAME = "observability-aliyun-cloudmonitor-resource-monitor-mcp-server"
-SERVER_DEPENDENCIES = ["fastmcp", "pydantic", "loguru", "alibabacloud_cms20190101"]
+SERVER_NAME = "ack-apiserver-log-analysis-mcp-server"
+SERVER_DEPENDENCIES = ["fastmcp", "pydantic", "loguru", "aliyun-log-python-sdk"]
 
 def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
-    """Create CloudMonitor Resource Monitor MCP server instance."""
+    """Create SLS APIServer Log Analysis MCP server instance."""
     config = config or {}
-    runtime_provider = ObservabilityAliyunCloudMonitorResourceMonitorRuntimeProvider(config)
+    runtime_provider = ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(config)
     
     server = FastMCP(
         name=SERVER_NAME,
-        instructions="CloudMonitor Resource Monitor MCP Server",
+        instructions="SLS APIServer Log Analysis MCP Server",
         dependencies=SERVER_DEPENDENCIES,
         lifespan=runtime_provider.init_runtime,
     )
     
     allow_write = config.get("allow_write", False)
-    ObservabilityAliyunCloudMonitorResourceMonitorHandler(server, allow_write, config)
+    ObservabilitySLSClusterAPIServerLogAnalysisHandler(server, allow_write, config)
     
-    logger.info("CloudMonitor Resource Monitor MCP Server created successfully")
+    logger.info("SLS APIServer Log Analysis MCP Server created successfully")
     return server
 
 def main():
-    """Run CloudMonitor Resource Monitor MCP server as standalone application."""
-    parser = argparse.ArgumentParser(description="CloudMonitor Resource Monitor MCP Server")
+    """Run SLS APIServer Log Analysis MCP server as standalone application."""
+    parser = argparse.ArgumentParser(description="SLS APIServer Log Analysis MCP Server")
     parser.add_argument("--allow-write", action="store_true", default=False)
     parser.add_argument("--transport", "-t", choices=["stdio", "sse"], default="stdio")
     parser.add_argument("--host", default="localhost")
-    parser.add_argument("--port", "-p", type=int, default=8007)
+    parser.add_argument("--port", "-p", type=int, default=8006)
     parser.add_argument("--region", "-r", default="cn-hangzhou")
     
     args = parser.parse_args()

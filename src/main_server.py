@@ -58,22 +58,22 @@ cluster management capabilities:
    - Get pod logs and events
    - Describe resources in detail
 
-5. **K8s Diagnostics** (/k8s-diagnose):
+5. **ACK Diagnostics** (/ack-diagnose):
    - Cluster health diagnosis
    - Pod issue diagnosis  
    - Network connectivity diagnosis
 
-6. **Observability - Prometheus** (/observability-prometheus):
+6. **AlibabaCloud ACK Prometheus** (/observability-prometheus):
    - Execute PromQL queries
    - Natural language to PromQL translation
    - Get available metrics
 
-7. **Observability - SLS APIServer** (/observability-sls):
+7. **ACK APIServer Log Analysis** (/observability-sls):
    - Execute SLS SQL queries
    - Natural language to SLS SQL translation
    - APIServer error analysis
 
-8. **Observability - CloudMonitor** (/observability-cloudmonitor):
+8. **AlibabaCloud ACK CloudResource Monitor** (/observability-cloudmonitor):
    - Get resource metrics
    - Create alert rules
    - Monitor resource health status
@@ -124,29 +124,29 @@ SUB_SERVERS_CONFIG = {
         "module_name": "kubernetes_client_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "k8s-diagnose-mcp-server": {
-        "prefix": "k8s-diagnose", 
-        "module_name": "k8s_diagnose_mcp_server",
+    "ack-diagnose-mcp-server": {
+        "prefix": "ack-diagnose", 
+        "module_name": "ack_diagnose_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "observability-aliyun-prometheus-mcp-server": {
+    "alibabacloud-ack-prometheus-mcp-server": {
         "prefix": "observability-prometheus",
-        "module_name": "observability_aliyun_prometheus_mcp_server",
+        "module_name": "alibabacloud_ack_prometheus_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "observability-sls-cluster-apiserver-log-analysis-mcp-server": {
+    "ack-apiserver-log-analysis-mcp-server": {
         "prefix": "observability-sls",
-        "module_name": "observability_sls_cluster_apiserver_log_analysis_mcp_server", 
+        "module_name": "ack_apiserver_log_analysis_mcp_server", 
         "create_function": "create_mcp_server"
     },
-    "observability-aliyun-cloudmonitor-resource-monitor-mcp-server": {
+    "alibabacloud-ack-cloudresource-monitor-mcp-server": {
         "prefix": "observability-cloudmonitor",
-        "module_name": "observability_aliyun_cloudmonitor_resource_monitor_mcp_server",
+        "module_name": "alibabacloud_ack_cloudresource_monitor_mcp_server",
         "create_function": "create_mcp_server"
     },
-    "alibabacloud-cluster-audit-log-mcp-server": {
+    "ack-cluster-audit-log-analysis-mcp-server": {
         "prefix": "audit-log",
-        "module_name": "alibabacloud_cluster_audit_log_mcp_server",
+        "module_name": "ack_cluster_audit_log_analysis_mcp_server",
         "create_function": "create_mcp_server"
     }
 }
@@ -188,11 +188,30 @@ def create_main_server(
     for server_name, config in SUB_SERVERS_CONFIG.items():
         try:
             # Import the sub-server module using importlib
-            if '-' in config["module_name"]:
-                # Handle modules with hyphens in their names
-                module = importlib.import_module(config["module_name"].replace('-', '_'))
+            module_name = config["module_name"]
+            
+            # For modules with hyphens in directory names, use spec_from_file_location
+            if '-' in server_name:
+                import importlib.util
+                import sys
+                import os
+                
+                # Add src directory to Python path if not already there
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                if current_dir not in sys.path:
+                    sys.path.insert(0, current_dir)
+                
+                module_path = f"{server_name}/__init__.py"
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                module = importlib.util.module_from_spec(spec)
+                
+                # Add module to sys.modules to support relative imports
+                sys.modules[module_name] = module
+                
+                # Execute the module
+                spec.loader.exec_module(module)
             else:
-                module = importlib.import_module(config["module_name"])
+                module = importlib.import_module(module_name)
             
             create_function = getattr(module, config["create_function"])
             

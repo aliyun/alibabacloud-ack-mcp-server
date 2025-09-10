@@ -18,7 +18,7 @@ from .handler import ObservabilityAliyunPrometheusHandler
 from .runtime_provider import ObservabilityAliyunPrometheusRuntimeProvider
 
 # Server configuration
-SERVER_NAME = "observability-aliyun-prometheus-mcp-server"
+SERVER_NAME = "alibabacloud-ack-prometheus-mcp-server"
 SERVER_INSTRUCTIONS = """
 Observability Aliyun Prometheus MCP Server
 

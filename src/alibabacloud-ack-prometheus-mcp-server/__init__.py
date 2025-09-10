@@ -1,9 +1,9 @@
-"""Observability Aliyun Prometheus MCP Server Module."""
+"""AlibabaCloud ACK Prometheus MCP Server Module."""
 
 __version__ = "0.1.0"
 __author__ = "AlibabaCloud"
 __email__ = "support@alibabacloud.com"
-__description__ = "Observability Aliyun Prometheus MCP Server"
+__description__ = "AlibabaCloud ACK Prometheus MCP Server"
 
 from .handler import ObservabilityAliyunPrometheusHandler
 from .runtime_provider import ObservabilityAliyunPrometheusRuntimeProvider

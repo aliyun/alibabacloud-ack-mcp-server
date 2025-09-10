@@ -1,9 +1,9 @@
-"""Observability Aliyun CloudMonitor Resource Monitor MCP Server Module."""
+"""AlibabaCloud ACK CloudResource Monitor MCP Server Module."""
 
 __version__ = "0.1.0"
 __author__ = "AlibabaCloud"
 __email__ = "support@alibabacloud.com"
-__description__ = "Observability Aliyun CloudMonitor Resource Monitor MCP Server"
+__description__ = "AlibabaCloud ACK CloudResource Monitor MCP Server"
 
 from .handler import ObservabilityAliyunCloudMonitorResourceMonitorHandler
 from .runtime_provider import ObservabilityAliyunCloudMonitorResourceMonitorRuntimeProvider

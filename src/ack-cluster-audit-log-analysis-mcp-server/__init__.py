@@ -1,32 +1,33 @@
-"""AlibabaCloud ACK MCP Server - Kubernetes audit log querying server."""
+"""AlibabaCloud ACK Cluster Audit Log Analysis MCP Server."""
 
 __version__ = "0.1.0"
 __author__ = "AlibabaCloud"
 __email__ = "support@alibabacloud.com"
-__description__ = "AlibabaCloud ACK MCP Server for Kubernetes audit log querying"
+__description__ = "AlibabaCloud ACK Cluster Audit Log Analysis MCP Server"
 
 # Import main components for easy access
-from src.runtime_provider import RuntimeProvider
-from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import (
+from interfaces.runtime_provider import RuntimeProvider
+from .context.lifespan_manager import (
     KubeAuditRuntimeProvider,
     ConfigValidationError,
     ConfigLoader,
 )
 
-from alibabacloud_cluster_audit_log_mcp_server.provider import (
+from .provider import (
     Provider,
     AlibabaSLSProvider,
 )
 
-from alibabacloud_cluster_audit_log_mcp_server.server import (
+from .server import (
     create_server,
+    create_mcp_server,
     main,
 )
 
-from alibabacloud_cluster_audit_log_mcp_server.toolkits import KubeAuditTool
+from .toolkits import KubeAuditTool
 
 
-# Define what gets imported with "from alibabacloud_cluster_audit_log_mcp_server import *"
+# Define what gets imported with "from ack_cluster_audit_log_analysis_mcp_server import *"
 __all__ = [
     # Version info
     "__version__",
@@ -46,6 +47,7 @@ __all__ = [
     
     # Server functions
     "create_server",
+    "create_mcp_server",
     "main",
     
     # Tools

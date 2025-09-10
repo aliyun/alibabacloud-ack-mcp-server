@@ -7,7 +7,7 @@ import yaml
 from unittest.mock import Mock, patch, AsyncMock
 from pathlib import Path
 
-from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
+from ack_cluster_audit_log_analysis_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
 
 
 class TestKubeAuditRuntimeProvider:
@@ -61,7 +61,7 @@ class TestKubeAuditRuntimeProvider:
         
         assert default_cluster == "default"
 
-    @patch('alibabacloud_cluster_audit_log_mcp_server.provider.provider.AlibabaSLSProvider')
+    @patch('ack_cluster_audit_log_analysis_mcp_server.provider.provider.AlibabaSLSProvider')
     def test_initialize_providers_alibaba(self, mock_provider_class, mock_config):
         """Test provider initialization for Alibaba SLS."""
         mock_provider_instance = Mock()
@@ -184,7 +184,7 @@ class TestKubeAuditRuntimeProvider:
 
     def test_runtime_provider_inheritance(self):
         """Test that KubeAuditRuntimeProvider inherits from RuntimeProvider."""
-        from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
+        from ack_cluster_audit_log_analysis_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
         from src.runtime_provider import RuntimeProvider
         
         assert issubclass(KubeAuditRuntimeProvider, RuntimeProvider)

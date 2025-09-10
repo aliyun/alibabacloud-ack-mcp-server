@@ -5,7 +5,7 @@ from typing import AsyncIterator, Dict, Any
 from loguru import logger
 from mcp.server.fastmcp import FastMCP
 
-from src.interfaces.runtime_provider import RuntimeProvider
+from interfaces.runtime_provider import RuntimeProvider
 
 
 class K8sDiagnoseRuntimeProvider(RuntimeProvider):

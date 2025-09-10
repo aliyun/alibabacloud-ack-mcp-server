@@ -110,7 +110,6 @@
 
 # Installation and Setup
 
-
 ## Local installation
 
 ```
@@ -121,14 +120,15 @@ pip install -r requirements.txt
 
 ## Authorization
 
-### 1. aliyun ram policy
+### 1. 阿里云 RAM 策略
 
-### 2. Kubernetes rbac policy
+### 2. Kubernetes RBAC 策略
 
 ## Configuration
 
   ```.env
-  # contents of a .env file with fictitious AWS temporary credentials
+  # .env 文件内容，包含阿里云访问凭证
   ACCESS_KEY_ID={YOUR_ALIYUN_ACCESS_KEY}
   SECRET_ACCESS_KEY={YOUR_ALIYUN_ACCESS_SECRET_KEY}
+  REGION_ID={YOUR_ALIYUN_REGION}
   ```

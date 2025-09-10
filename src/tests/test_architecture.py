@@ -27,18 +27,40 @@ def test_sub_server_imports():
         ("ack-addon-management-mcp-server", "ack_addon_management_mcp_server"),
         ("ack-nodepool-management-mcp-server", "ack_nodepool_management_mcp_server"),
         ("kubernetes-client-mcp-server", "kubernetes_client_mcp_server"),
-        ("k8s-diagnose-mcp-server", "k8s_diagnose_mcp_server"),
-        ("observability-aliyun-prometheus-mcp-server", "observability_aliyun_prometheus_mcp_server"),
-        ("observability-sls-cluster-apiserver-log-analysis-mcp-server", "observability_sls_cluster_apiserver_log_analysis_mcp_server"),
-        ("observability-aliyun-cloudmonitor-resource-monitor-mcp-server", "observability_aliyun_cloudmonitor_resource_monitor_mcp_server"),
-        ("alibabacloud-cluster-audit-log-mcp-server", "alibabacloud_cluster_audit_log_mcp_server"),
+        ("ack-diagnose-mcp-server", "ack_diagnose_mcp_server"),
+        ("alibabacloud-ack-prometheus-mcp-server", "alibabacloud_ack_prometheus_mcp_server"),
+        ("ack-apiserver-log-analysis-mcp-server", "ack_apiserver_log_analysis_mcp_server"),
+        ("alibabacloud-ack-cloudresource-monitor-mcp-server", "alibabacloud_ack_cloudresource_monitor_mcp_server"),
+        ("ack-cluster-audit-log-analysis-mcp-server", "ack_cluster_audit_log_analysis_mcp_server"),
     ]
     
     success_count = 0
     
     for server_name, module_name in sub_servers:
         try:
-            module = __import__(module_name.replace('-', '_'))
+            # Import using dynamic loading for modules with hyphens
+            if '-' in server_name:
+                import importlib.util
+                import sys
+                import os
+                
+                # Add src directory to Python path if not already there
+                current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if current_dir not in sys.path:
+                    sys.path.insert(0, current_dir)
+                
+                module_path = f"{server_name}/__init__.py"
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                module = importlib.util.module_from_spec(spec)
+                
+                # Add module to sys.modules to support relative imports
+                sys.modules[module_name] = module
+                
+                # Execute the module
+                spec.loader.exec_module(module)
+            else:
+                module = __import__(module_name.replace('-', '_'))
+                
             print(f"✓ {server_name}: Import successful")
             
             # Test if create_mcp_server function exists
@@ -75,17 +97,39 @@ def test_sub_server_creation():
         ("ack-addon-management-mcp-server", "ack_addon_management_mcp_server"),
         ("ack-nodepool-management-mcp-server", "ack_nodepool_management_mcp_server"),
         ("kubernetes-client-mcp-server", "kubernetes_client_mcp_server"),
-        ("k8s-diagnose-mcp-server", "k8s_diagnose_mcp_server"),
-        ("observability-aliyun-prometheus-mcp-server", "observability_aliyun_prometheus_mcp_server"),
-        ("observability-sls-cluster-apiserver-log-analysis-mcp-server", "observability_sls_cluster_apiserver_log_analysis_mcp_server"),
-        ("observability-aliyun-cloudmonitor-resource-monitor-mcp-server", "observability_aliyun_cloudmonitor_resource_monitor_mcp_server"),
+        ("ack-diagnose-mcp-server", "ack_diagnose_mcp_server"),
+        ("alibabacloud-ack-prometheus-mcp-server", "alibabacloud_ack_prometheus_mcp_server"),
+        ("ack-apiserver-log-analysis-mcp-server", "ack_apiserver_log_analysis_mcp_server"),
+        ("alibabacloud-ack-cloudresource-monitor-mcp-server", "alibabacloud_ack_cloudresource_monitor_mcp_server"),
     ]
     
     success_count = 0
     
     for server_name, module_name in sub_servers:
         try:
-            module = __import__(module_name.replace('-', '_'))
+            # Import using dynamic loading for modules with hyphens
+            if '-' in server_name:
+                import importlib.util
+                import sys
+                import os
+                
+                # Add src directory to Python path if not already there
+                current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if current_dir not in sys.path:
+                    sys.path.insert(0, current_dir)
+                
+                module_path = f"{server_name}/__init__.py"
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                module = importlib.util.module_from_spec(spec)
+                
+                # Add module to sys.modules to support relative imports
+                sys.modules[module_name] = module
+                
+                # Execute the module
+                spec.loader.exec_module(module)
+            else:
+                module = __import__(module_name.replace('-', '_'))
+                
             create_function = getattr(module, 'create_mcp_server')
             
             # Create server instance

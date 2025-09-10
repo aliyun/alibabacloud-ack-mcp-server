@@ -18,7 +18,7 @@ from .handler import K8sDiagnoseHandler
 from .runtime_provider import K8sDiagnoseRuntimeProvider
 
 # Server configuration
-SERVER_NAME = "k8s-diagnose-mcp-server"
+SERVER_NAME = "ack-diagnose-mcp-server"
 SERVER_INSTRUCTIONS = """
 K8s Diagnose MCP Server
 

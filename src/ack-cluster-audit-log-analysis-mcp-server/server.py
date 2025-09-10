@@ -1,4 +1,4 @@
-"""AlibabaCloud ACK MCP Server - Main server implementation."""
+"""AlibabaCloud ACK Cluster Audit Log Analysis MCP Server - Main server implementation."""
 
 import argparse
 import sys
@@ -10,8 +10,8 @@ from typing import Optional, Literal
 from mcp.server.fastmcp import FastMCP
 from mcp.server.stdio import stdio_server
 
-from alibabacloud_cluster_audit_log_mcp_server.context.lifespan_manager import KubeAuditLifespanManager
-from alibabacloud_cluster_audit_log_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
+from ack_cluster_audit_log_analysis_mcp_server.context.lifespan_manager import KubeAuditRuntimeProvider
+from ack_cluster_audit_log_analysis_mcp_server.toolkits.kube_aduit_tool import KubeAuditTool
 
 
 def create_mcp_server(config: Optional[dict] = None) -> FastMCP:
@@ -62,21 +62,21 @@ def create_server(
     """
     # Initialize lifespan manager
     if config_path:
-        lifespan_manager = KubeAuditLifespanManager(config_path=config_path)
+        lifespan_manager = KubeAuditRuntimeProvider(config_path=config_path)
     elif config_dict:
-        lifespan_manager = KubeAuditLifespanManager(config=config_dict)
+        lifespan_manager = KubeAuditRuntimeProvider(config=config_dict)
     else:
         # Try to find default config file
         default_config_path = Path(__file__).parent / "config.yaml"
         if default_config_path.exists():
-            lifespan_manager = KubeAuditLifespanManager(config_path=str(default_config_path))
+            lifespan_manager = KubeAuditRuntimeProvider(config_path=str(default_config_path))
         else:
             raise FileNotFoundError("No configuration file found!")
 
     # Create MCP server
     mcp = FastMCP(
-        "alibabacloud-cluster-aduit-log-mcp-server",
-        lifespan=lifespan_manager.lifespan,
+        "ack-cluster-audit-log-analysis-mcp-server",
+        lifespan=lifespan_manager.init_runtime,
         host=host,
         port=port
     )
@@ -135,7 +135,7 @@ def run_server(
 def main():
     """Main entry point for the server."""
     parser = argparse.ArgumentParser(
-        description="AlibabaCloud ACK MCP Server - Kubernetes audit log querying server"
+        description="AlibabaCloud ACK Cluster Audit Log Analysis MCP Server"
     )
     parser.add_argument(
         "--config",

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any, Optional, List
 from pathlib import Path
 from mcp.server.fastmcp import FastMCP
-from src.runtime_provider import RuntimeProvider
+from interfaces.runtime_provider import RuntimeProvider
 
 
 class ConfigValidationError(Exception):
@@ -319,7 +319,7 @@ class KubeAuditRuntimeProvider(RuntimeProvider):
                     sls_config["access_key_secret"] = access_key_secret
 
                     # Import here to avoid circular imports
-                    from alibabacloud_cluster_audit_log_mcp_server.provider.provider import AlibabaSLSProvider
+                    from ack_cluster_audit_log_analysis_mcp_server.provider.provider import AlibabaSLSProvider
                     clients[cluster_name] = AlibabaSLSProvider(sls_config)
                 else:
                     print(f"Warning: Unknown provider type: {provider_type}")
