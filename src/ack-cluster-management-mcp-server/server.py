@@ -22,8 +22,14 @@ except ImportError:
     DOTENV_AVAILABLE = False
     logger.warning("python-dotenv not available, environment variables will be read from system")
 
-from .handler import ACKClusterManagementHandler
-from .runtime_provider import ACKClusterManagementRuntimeProvider
+# 支持相对导入和绝对导入
+try:
+    from .handler import ACKClusterManagementHandler
+    from .runtime_provider import ACKClusterManagementRuntimeProvider
+except ImportError:
+    # 如果相对导入失败，尝试绝对导入
+    from handler import ACKClusterManagementHandler
+    from runtime_provider import ACKClusterManagementRuntimeProvider
 
 # Server configuration
 SERVER_NAME = "ack-cluster-management-mcp-server"
