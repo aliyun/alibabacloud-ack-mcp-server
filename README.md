@@ -1,179 +1,132 @@
 # Alibaba Cloud Container Service MCP Server
 
+阿里云 ACK MCP Server（Python 版）。本项目基于 MCP（Model Context Protocol），将 ACK 管理、Kubernetes 原生操作与可观测性能力统一为标准工具集，便于以同一接口被各类 AI 代理或自动化系统调用。
 
-阿里云 ACK MCP Server (Python版)
-
-本项目是一个基于 Python 的 MCP (Model Context Protocol) 服务器，旨在为**阿里云容器服务（ACK）**提供强大的运维、管理和操作能力。它通过一系列 MCP 工具，将复杂的云原生操作封装为简单、统一的接口。
-
-服务器采用 `fastmcp` 和 `FastAPI` 构建，拥有一个清晰、解耦且易于扩展的现代化架构。
-
-关于架构的详细设计理念和数据流，请参阅 [`DESIGN.md`](./DESIGN.md)。
+- **技术栈**: fastmcp、Python、Loguru、(部分子服务) 阿里云 SDK、Kubernetes Python Client
+- **架构**: 主服务 + 多个子 MCP Server（通过 FastMCP 代理挂载），各子服务亦可独立运行
+- 详细架构请参阅 `DESIGN.md`
 
 ## 功能特性
 
-- **阿里云 ACK 管理**:
-    - `scale_nodepool`: 对指定的节点池进行扩容。
-    - `remove_nodepool_nodes`: 从指定的节点池中安全地移除一个或多个节点。
-    - `describe_task_info`: 查询指定异步任务（如扩容、移除节点）的详细状态。
-    - `create_cluster_diagnosis`: 创建集群诊断任务。
-    - `get_cluster_diagnosis_result`: 获取集群诊断结果。
-- **Kubernetes 原生操作**:
-    - `kubectl`: 针对已配置的 ACK 集群，执行任意 `kubectl` 命令。成功时返回 `stdout`，失败时抛出包含 `stderr` 的错误。
-- **阿里云可观测性**:
-    - `cms_execute_promql_query`: 在 ARMS 指标库中执行 PromQL 查询。
-    - `cms_translate_text_to_promql`: 将自然语言文本转换为 PromQL 查询。
-    - `sls_execute_sql_query`: 在 SLS 日志库中执行 Log-SQL 查询。
-    - `sls_translate_text_to_sql_query`: 将自然语言文本转换为 Log-SQL 查询。
-    - `sls_diagnose_query`: 诊断失败的 Log-SQL 查询。
-- **企业级架构**:
-    - **清晰解耦**: 工具层、服务层与认证层完全分离，易于维护和扩展。
-    - **动态凭证注入**: 支持通过 HTTP Header 为每一次请求动态、安全地传递阿里云凭证，完美支持多租户或临时凭证（STS）场景。
-    - **健壮的错误处理**: 所有工具都提供清晰的错误传递，底层服务的错误信息（如 `stderr`）会完整地返回给用户。
-    - **类型安全的返回**: 工具返回定义良好的 Pydantic 模型或原生类型，而不是通用字典，确保了接口的稳定性和可预测性。
+- **ACK 管理**
+  - `scale_nodepool`、`remove_nodepool_nodes`
+  - `describe_task_info`
+  - `create_cluster_diagnosis`、`get_cluster_diagnosis_result`
+- **Kubernetes 原生操作**
+  - 执行 `kubectl` 类操作（读写可控）、获取日志/事件，列表/详情/增删改
+- **可观测性**
+  - Prometheus（ARMS 指标）PromQL 查询、自然语言转 PromQL
+  - SLS 日志 SQL 查询、自然语言转 Log-SQL、失败诊断
+  - 云监控（CMS）资源指标与告警能力
+- **工程能力**
+  - 分层清晰：工具层、服务层、认证层解耦
+  - 动态凭证注入：按请求传入 AK 或默认环境凭证
+  - 健壮错误传递与类型化输出
 
-## 如何运行
+## 安装
 
-1.  **安装依赖**:
-    本项目使用 `uv` 作为包管理工具。
-    ```bash
-    # 建议先根据 uv.lock 文件同步依赖
-    uv sync
-    ```
-    如果 `uv.lock` 不存在或需要重新安装，可以执行以下命令：
-    ```bash
-    uv pip install "fastmcp" fastapi uvicorn pydantic-settings alibabacloud_cs20151215 alibabacloud_tea_util
-    ```
-
-2.  **配置服务器**:
-    在项目根目录下创建一个 `.env` 文件来配置服务。您可以复制并修改以下示例：
-    ```env
-    # 服务监听的端口 (默认为 8080)
-    HTTP_PORT=8080
-
-    # 默认的阿里云区域 (默认为 cn-beijing)
-    ALIYUN_REGION="cn-beijing"
-
-    # 用于客户端认证的 Bearer Token (可选，推荐生产环境设置)
-    # 如果设置了此值，所有客户端请求都必须包含一个匹配的 Authorization Header。
-    # 示例: Authorization: Bearer your-secret-token
-    MCP_AUTH_TOKEN="your-secret-token"
-    ```
-
-3.  **启动服务器**:
-    ```bash
-    python -m app.main
-    ```
-    服务将启动在 `.env` 文件中指定的端口上（默认为 8080）。
-
-## 如何使用
-
-您可以使用任何兼容 MCP 协议的客户端与本服务器交互。服务器的 MCP 端点暴露在 `/mcp/v1`。
-
-### 认证机制
-
-- **Bearer Token (推荐)**: 如果在 `.env` 文件中设置了 `MCP_AUTH_TOKEN`，您的所有请求都必须包含以下 Header:
-    - `Authorization: Bearer <your-secret-token>`
-
-- **阿里云凭证 (按需提供)**: 如需为单次请求指定特定的阿里云凭证，请在 HTTP Headers 中提供。这会覆盖服务器环境中的任何默认凭证。
-    - `X-Aliyun-Access-Key-Id`: 您的 AccessKey ID。
-    - `X-Aliyun-Access-Key-Secret`: 您的 AccessKey Secret。
-    - `X-Aliyun-Security-Token` (可选): 如果使用 STS 临时凭证，请提供此项。
-    - `X-Aliyun-Region` (可选): 为本次请求指定特定的阿里云区域。
-
-如果请求的 Header 中未提供任何凭证，服务将回退使用其运行环境中的默认凭证链（例如，`ALIBABA_CLOUD_ACCESS_KEY_ID` 和 `ALIBABA_CLOUD_ACCESS_KEY_SECRET` 环境变量）。
-
-### 上下文处理机制
-
-本服务器采用了一种强大而灵活的上下文处理机制，旨在简化工具的使用，同时保持控制的精确性。
-
-**核心原则**:
-- **`cluster_id` 是关键**: 对于需要明确操作目标的工具（如 `scale_nodepool` 或 `sls_execute_sql_query`），用户在调用时传入的 `cluster_id` 参数是绝对的，它定义了该次操作的目标。
-- **后台自动上下文发现**: 一旦工具接收到 `cluster_id`，系统后台会立即为其自动查找所有必需的下游上下文信息（如 `region_id`、默认的 `sls_project` 和 `sls_log_store` 等）。
-
-**参数优先级**:
-- **显式参数优先**: 用户在工具调用中直接提供的参数（如 `logstore`）具有最高优先级。
-- **自动发现兜底**: 如果未提供可选参数（如 `logstore`），系统将使用通过 `cluster_id` 发现的默认值。
-
-这种设计确保了工具接口的简洁性（通常只需传入 `cluster_id`），同时为高级用户提供了精确控制操作细节的能力。
-
-## 如何扩展
-
-### 添加一个新的工具
-
-1.  **创建服务逻辑**: 如果新工具需要与新的云服务 API 交互，请在 `app/services/` 目录下添加新的服务文件，例如 `app/services/new_cloud_service.py`。
-2.  **创建依赖项**: 在 `app/dependencies/services.py` 中，添加一个新的依赖注入函数（例如 `get_new_cloud_service`）来创建和提供该服务。
-3.  **定义工具**: 在 `app/tools/` 目录下创建新的工具文件（例如 `app/tools/new_cloud_tools.py`）。在其中定义工具的输入模型（Pydantic）和异步工具函数，并使用 `Depends` 来注入您刚刚创建的服务。
-4.  **注册工具**: 打开 `app/tools/registry.py`，导入您的新工具函数，并将其添加到 `register_all_tools` 函数中。
-
-完成以上步骤后，服务在重启时会自动发现并加载您的新工具。
-
-## 测试
-
-本项目使用 pytest 作为测试框架，提供了完整的架构验证测试套件。
-
-### 运行测试
-
+- 使用 `pip`:
 ```bash
-# 运行所有测试
-pytest src/tests/ -v
-
-# 运行架构测试
-pytest src/tests/test_architecture.py -v
-
-# 使用测试脚本
-./run_tests.sh architecture  # 运行架构测试
-./run_tests.sh all          # 运行所有测试
-./run_tests.sh fast         # 运行快速测试
-./run_tests.sh verbose      # 详细输出
-
-# 使用 Makefile
-make test              # 运行所有测试
-make test-architecture # 运行架构测试
-make test-coverage     # 运行覆盖率测试
-```
-
-### 测试内容
-
-架构测试验证以下功能：
-- ✅ **接口验证**: RuntimeProvider 抽象接口正确实现
-- ✅ **服务导入**: 所有 9 个子 MCP 服务器模块可以正确导入
-- ✅ **服务创建**: 所有子服务器实例可以成功创建
-- ✅ **主服务器**: 主服务器可以正确初始化和挂载子服务
-- ✅ **微服务架构**: FastMCP proxy mount 机制正常工作
-
-### 测试要求
-
-```bash
-# 安装测试依赖
-pip install pytest pytest-asyncio
-
-# 或使用 uv
-uv add pytest pytest-asyncio
-```
-
-
-# Installation and Setup
-
-## Local installation
-
-```
 pip install -r requirements.txt
 ```
 
-# How to run it.
+- 或使用 `uv`（如需与 `uv.lock` 对齐）:
+```bash
+uv sync
+```
 
-## Authorization
+## 配置
 
-### 1. 阿里云 RAM 策略
+支持通过环境变量或 `.env`（若安装了 `python-dotenv` 将自动加载）。关键项：
 
-### 2. Kubernetes RBAC 策略
+```env
+# 阿里云凭证与区域
+ACCESS_KEY_ID=your-ak-id
+ACCESS_KEY_SECRET=your-ak-secret
+REGION_ID=cn-hangzhou
+DEFAULT_CLUSTER_ID=
 
-## Configuration
+# 其他可选
+CACHE_TTL=300
+CACHE_MAX_SIZE=1000
+FASTMCP_LOG_LEVEL=INFO
+DEVELOPMENT=false
+```
 
-  ```.env
-  # .env 文件内容，包含阿里云访问凭证
-  ACCESS_KEY_ID={YOUR_ALIYUN_ACCESS_KEY}
-  ACCESS_SECRET_KEY={YOUR_ALIYUN_ACCESS_SECRET_KEY}
-  REGION_ID={YOUR_ALIYUN_REGION}
-  
-  ```
+说明：
+- 未设置 `ACCESS_KEY_ID/ACCESS_KEY_SECRET` 时，部分需要云 API 的功能不可用（会警告）。
+- 可以通过命令行参数覆盖上述项（见下）。
+
+## 运行
+
+主服务入口：`src/main_server.py`
+
+- 标准（stdio）模式：
+```bash
+python -m src.main_server
+```
+
+- SSE（HTTP）模式：
+```bash
+python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
+```
+
+常用参数：
+- `--region, -r`: 指定阿里云区域（默认 `REGION_ID` 或 `cn-hangzhou`）
+- `--access-key-id`: 覆盖 `ACCESS_KEY_ID`
+- `--access-key-secret`: 覆盖 `ACCESS_KEY_SECRET`
+- `--default-cluster-id`: 设置默认集群 ID
+- `--allow-write`: 启用写入操作（默认只读）
+- `--transport [stdio|sse]`、`--host`、`--port`
+
+## 认证与凭证注入
+
+- 默认走环境凭证（上文环境变量）。
+- 对齐各子服务的 AK 传入逻辑：内部统一以凭证客户端+配置对象传入 `access_key_id/access_key_secret/region_id/endpoint`。
+- 在 SSE（HTTP）模式下，可按需在上层网关增加请求级别的 AK 头部注入；如未注入，则回退环境凭证。具体头部键名可按网关实现映射为环境注入，本项目内部已对 AK 读取进行统一封装。
+
+## 子服务一览（代理挂载）
+
+主服务会挂载以下子 MCP Server（路径前缀）：
+- `ack-cluster`：ACK 集群管理与诊断
+- `ack-addon`：ACK 插件管理
+- `ack-nodepool`：ACK 节点池管理
+- `kubernetes`：Kubernetes 客户端操作
+- `ack-diagnose`：集群诊断能力
+- `observability-prometheus`：PromQL / 指标相关
+- `observability-sls`：SLS 日志查询与分析
+- `observability-cloudmonitor`：云监控资源能力
+- `audit-log`：Kubernetes 审计日志查询
+
+> 具体可用工具列表与参数请参阅各子模块 `src/<module>/README.md` 或测试用例。
+
+## 测试
+
+使用 pytest：
+```bash
+# 运行全部
+pytest -v
+
+# 仅运行架构测试
+pytest src/tests/test_architecture.py -v
+
+# 或使用脚本
+./run_tests.sh all
+```
+
+如需安装测试依赖：
+```bash
+pip install pytest pytest-asyncio
+# or
+uv add pytest pytest-asyncio
+```
+
+## 常见问题
+
+- 启动后提示未配置 AK：请确认 `ACCESS_KEY_ID/ACCESS_KEY_SECRET` 是否在环境或 `.env` 中设置，或通过命令行参数传入。
+- 仅需 Kubernetes 客户端能力：无需配置 AK，但需本地 `KUBECONFIG` 或在集群内运行。
+- SSE 模式下如何鉴权：可在外层接入层（如反向代理）统一做鉴权与 Header 注入，本服务仅消费已注入的凭证。
+
+## 许可证
+
+Apache-2.0。详见 `LICENSE`。
