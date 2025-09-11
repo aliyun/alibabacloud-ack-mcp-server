@@ -5,6 +5,41 @@ from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cms20190101 import models as cms20190101_models
 from alibabacloud_tea_util import models as util_models
+import json
+
+
+def _serialize_sdk_object(obj):
+    """序列化阿里云SDK对象为可JSON序列化的字典."""
+    if obj is None:
+        return None
+    
+    # 如果是基本数据类型，直接返回
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    
+    # 如果是列表或元组，递归处理每个元素
+    if isinstance(obj, (list, tuple)):
+        return [_serialize_sdk_object(item) for item in obj]
+    
+    # 如果是字典，递归处理每个值
+    if isinstance(obj, dict):
+        return {key: _serialize_sdk_object(value) for key, value in obj.items()}
+    
+    # 尝试获取对象的属性字典
+    try:
+        # 对于阿里云SDK对象，通常有to_map()方法
+        if hasattr(obj, 'to_map'):
+            return obj.to_map()
+        
+        # 对于其他对象，尝试获取其__dict__属性
+        if hasattr(obj, '__dict__'):
+            return _serialize_sdk_object(obj.__dict__)
+        
+        # 尝试转换为字符串
+        return str(obj)
+    except Exception:
+        # 如果都失败了，返回字符串表示
+        return str(obj)
 
 
 class ObservabilityAliyunPrometheusHandler:
@@ -80,14 +115,17 @@ class ObservabilityAliyunPrometheusHandler:
                     request, runtime
                 )
                 
+                # 序列化SDK响应对象为可JSON序列化的数据
+                data_points_data = _serialize_sdk_object(response.body.data_points) if response.body.data_points else []
+                
                 return {
                     "query": query,
                     "start_time": start_time,
                     "end_time": end_time,
                     "step": step,
-                    "result": response.body.data_points,
+                    "result": data_points_data,
                     "status": "success",
-                    "request_id": response.body.request_id
+                    "request_id": getattr(response.body, 'request_id', None) if response.body else None
                 }
                 
             except Exception as e:
@@ -205,27 +243,29 @@ class ObservabilityAliyunPrometheusHandler:
                 )
                 
                 metrics = []
-                for resource in response.body.resources.resource:
-                    for metric in resource.metrics.metric:
-                        metric_info = {
-                            "name": metric.metric_name,
-                            "description": metric.description or metric.metric_name,
-                            "namespace": resource.namespace,
-                            "dimensions": metric.dimensions or []
-                        }
-                        
-                        # 应用过滤模式
-                        if filter_pattern:
-                            if filter_pattern.lower() in metric.metric_name.lower():
-                                metrics.append(metric_info)
-                        else:
-                            metrics.append(metric_info)
+                if response.body and response.body.resources and response.body.resources.resource:
+                    for resource in response.body.resources.resource:
+                        if resource.metrics and resource.metrics.metric:
+                            for metric in resource.metrics.metric:
+                                metric_info = {
+                                    "name": getattr(metric, 'metric_name', None),
+                                    "description": getattr(metric, 'description', None) or getattr(metric, 'metric_name', None),
+                                    "namespace": getattr(resource, 'namespace', None),
+                                    "dimensions": _serialize_sdk_object(getattr(metric, 'dimensions', None)) or []
+                                }
+                                
+                                # 应用过滤模式
+                                if filter_pattern:
+                                    if filter_pattern.lower() in (getattr(metric, 'metric_name', '') or '').lower():
+                                        metrics.append(metric_info)
+                                else:
+                                    metrics.append(metric_info)
                 
                 return {
                     "filter_pattern": filter_pattern,
                     "metrics": metrics,
                     "total_count": len(metrics),
-                    "request_id": response.body.request_id
+                    "request_id": getattr(response.body, 'request_id', None) if response.body else None
                 }
                 
             except Exception as e:

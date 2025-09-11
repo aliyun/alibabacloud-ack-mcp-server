@@ -5,6 +5,41 @@ from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
+import json
+
+
+def _serialize_sdk_object(obj):
+    """序列化阿里云SDK对象为可JSON序列化的字典."""
+    if obj is None:
+        return None
+    
+    # 如果是基本数据类型，直接返回
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    
+    # 如果是列表或元组，递归处理每个元素
+    if isinstance(obj, (list, tuple)):
+        return [_serialize_sdk_object(item) for item in obj]
+    
+    # 如果是字典，递归处理每个值
+    if isinstance(obj, dict):
+        return {key: _serialize_sdk_object(value) for key, value in obj.items()}
+    
+    # 尝试获取对象的属性字典
+    try:
+        # 对于阿里云SDK对象，通常有to_map()方法
+        if hasattr(obj, 'to_map'):
+            return obj.to_map()
+        
+        # 对于其他对象，尝试获取其__dict__属性
+        if hasattr(obj, '__dict__'):
+            return _serialize_sdk_object(obj.__dict__)
+        
+        # 尝试转换为字符串
+        return str(obj)
+    except Exception:
+        # 如果都失败了，返回字符串表示
+        return str(obj)
 
 
 class ACKAddonManagementHandler:
@@ -68,10 +103,13 @@ class ACKAddonManagementHandler:
                     cluster_id, request, headers, runtime
                 )
                 
+                # 序列化SDK响应对象为可JSON序列化的数据
+                addons_data = _serialize_sdk_object(response.body.addons) if response.body.addons else []
+                
                 return {
                     "cluster_id": cluster_id,
-                    "addons": response.body.addons,
-                    "request_id": response.body.request_id
+                    "addons": addons_data,
+                    "request_id": getattr(response.body, 'request_id', None)
                 }
                 
             except Exception as e:
@@ -140,13 +178,17 @@ class ACKAddonManagementHandler:
                     cluster_id, request, headers, runtime
                 )
                 
+                # 序列化SDK响应对象为可JSON序列化的数据
+                response_data = _serialize_sdk_object(response.body) if response.body else {}
+                
                 return {
                     "cluster_id": cluster_id,
                     "addon_name": addon_name,
                     "addon_version": addon_version,
-                    "task_id": response.body.task_id,
+                    "task_id": getattr(response.body, 'task_id', None) if response.body else None,
                     "status": "installing",
-                    "request_id": response.body.request_id
+                    "response": response_data,
+                    "request_id": getattr(response, 'request_id', None)
                 }
                 
             except Exception as e:
@@ -203,12 +245,16 @@ class ACKAddonManagementHandler:
                     cluster_id, request, headers, runtime
                 )
                 
+                # 序列化SDK响应对象为可JSON序列化的数据
+                response_data = _serialize_sdk_object(response.body) if response.body else {}
+                
                 return {
                     "cluster_id": cluster_id,
                     "addon_name": addon_name,
-                    "task_id": response.body.task_id,
+                    "task_id": getattr(response.body, 'task_id', None) if response.body else None,
                     "status": "uninstalling",
-                    "request_id": response.body.request_id
+                    "response": response_data,
+                    "request_id": getattr(response, 'request_id', None)
                 }
                 
             except Exception as e:
