@@ -67,14 +67,16 @@ class ACKNodePoolManagementRuntimeProvider(RuntimeProvider):
         try:
             # Initialize Container Service client if credentials are available
             access_key_id = config.get("access_key_id")
-            access_secret_key = config.get("access_secret_key")
+            access_key_secret = config.get("access_key_secret")
             region_id = config.get("region_id", "cn-hangzhou")
             
-            if access_key_id and access_secret_key:
-                # TODO: Initialize actual AlibabaCloud Container Service client
+            if access_key_id and access_key_secret:
+                # 对齐 ack-diagnose 的 AK 传入方式，实际客户端在具体工具中使用
                 providers["cs_client"] = {
-                    "type": "container_service",
+                    "type": "alibaba_cloud_cs",
                     "region": region_id,
+                    "access_key_id": access_key_id,
+                    "access_key_secret": access_key_secret,
                     "initialized": True
                 }
                 logger.info(f"Container Service client initialized for region: {region_id}")

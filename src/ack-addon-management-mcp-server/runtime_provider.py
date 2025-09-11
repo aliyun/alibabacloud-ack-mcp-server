@@ -115,20 +115,13 @@ class ACKAddonManagementRuntimeProvider(RuntimeProvider):
             region_id = config.get("region_id", "cn-hangzhou")
             
             if access_key_id and access_key_secret:
-                # 初始化阿里云凭证客户端
-                credential_config = open_api_models.Config(
-                    access_key_id=access_key_id,
-                    access_key_secret=access_key_secret
-                )
-                credential_client = CredentialClient(credential_config)
-                
-                # 初始化容器服务客户端
-                cs_config = open_api_models.Config(
-                    access_key_id=access_key_id,
-                    access_key_secret=access_key_secret,
-                    region_id=region_id,
-                    endpoint=f"cs.{region_id}.aliyuncs.com"
-                )
+                # 对齐 ack-diagnose 的 AK 传入方式
+                credential_client = CredentialClient()
+                cs_config = open_api_models.Config(credential=credential_client)
+                cs_config.access_key_id = access_key_id
+                cs_config.access_key_secret = access_key_secret
+                cs_config.region_id = region_id
+                cs_config.endpoint = f"cs.{region_id}.aliyuncs.com"
                 cs_client = CS20151215Client(cs_config)
                 
                 providers["cs_client"] = {

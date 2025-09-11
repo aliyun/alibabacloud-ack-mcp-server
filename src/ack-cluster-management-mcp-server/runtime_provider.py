@@ -115,6 +115,10 @@ class ACKClusterManagementRuntimeProvider(RuntimeProvider):
             # Use credential client for secure authentication
             credential = CredentialClient()
             cs_config = open_api_models.Config(credential=credential)
+            # 对齐 ack-diagnose 的 AK 传入方式
+            cs_config.access_key_id = config.get("access_key_id")
+            cs_config.access_key_secret = config.get("access_key_secret")
+            cs_config.region_id = region
             cs_config.endpoint = f'cs.{region}.aliyuncs.com'
             
             cs_client = CS20151215Client(cs_config)

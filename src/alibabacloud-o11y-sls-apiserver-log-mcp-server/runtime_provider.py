@@ -119,13 +119,13 @@ class ObservabilitySLSClusterAPIServerLogAnalysisRuntimeProvider(RuntimeProvider
             region_id = config.get("region_id", "cn-hangzhou")
             
             if access_key_id and access_key_secret:
-                # 初始化阿里云凭证客户端
-                credential_config = open_api_models.Config(
-                    access_key_id=access_key_id,
-                    access_key_secret=access_key_secret
-                )
-                credential_client = CredentialClient(credential_config)
-                
+                # 对齐 ack-diagnose 的 AK 传入方式
+                credential_client = CredentialClient()
+                sls_config = open_api_models.Config(credential=credential_client)
+                sls_config.access_key_id = access_key_id
+                sls_config.access_key_secret = access_key_secret
+                sls_config.region_id = region_id
+
                 # 初始化 SLS 客户端
                 # SLS endpoint 格式: {region}.log.aliyuncs.com
                 sls_endpoint = f"{region_id}.log.aliyuncs.com"

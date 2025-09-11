@@ -117,20 +117,13 @@ class ObservabilityAliyunPrometheusRuntimeProvider(RuntimeProvider):
             region_id = config.get("region_id", "cn-hangzhou")
             
             if access_key_id and access_key_secret:
-                # 初始化阿里云凭证客户端
-                credential_config = open_api_models.Config(
-                    access_key_id=access_key_id,
-                    access_key_secret=access_key_secret
-                )
-                credential_client = CredentialClient(credential_config)
-                
-                # 初始化云监控服务客户端
-                cms_config = open_api_models.Config(
-                    access_key_id=access_key_id,
-                    access_key_secret=access_key_secret,
-                    region_id=region_id,
-                    endpoint=f"cms.{region_id}.aliyuncs.com"
-                )
+                # 对齐 ack-diagnose 的 AK 传入方式
+                credential_client = CredentialClient()
+                cms_config = open_api_models.Config(credential=credential_client)
+                cms_config.access_key_id = access_key_id
+                cms_config.access_key_secret = access_key_secret
+                cms_config.region_id = region_id
+                cms_config.endpoint = f"cms.{region_id}.aliyuncs.com"
                 cms_client = CMS20190101Client(cms_config)
                 
                 providers["cms_client"] = {
