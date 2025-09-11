@@ -44,18 +44,38 @@ addon management capabilities:
 
 ## Available Tools:
 
-1. **list_cluster_addons**: List available addons for ACK cluster
-   - Get comprehensive list of available cluster addons
-   - Check addon status and versions
+1. **list_addons**: List available addons for ACK clusters
+   - Get comprehensive list of available addons
+   - Filter by cluster type, region, spec, version, and profile
 
-2. **install_cluster_addon**: Install addon to ACK cluster  
+2. **list_cluster_addon_instances**: List installed addon instances for ACK cluster
+   - Get list of addons installed in a specific cluster
+   - Check addon status and configuration
+
+3. **get_cluster_addon_instance**: Get detailed information of a specific addon instance
+   - Get detailed information about a specific installed addon
+   - Check addon configuration and status
+
+4. **describe_addon**: Describe addon information
+   - Get detailed information about an addon
+   - Check addon capabilities and supported configurations
+
+5. **install_cluster_addons**: Install addons to ACK cluster  
    - Install specific addons to target clusters
    - Configure addon parameters during installation
    - Support version specification
 
-3. **uninstall_cluster_addon**: Uninstall addon from ACK cluster
+6. **uninstall_cluster_addons**: Uninstall addons from ACK cluster
    - Remove addons from target clusters
    - Clean up addon resources and configurations
+
+7. **modify_cluster_addon**: Modify cluster addon configuration
+   - Modify configuration of installed addons
+   - Update addon settings without reinstallation
+
+8. **upgrade_cluster_addons**: Upgrade cluster addons
+   - Upgrade addons to newer versions
+   - Batch upgrade multiple addons
 
 ## Authentication:
 Configure environment variables:

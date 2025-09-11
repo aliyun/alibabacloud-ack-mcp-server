@@ -123,9 +123,26 @@ def main():
     
     print("\n" + "=" * 50)
     
+    # 预期的tool方法列表（基于当前handler.py）
+    expected_methods = {
+        "list_addons",
+        "list_cluster_addon_instances",
+        "get_cluster_addon_instance",
+        "describe_addon",
+        "install_cluster_addons",
+        "uninstall_cluster_addons",
+        "modify_cluster_addon",
+        "upgrade_cluster_addons"
+    }
+    
+    print("📋 预期的tool方法列表:")
+    for i, method in enumerate(sorted(expected_methods), 1):
+        status = "✅" if method in tested_methods else "❌"
+        print(f"  {i:2d}. {status} {method}")
+    
     # 根据实际发现的方法动态显示
     if tool_methods:
-        print("📋 发现的tool方法列表:")
+        print("\n📋 发现的tool方法列表:")
         for i, method in enumerate(sorted(tool_methods), 1):
             status = "✅" if method in tested_methods else "❌"
             print(f"  {i:2d}. {status} {method}")

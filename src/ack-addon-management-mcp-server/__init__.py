@@ -5,9 +5,23 @@ __author__ = "AlibabaCloud"
 __email__ = "support@alibabacloud.com"
 __description__ = "AlibabaCloud ACK Addon Management MCP Server"
 
-from .handler import ACKAddonManagementHandler
-from .runtime_provider import ACKAddonManagementRuntimeProvider
-from .server import create_mcp_server, main
+# Support both relative and absolute imports
+try:
+    from .handler import ACKAddonManagementHandler
+    from .runtime_provider import ACKAddonManagementRuntimeProvider
+    from .server import create_mcp_server, main
+except ImportError:
+    # If relative import fails, try absolute import
+    try:
+        from handler import ACKAddonManagementHandler
+        from runtime_provider import ACKAddonManagementRuntimeProvider
+        from server import create_mcp_server, main
+    except ImportError:
+        # If all fail, set to None
+        ACKAddonManagementHandler = None
+        ACKAddonManagementRuntimeProvider = None
+        create_mcp_server = None
+        main = None
 
 __all__ = [
     "__version__",

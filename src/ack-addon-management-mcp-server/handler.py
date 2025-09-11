@@ -1,4 +1,4 @@
-"""ACK Addon Management Handler."""
+"""ACK Addon Management Handler - Alibaba Cloud Container Service Addon Management."""
 
 from typing import Dict, Any, Optional, List
 from fastmcp import FastMCP, Context
@@ -66,27 +66,36 @@ class ACKAddonManagementHandler:
         """Register addon management related tools."""
         
         @self.server.tool(
-            name="describe_cluster_addons",
-            description="Describe available addons for ACK cluster"
+            name="list_addons",
+            description="List available addons for ACK cluster"
         )
-        async def describe_cluster_addons(
-            cluster_id: str,
-            addon_name: Optional[str] = None,
-            component_name: Optional[str] = None,
-            ctx: Context = None
+        async def list_addons(
+            cluster_type: Optional[str] = None,
+            region: Optional[str] = None,
+            cluster_spec: Optional[str] = None,
+            cluster_version: Optional[str] = None,
+            profile: Optional[str] = None,
+            cluster_id: Optional[str] = None,
+            ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
-            """Describe available addons for cluster.
+            """List available addons.
             
             Args:
-                cluster_id: Target cluster ID
-                addon_name: Addon name filter (optional)
-                component_name: Component name filter (optional)
+                cluster_type: Cluster type filter
+                region: Region filter  
+                cluster_spec: Cluster spec filter
+                cluster_version: Cluster version filter
+                profile: Cluster profile filter
+                cluster_id: Specific cluster ID
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 List of available addons
             """
             # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
@@ -99,35 +108,253 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # 构建请求参数
+                # Build request with query parameters
                 request_dict = {}
-                if addon_name:
-                    request_dict["addon_name"] = addon_name
-                if component_name:
-                    request_dict["component_name"] = component_name
+                if cluster_type:
+                    request_dict["cluster_type"] = cluster_type
+                if region:
+                    request_dict["region"] = region
+                if cluster_spec:
+                    request_dict["cluster_spec"] = cluster_spec
+                if cluster_version:
+                    request_dict["cluster_version"] = cluster_version
+                if profile:
+                    request_dict["profile"] = profile
+                if cluster_id:
+                    request_dict["cluster_id"] = cluster_id
                 
-                request = cs20151215_models.DescribeClusterAddonsRequest(**request_dict)
+                request = cs20151215_models.ListAddonsRequest(**request_dict)
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await cs_client.describe_cluster_addons_with_options_async(
-                    cluster_id, request, headers, runtime
+                response = await cs_client.list_addons_with_options_async(
+                    request, headers, runtime
                 )
                 
                 # 序列化SDK响应对象为可JSON序列化的数据
-                addons_data = _serialize_sdk_object(response.body.addons) if response.body.addons else []
+                addons_data = _serialize_sdk_object(response.body.addons) if response.body and response.body.addons else []
                 
                 return {
-                    "cluster_id": cluster_id,
                     "addons": addons_data,
-                    "request_id": getattr(response.body, 'request_id', None),
+                    "request_id": getattr(response.body, 'request_id', None) if response.body else None,
+                    "query_params": {
+                        "cluster_type": cluster_type,
+                        "region": region,
+                        "cluster_spec": cluster_spec,
+                        "cluster_version": cluster_version,
+                        "profile": profile,
+                        "cluster_id": cluster_id
+                    },
                     "status": "success"
                 }
                 
             except Exception as e:
-                logger.error(f"Failed to describe cluster addons: {e}")
+                logger.error(f"Failed to list addons: {e}")
+                return {
+                    "error": str(e),
+                    "status": "error"
+                }
+        
+        @self.server.tool(
+            name="list_cluster_addon_instances",
+            description="List installed addon instances for ACK cluster"
+        )
+        async def list_cluster_addon_instances(
+            cluster_id: str,
+            ctx: Optional[Context] = None
+        ) -> Dict[str, Any]:
+            """List installed addon instances for cluster.
+            
+            Args:
+                cluster_id: Target cluster ID
+                ctx: FastMCP context containing lifespan providers
+                
+            Returns:
+                List of installed addon instances
+            """
+            # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
+            
+            try:
+                runtime = util_models.RuntimeOptions()
+                headers = {}
+                
+                response = await cs_client.list_cluster_addon_instances_with_options_async(
+                    cluster_id, headers, runtime
+                )
+                
+                # 序列化SDK响应对象为可JSON序列化的数据
+                addons_data = _serialize_sdk_object(response.body.addons) if response.body and response.body.addons else []
+                
                 return {
                     "cluster_id": cluster_id,
+                    "addons": addons_data,
+                    "request_id": getattr(response.body, 'request_id', None) if response.body else None,
+                    "status": "success"
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to list cluster addon instances: {e}")
+                return {
+                    "cluster_id": cluster_id,
+                    "error": str(e),
+                    "status": "error"
+                }
+        
+        @self.server.tool(
+            name="get_cluster_addon_instance",
+            description="Get detailed information of a specific addon instance"
+        )
+        async def get_cluster_addon_instance(
+            cluster_id: str,
+            addon_name: str,
+            ctx: Optional[Context] = None
+        ) -> Dict[str, Any]:
+            """Get detailed information of a specific addon instance.
+            
+            Args:
+                cluster_id: Target cluster ID
+                addon_name: Addon name
+                ctx: FastMCP context containing lifespan providers
+                
+            Returns:
+                Addon detailed information
+            """
+            # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
+            
+            try:
+                runtime = util_models.RuntimeOptions()
+                headers = {}
+                
+                response = await cs_client.get_cluster_addon_instance_with_options_async(
+                    cluster_id, addon_name, headers, runtime
+                )
+                
+                # 序列化SDK响应对象为可JSON序列化的数据
+                addon_info_data = _serialize_sdk_object(response.body) if response.body else {}
+                
+                return {
+                    "cluster_id": cluster_id,
+                    "addon_name": addon_name,
+                    "addon_info": addon_info_data,
+                    "request_id": getattr(response, 'request_id', None),
+                    "status": "success"
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to get cluster addon instance: {e}")
+                return {
+                    "cluster_id": cluster_id,
+                    "addon_name": addon_name,
+                    "error": str(e),
+                    "status": "error"
+                }
+        
+        @self.server.tool(
+            name="describe_addon",
+            description="Describe addon information"
+        )
+        async def describe_addon(
+            addon_name: str,
+            cluster_spec: Optional[str] = None,
+            cluster_type: Optional[str] = None,
+            cluster_version: Optional[str] = None,
+            region: Optional[str] = None,
+            ctx: Optional[Context] = None
+        ) -> Dict[str, Any]:
+            """Describe addon information.
+            
+            Args:
+                addon_name: Addon name
+                cluster_spec: Cluster spec filter
+                cluster_type: Cluster type filter
+                cluster_version: Cluster version filter
+                region: Region filter
+                ctx: FastMCP context containing lifespan providers
+                
+            Returns:
+                Addon information
+            """
+            # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
+            
+            try:
+                # Build request with query parameters
+                request_dict = {"addon_name": addon_name}
+                if cluster_spec:
+                    request_dict["cluster_spec"] = cluster_spec
+                if cluster_type:
+                    request_dict["cluster_type"] = cluster_type
+                if cluster_version:
+                    request_dict["cluster_version"] = cluster_version
+                if region:
+                    request_dict["region"] = region
+                
+                request = cs20151215_models.DescribeAddonRequest(**request_dict)
+                runtime = util_models.RuntimeOptions()
+                headers = {}
+                
+                response = await cs_client.describe_addon_with_options_async(
+                    addon_name, request, headers, runtime
+                )
+                
+                # 序列化SDK响应对象为可JSON序列化的数据
+                addon_data = _serialize_sdk_object(response.body) if response.body else {}
+                
+                return {
+                    "addon_name": addon_name,
+                    "addon": addon_data,
+                    "request_id": getattr(response, 'request_id', None),
+                    "query_params": {
+                        "cluster_spec": cluster_spec,
+                        "cluster_type": cluster_type,
+                        "cluster_version": cluster_version,
+                        "region": region
+                    },
+                    "status": "success"
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to describe addon: {e}")
+                return {
+                    "addon_name": addon_name,
                     "error": str(e),
                     "status": "error"
                 }
@@ -139,7 +366,7 @@ class ACKAddonManagementHandler:
         async def install_cluster_addons(
             cluster_id: str,
             addons: List[Dict[str, Any]],
-            ctx: Context = None
+            ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Install addons to cluster.
             
@@ -149,7 +376,7 @@ class ACKAddonManagementHandler:
                        - name: Addon name (required)
                        - version: Addon version (optional)
                        - config: Addon configuration (optional)
-                       - properties: Addon properties (optional)
+                       - disabled: Whether addon is disabled (optional)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -159,6 +386,9 @@ class ACKAddonManagementHandler:
                 return {"error": "Write operations are disabled"}
             
             # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
@@ -171,13 +401,15 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # 构建 addon 安装参数
-                request = cs20151215_models.InstallClusterAddonsRequest(
-                    addons=addons
-                )
-                runtime = util_models.RuntimeOptions()
-                headers = {}
+                # Build addon installation parameters
+                # Convert addons list to JSON string for body
+                request_body = json.dumps({'addons': addons})
+                request = cs20151215_models.InstallClusterAddonsRequest()
                 
+                runtime = util_models.RuntimeOptions()
+                headers = {'Content-Type': 'application/json'}
+                
+                # Use the async method with JSON body
                 response = await cs_client.install_cluster_addons_with_options_async(
                     cluster_id, request, headers, runtime
                 )
@@ -207,8 +439,8 @@ class ACKAddonManagementHandler:
         )
         async def uninstall_cluster_addons(
             cluster_id: str,
-            addons: List[Dict[str, str]],
-            ctx: Context = None
+            addons: List[Dict[str, Any]],
+            ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Uninstall addons from cluster.
             
@@ -216,6 +448,7 @@ class ACKAddonManagementHandler:
                 cluster_id: Target cluster ID
                 addons: List of addons to uninstall, each addon should contain:
                        - name: Addon name (required)
+                       - cleanup_cloud_resources: Whether to cleanup cloud resources (optional)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -225,6 +458,9 @@ class ACKAddonManagementHandler:
                 return {"error": "Write operations are disabled"}
             
             # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
@@ -237,11 +473,12 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                request = cs20151215_models.UnInstallClusterAddonsRequest(
-                    addons=addons
-                )
+                # Convert addons list to JSON string for body
+                request_body = json.dumps({'addons': addons})
+                request = cs20151215_models.UnInstallClusterAddonsRequest()
+                
                 runtime = util_models.RuntimeOptions()
-                headers = {}
+                headers = {'Content-Type': 'application/json'}
                 
                 response = await cs_client.un_install_cluster_addons_with_options_async(
                     cluster_id, request, headers, runtime
@@ -267,83 +504,21 @@ class ACKAddonManagementHandler:
                 }
         
         @self.server.tool(
-            name="describe_cluster_addon_info",
-            description="Describe detailed information of a specific addon"
+            name="modify_cluster_addon",
+            description="Modify cluster addon configuration"
         )
-        async def describe_cluster_addon_info(
+        async def modify_cluster_addon(
             cluster_id: str,
             addon_name: str,
-            ctx: Context = None
+            config: Optional[str] = None,
+            ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
-            """Describe detailed information of a specific addon.
+            """Modify cluster addon configuration.
             
             Args:
                 cluster_id: Target cluster ID
                 addon_name: Addon name
-                ctx: FastMCP context containing lifespan providers
-                
-            Returns:
-                Addon detailed information
-            """
-            # Get CS client from lifespan context
-            try:
-                providers = ctx.request_context.lifespan_context.get("providers", {})
-                cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
-                
-                if not cs_client:
-                    return {"error": "CS client not available in lifespan context"}
-            except Exception as e:
-                logger.error(f"Failed to get CS client from context: {e}")
-                return {"error": "Failed to access lifespan context"}
-            
-            try:
-                request = cs20151215_models.DescribeClusterAddonInfoRequest()
-                runtime = util_models.RuntimeOptions()
-                headers = {}
-                
-                response = await cs_client.describe_cluster_addon_info_with_options_async(
-                    cluster_id, addon_name, request, headers, runtime
-                )
-                
-                # 序列化SDK响应对象为可JSON序列化的数据
-                addon_info_data = _serialize_sdk_object(response.body) if response.body else {}
-                
-                return {
-                    "cluster_id": cluster_id,
-                    "addon_name": addon_name,
-                    "addon_info": addon_info_data,
-                    "request_id": getattr(response, 'request_id', None),
-                    "status": "success"
-                }
-                
-            except Exception as e:
-                logger.error(f"Failed to describe cluster addon info: {e}")
-                return {
-                    "cluster_id": cluster_id,
-                    "addon_name": addon_name,
-                    "error": str(e),
-                    "status": "error"
-                }
-        
-        @self.server.tool(
-            name="modify_cluster_addons",
-            description="Modify addons in ACK cluster"
-        )
-        async def modify_cluster_addons(
-            cluster_id: str,
-            addons: List[Dict[str, Any]],
-            ctx: Context = None
-        ) -> Dict[str, Any]:
-            """Modify addons in cluster.
-            
-            Args:
-                cluster_id: Target cluster ID
-                addons: List of addons to modify, each addon should contain:
-                       - name: Addon name (required)
-                       - config: Addon configuration (optional)
-                       - version: Addon version (optional)
-                       - properties: Addon properties (optional)
+                config: Addon configuration in JSON string format
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -353,6 +528,9 @@ class ACKAddonManagementHandler:
                 return {"error": "Write operations are disabled"}
             
             # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
@@ -365,13 +543,88 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                request = cs20151215_models.ModifyClusterAddonsRequest(
-                    addons=addons
-                )
+                # Build request
+                request_dict = {}
+                if config:
+                    request_dict["config"] = config
+                
+                request = cs20151215_models.ModifyClusterAddonRequest(**request_dict)
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
-                response = await cs_client.modify_cluster_addons_with_options_async(
+                response = await cs_client.modify_cluster_addon_with_options_async(
+                    cluster_id, addon_name, request, headers, runtime
+                )
+                
+                # 序列化SDK响应对象为可JSON序列化的数据
+                response_data = _serialize_sdk_object(response.body) if response.body else {}
+                
+                return {
+                    "cluster_id": cluster_id,
+                    "addon_name": addon_name,
+                    "request_id": getattr(response, 'request_id', None),
+                    "status": "modified",
+                    "response": response_data
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to modify cluster addon: {e}")
+                return {
+                    "cluster_id": cluster_id,
+                    "addon_name": addon_name,
+                    "error": str(e),
+                    "status": "failed"
+                }
+        
+        @self.server.tool(
+            name="upgrade_cluster_addons",
+            description="Upgrade cluster addons"
+        )
+        async def upgrade_cluster_addons(
+            cluster_id: str,
+            addons: List[Dict[str, Any]],
+            ctx: Optional[Context] = None
+        ) -> Dict[str, Any]:
+            """Upgrade cluster addons.
+            
+            Args:
+                cluster_id: Target cluster ID
+                addons: List of addons to upgrade, each addon should contain:
+                       - name: Addon name (required)
+                       - version: Target version (required)
+                       - config: Addon configuration (optional)
+                ctx: FastMCP context containing lifespan providers
+                
+            Returns:
+                Upgrade result
+            """
+            if not self.allow_write:
+                return {"error": "Write operations are disabled"}
+            
+            # Get CS client from lifespan context
+            if ctx is None:
+                return {"error": "Context is required"}
+                
+            try:
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client = cs_client_info.get("client")
+                
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
+            
+            try:
+                # Convert addons list to JSON string for body
+                request_body = json.dumps({'addons': addons})
+                request = cs20151215_models.UpgradeClusterAddonsRequest()
+                
+                runtime = util_models.RuntimeOptions()
+                headers = {'Content-Type': 'application/json'}
+                
+                response = await cs_client.upgrade_cluster_addons_with_options_async(
                     cluster_id, request, headers, runtime
                 )
                 
@@ -381,13 +634,13 @@ class ACKAddonManagementHandler:
                 return {
                     "cluster_id": cluster_id,
                     "task_id": getattr(response.body, 'task_id', None) if response.body else None,
-                    "status": "modifying",
+                    "status": "upgrading",
                     "response": response_data,
                     "request_id": getattr(response, 'request_id', None)
                 }
                 
             except Exception as e:
-                logger.error(f"Failed to modify cluster addons: {e}")
+                logger.error(f"Failed to upgrade cluster addons: {e}")
                 return {
                     "cluster_id": cluster_id,
                     "error": str(e),
