@@ -180,14 +180,13 @@ def create_main_server(
     # Create main MCP server
     main_mcp = FastMCP(
         name=MAIN_SERVER_NAME,
-        instructions=MAIN_SERVER_INSTRUCTIONS, 
-        dependencies=MAIN_SERVER_DEPENDENCIES,
-        host=host,
-        port=port,
+        instructions=MAIN_SERVER_INSTRUCTIONS,
     )
     
-    # Store transport type for later use
+    # Store transport type and connection details for later use
     main_mcp._transport_type = transport
+    main_mcp._host = host
+    main_mcp._port = port
     
     # Mount sub-MCP servers using proxy mount mechanism
     mounted_servers = []
@@ -399,7 +398,7 @@ def main():
             main_server.run()
         elif args.transport == "sse":
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            main_server.run(transport="sse")
+            main_server.run(transport="sse", host=args.host, port=args.port)
     
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")

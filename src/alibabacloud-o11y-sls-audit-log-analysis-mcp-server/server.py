@@ -82,9 +82,11 @@ def create_server(
     mcp = FastMCP(
         "ack-cluster-audit-log-analysis-mcp-server",
         lifespan=lifespan_manager.init_runtime,
-        host=host,
-        port=port
     )
+    
+    # Store host and port for potential standalone usage
+    mcp._host = host
+    mcp._port = port
 
     # Initialize and register tools
     KubeAuditTool(server=mcp)
@@ -128,7 +130,7 @@ def run_server(
             server.run()
         elif transport == "sse":
             print(f"Server will be available at http://{host}:{port}")
-            server.run(transport="sse")
+            server.run(transport="sse", host=host, port=port)
     except KeyboardInterrupt:
         print("\nReceived shutdown signal...")
         sys.exit(0)

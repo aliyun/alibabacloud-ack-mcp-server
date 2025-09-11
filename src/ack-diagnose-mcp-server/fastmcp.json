@@ -1,0 +1,14 @@
+{
+  "entrypoint": "server.py",
+  "environment": {
+    "dependencies": [
+      "fastmcp",
+      "pydantic",
+      "loguru",
+      "alibabacloud-cs20151215",
+      "alibabacloud-credentials",
+      "alibabacloud-tea-openapi",
+      "alibabacloud-tea-util"
+    ]
+  }
+}

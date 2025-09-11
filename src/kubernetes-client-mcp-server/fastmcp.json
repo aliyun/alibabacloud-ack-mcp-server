@@ -1,0 +1,12 @@
+{
+  "entrypoint": "server.py",
+  "environment": {
+    "dependencies": [
+      "fastmcp",
+      "pydantic",
+      "loguru",
+      "kubernetes",
+      "pyyaml"
+    ]
+  }
+}

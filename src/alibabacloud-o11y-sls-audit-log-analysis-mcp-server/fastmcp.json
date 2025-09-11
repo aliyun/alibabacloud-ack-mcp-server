@@ -1,0 +1,11 @@
+{
+  "entrypoint": "server.py",
+  "environment": {
+    "dependencies": [
+      "fastmcp",
+      "pydantic",
+      "pyyaml",
+      "aliyun-log-python-sdk"
+    ]
+  }
+}

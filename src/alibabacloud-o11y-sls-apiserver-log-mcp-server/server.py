@@ -80,11 +80,12 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     server = FastMCP(
         name=SERVER_NAME,
         instructions=SERVER_INSTRUCTIONS,
-        dependencies=SERVER_DEPENDENCIES,
         lifespan=runtime_provider.init_runtime,
-        host=host,
-        port=port,
     )
+    
+    # Store host and port for potential standalone usage
+    server._host = host
+    server._port = port
     
     allow_write = config.get("allow_write", False)
     ObservabilitySLSClusterAPIServerLogAnalysisHandler(server, allow_write, config)
@@ -172,7 +173,7 @@ def main():
             server.run()
         else:
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            server.run(transport="sse")
+            server.run(transport="sse", host=args.host, port=args.port)
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")
         sys.exit(0)

@@ -1,0 +1,11 @@
+{
+  "entrypoint": "server.py",
+  "environment": {
+    "dependencies": [
+      "fastmcp",
+      "pydantic",
+      "loguru",
+      "alibabacloud_cs20151215"
+    ]
+  }
+}

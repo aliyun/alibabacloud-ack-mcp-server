@@ -1,0 +1,16 @@
+{
+  "entrypoint": "main_server.py",
+  "environment": {
+    "dependencies": [
+      "fastmcp",
+      "pydantic",
+      "loguru",
+      "kubernetes",
+      "requests",
+      "pyyaml",
+      "cachetools",
+      "aliyun-log-python-sdk",
+      "pydantic-settings"
+    ]
+  }
+}
