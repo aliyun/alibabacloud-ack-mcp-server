@@ -18,11 +18,21 @@ try:
     from dotenv import load_dotenv
     DOTENV_AVAILABLE = True
 except ImportError:
+    from typing import Any
+    # 定义一个空的load_dotenv函数
+    def load_dotenv(*args: Any, **kwargs: Any) -> bool:
+        return True
     DOTENV_AVAILABLE = False
     logger.warning("python-dotenv not available, environment variables will be read from system")
 
-from .handler import ACKNodePoolManagementHandler
-from .runtime_provider import ACKNodePoolManagementRuntimeProvider
+# 支持相对导入和绝对导入
+try:
+    from .handler import ACKNodePoolManagementHandler
+    from .runtime_provider import ACKNodePoolManagementRuntimeProvider
+except ImportError:
+    # 如果相对导入失败，尝试绝对导入
+    from handler import ACKNodePoolManagementHandler
+    from runtime_provider import ACKNodePoolManagementRuntimeProvider
 
 # Server configuration
 SERVER_NAME = "ack-nodepool-management-mcp-server"
@@ -34,15 +44,91 @@ nodepool management capabilities:
 
 ## Available Tools:
 
-1. **scale_nodepool**: Scale node pool size
-   - Increase or decrease the number of nodes in a nodepool
-   - Support automatic scaling based on workload requirements
-   - Configure minimum and maximum node counts
+### Node Pool Query Operations:
+1. **describe_cluster_node_pools**: List and query ACK cluster node pools
+   - List all node pools in a cluster
+   - Filter by node pool name
+   - Get basic information about node pools
 
-2. **remove_nodepool_nodes**: Remove specific nodes from node pool  
-   - Safely drain and remove specific nodes from nodepools
-   - Maintain cluster stability during node removal
+2. **describe_cluster_node_pool_detail**: Get detailed information of a specific node pool
+   - Get comprehensive node pool configuration
+   - View scaling group details
+   - Check node pool status and health
+
+### Node Pool Lifecycle Management:
+3. **create_cluster_node_pool**: Create a new node pool in ACK cluster
+   - Create node pools with custom configurations
+   - Set instance types, sizes, and networking
+   - Configure auto-scaling parameters
+
+4. **delete_cluster_nodepool**: Delete a node pool from ACK cluster
+   - Safely remove node pools from clusters
+   - Handle graceful termination of nodes
+   - Clean up associated resources
+
+5. **modify_cluster_node_pool**: Modify node pool configuration
+   - Update node pool settings
+   - Change scaling configurations
+   - Modify node pool metadata
+
+### Node Pool Scaling Operations:
+6. **scale_nodepool**: Scale ACK cluster node pool
+   - Increase or decrease the number of nodes
+   - Support manual scaling operations
+   - Set desired node count
+
+7. **remove_nodepool_nodes**: Remove nodes from ACK cluster node pool
+   - Safely drain and remove specific nodes
+   - Maintain cluster stability during removal
    - Support graceful node termination
+
+### Node Pool Configuration:
+8. **modify_nodepool_node_config**: Modify node pool node configuration
+   - Update kubelet configurations
+   - Modify OS-level settings
+   - Configure container runtime parameters
+
+9. **upgrade_cluster_nodepool**: Upgrade node pool Kubernetes version
+   - Upgrade Kubernetes version on nodes
+   - Update node images
+   - Manage rolling upgrades
+
+### Security and Maintenance:
+10. **describe_nodepool_vuls**: Query node pool security vulnerabilities
+    - Scan for security vulnerabilities in nodes
+    - Filter by vulnerability severity
+    - Get detailed vulnerability reports
+
+11. **fix_nodepool_vuls**: Fix node pool security vulnerabilities
+    - Apply security patches to nodes
+    - Configure parallel patching
+    - Handle automatic restarts
+
+12. **repair_cluster_node_pool**: Repair cluster node pool nodes
+    - Perform maintenance operations on nodes
+    - Execute repair scripts
+    - Handle node health issues
+
+### Advanced Operations:
+13. **sync_cluster_node_pool**: Sync cluster node pool configuration
+    - Synchronize node pool state
+    - Reconcile configuration drift
+    - Ensure consistency across nodes
+
+14. **attach_instances_to_node_pool**: Attach existing instances to node pool
+    - Add existing ECS instances to node pools
+    - Configure instance joining settings
+    - Handle disk formatting options
+
+15. **create_autoscaling_config**: Create autoscaling configuration for cluster
+    - Configure cluster autoscaler settings
+    - Set scaling thresholds and policies
+    - Define resource utilization targets
+
+16. **describe_cluster_attach_scripts**: Get scripts for attaching existing nodes to cluster node pool
+    - Generate scripts for manual node joining
+    - Support different architectures
+    - Provide customizable options
 
 ## Authentication:
 Configure environment variables:
@@ -90,10 +176,6 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
         instructions=SERVER_INSTRUCTIONS,
         lifespan=runtime_provider.init_runtime,
     )
-    
-    # Store host and port for potential standalone usage
-    server._host = host
-    server._port = port
     
     # Initialize handler
     allow_write = config.get("allow_write", False)
