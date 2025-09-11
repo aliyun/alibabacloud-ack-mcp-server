@@ -22,8 +22,17 @@ except ImportError:
     DOTENV_AVAILABLE = False
     logger.warning("python-dotenv not available, environment variables will be read from system")
 
-from .handler import ACKAddonManagementHandler
-from .runtime_provider import ACKAddonManagementRuntimeProvider
+# 使用更健壮的导入方式
+try:
+    from .handler import ACKAddonManagementHandler
+    from .runtime_provider import ACKAddonManagementRuntimeProvider
+except ImportError:
+    try:
+        from handler import ACKAddonManagementHandler
+        from runtime_provider import ACKAddonManagementRuntimeProvider
+    except ImportError:
+        ACKAddonManagementHandler = None
+        ACKAddonManagementRuntimeProvider = None
 
 # Server configuration
 SERVER_NAME = "ack-addon-management-mcp-server"
