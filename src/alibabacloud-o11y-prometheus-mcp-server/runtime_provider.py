@@ -9,6 +9,7 @@ from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_credentials.client import Client as CredentialClient
 
 from alibabacloud_sls20201230.client import Client as SLSClient
+from alibabacloud_arms20190808.client import Client as ARMSClient
 
 # 添加父目录到路径以导入interfaces
 import sys
@@ -123,7 +124,8 @@ class ObservabilityAliyunPrometheusRuntimeProvider(RuntimeProvider):
             sls_config.access_key_secret = config.get("access_key_secret")
             sls_config.region_id = region
 
-            sls_config.endpoint = f"{region}.log.aliyuncs.com"
+            # sls_config.endpoint = f"{region}.log.aliyuncs.com"
+            sls_config.endpoint = f"cn-shanghai.log.aliyuncs.com"
             sls_client = SLSClient(sls_config)
 
             providers["sls_client"] = {
@@ -133,6 +135,22 @@ class ObservabilityAliyunPrometheusRuntimeProvider(RuntimeProvider):
                 "initialized": True
             }
             logger.info(f"SLS Service client initialized for region: {region}")
+
+            # Initialize ARMS (Prometheus) client
+            arms_config = open_api_models.Config(credential=credential)
+            arms_config.access_key_id = config.get("access_key_id")
+            arms_config.access_key_secret = config.get("access_key_secret")
+            arms_config.region_id = region
+            arms_config.endpoint = f"arms.{region}.aliyuncs.com"
+            arms_client = ARMSClient(arms_config)
+
+            providers["arms_client"] = {
+                "client": arms_client,
+                "type": "alibaba_cloud_arms",
+                "region": region,
+                "initialized": True
+            }
+            logger.info(f"ARMS (Prometheus) client initialized for region: {region}")
 
             # Initialize Prometheus query engine
             providers["prometheus_engine"] = {
