@@ -5,7 +5,6 @@
       "fastmcp",
       "pydantic",
       "loguru",
-      "alibabacloud_cms20190101"
     ]
   }
 }

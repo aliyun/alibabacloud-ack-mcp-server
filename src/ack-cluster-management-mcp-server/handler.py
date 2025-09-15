@@ -5,6 +5,9 @@ from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
+from alibabacloud_cs20151215.client import Client as CS20151215Client
+from alibabacloud_tea_openapi import models as open_api_models
+from alibabacloud_credentials.client import Client as CredentialClient
 import json
 
 
@@ -65,6 +68,21 @@ class ACKClusterManagementHandler:
     def _register_tools(self):
         """Register cluster management related tools."""
         
+        DEFAULT_REGIONS = [
+            "cn-hangzhou", "cn-shanghai", "cn-beijing", "cn-shenzhen", "cn-zhangjiakou", "cn-huhehaote",
+            "cn-chengdu", "cn-hongkong", "ap-southeast-1", "ap-southeast-3", "ap-southeast-5",
+            "ap-south-1", "ap-northeast-1", "eu-central-1", "eu-west-1", "us-west-1", "us-east-1",
+        ]
+        
+        def _build_cs_client_for_region(base_config: Dict[str, Any], region: str) -> CS20151215Client:
+            credential_client = CredentialClient()
+            cs_config = open_api_models.Config(credential=credential_client)
+            cs_config.access_key_id = base_config.get("access_key_id")
+            cs_config.access_key_secret = base_config.get("access_key_secret")
+            cs_config.region_id = region
+            cs_config.endpoint = f"cs.{region}.aliyuncs.com"
+            return CS20151215Client(cs_config)
+        
         @self.server.tool(
             name="describe_clusters",
             description="List and query ACK clusters"
@@ -89,7 +107,7 @@ class ACKClusterManagementHandler:
                 profile: Cluster profile (Default, Edge, Serverless, Lingjun)
                 region_id: Region ID filter
                 cluster_id: Specific cluster ID
-                page_size: Page size (max 100)
+                page_size: Page size (max 100), if not set is default 10.
                 page_number: Page number
                 ctx: FastMCP context containing lifespan providers
                 
@@ -154,6 +172,70 @@ class ACKClusterManagementHandler:
                     "error": str(e),
                     "status": "error"
                 }
+
+        @self.server.tool(
+            name="describe_clusters_brief",
+            description="Quick list brief all clusters and output. default page_size 500."
+        )
+        async def describe_clusters_brief(
+            regions: Optional[List[str]] = None,
+            page_size: Optional[int] = 500,
+            ctx: Context = None
+        ) -> Dict[str, Any]:
+            """List clusters with brief fields across regions.
+            
+            Args:
+                regions: Region list to query; defaults to common regions
+                page_size: Page size, default 500
+                ctx: FastMCP context containing lifespan providers
+            
+            Returns:
+                Brief cluster list with fields: name, cluster_id, state, region_id, node_count, cluster_type
+            """
+            # Get base config for AK
+            try:
+                lifespan_config = ctx.request_context.lifespan_context.get("config", {})
+            except Exception as e:
+                logger.error(f"Failed to get lifespan config: {e}")
+                return {"error": "Failed to access lifespan context"}
+            
+            target_regions = regions or DEFAULT_REGIONS
+            brief_list: List[Dict[str, Any]] = []
+            errors: List[Dict[str, Any]] = []
+            
+            for region in target_regions:
+                try:
+                    cs_client = _build_cs_client_for_region(lifespan_config, region)
+                    request = cs20151215_models.DescribeClustersV1Request(
+                        page_size=min(page_size or 500, 500),
+                        page_number=1,
+                        region_id=region,
+                    )
+                    runtime = util_models.RuntimeOptions()
+                    headers = {}
+                    response = await cs_client.describe_clusters_v1with_options_async(request, headers, runtime)
+                    clusters = _serialize_sdk_object(response.body.clusters) if response.body and response.body.clusters else []
+                    for c in clusters:
+                        # 兼容 SDK 字段命名
+                        brief_list.append({
+                            "name": c.get("name") or c.get("cluster_name"),
+                            "cluster_id": c.get("cluster_id") or c.get("clusterId"),
+                            "state": c.get("state") or c.get("cluster_state") or c.get("status"),
+                            "region_id": c.get("region_id") or region,
+                            "node_count": c.get("node_count") or c.get("current_node_count") or c.get("size"),
+                            "cluster_type": c.get("cluster_type") or c.get("clusterType"),
+                        })
+                except Exception as e:
+                    logger.warning(f"describe_clusters_brief failed for region {region}: {e}")
+                    errors.append({"region": region, "error": str(e)})
+                    continue
+            
+            return {
+                "clusters": brief_list,
+                "count": len(brief_list),
+                "regions": target_regions,
+                "errors": errors or None,
+            }
         
         @self.server.tool(
             name="describe_cluster_detail",

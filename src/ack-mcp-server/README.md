@@ -77,7 +77,7 @@
   - `X-Aliyun-Security-Token` (可选): 如果使用 STS 临时凭证，请提供此项。
   - `X-Aliyun-Region` (可选): 为本次请求指定特定的阿里云区域。
 
-如果请求的 Header 中未提供任何凭证，服务将回退使用其运行环境中的默认凭证链（例如，`ALIBABA_CLOUD_ACCESS_KEY_ID` 和 `ALIBABA_CLOUD_ACCESS_KEY_SECRET` 环境变量）。
+如果请求的 Header 中未提供任何凭证，服务将回退使用其运行环境中的默认凭证链（例如，`ACCESS_KEY_ID` 和 `ACCESS_KEY_SECRET` 环境变量）。
 
 ### 上下文处理机制
 

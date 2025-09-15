@@ -5,7 +5,17 @@ from typing import Optional
 from fastmcp import FastMCP, Context
 from typing import List, Dict, Any
 from pydantic import Field
-from ..provider.provider import Provider
+# 兼容包相对导入与脚本直接运行两种方式
+try:
+    from ..provider.provider import Provider
+except Exception:
+    import os
+    import sys
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(current_dir)
+    if parent_dir not in sys.path:
+        sys.path.insert(0, parent_dir)
+    from provider.provider import Provider  # type: ignore
 
 
 class KubeAuditTool:
@@ -164,46 +174,6 @@ class KubeAuditTool:
         except Exception as e:
             print(f"Warning: Failed to get provider from context: {e}")
             return None
-
-    async def list_clusters(self, ctx: Context) -> Dict[str, Any]:
-        """List all configured clusters in the MCP server.
-        
-        Args:
-            ctx: FastMCP Context object
-            
-        Returns:
-            Dictionary containing cluster information
-        """
-        try:
-            # Get the lifespan context from the FastMCP context
-            lifespan_context = ctx.request_context.lifespan_context
-            
-            # Get configuration from the lifespan context
-            providers = lifespan_context.get("providers", {})
-            default_cluster = lifespan_context.get("default_cluster", "default")
-            
-            # Build cluster information
-            clusters = []
-            for cluster_name, provider in providers.items():
-                cluster_info = {
-                    "name": cluster_name,
-                    "description": f"Cluster {cluster_name}",
-                    "alias": [],
-                    "disabled": False,
-                    "provider": provider.__class__.__name__.replace("Provider", "").lower()
-                }
-                clusters.append(cluster_info)
-            
-            return {
-                "default_cluster": default_cluster,
-                "clusters": clusters
-            }
-        except Exception as e:
-            return {
-                "default_cluster": "default",
-                "clusters": [],
-                "error": str(e)
-            }
 
     def query_audit_log_sync(
             self,
@@ -392,16 +362,4 @@ class KubeAuditTool:
                 limit=limit,
                 cluster_name=cluster_name
             )
-
-        @self.server.tool(
-            name="list_clusters",
-            description="List all configured clusters in the MCP server."
-        )
-        async def list_clusters_tool(ctx: Context) -> Dict[str, Any]:
-            """List all configured clusters in the MCP server.
-            
-            Returns information about all available clusters including their names,
-            descriptions, providers, and status.
-            """
-            return await self.list_clusters(ctx=ctx)
 

@@ -121,3 +121,5 @@ websockets==15.0.1
 werkzeug==3.1.1
 yarl==1.20.1
 zstd==1.5.7.2
+alibabacloud_credentials>=1.0.2
+alibabacloud_arms20190808>=10.0.1

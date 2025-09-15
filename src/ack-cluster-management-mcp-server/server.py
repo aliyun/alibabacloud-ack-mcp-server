@@ -88,7 +88,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8000)
+    port = config.get("port", 8001)
     
     # Create runtime provider
     runtime_provider = ACKClusterManagementRuntimeProvider(config)
@@ -148,8 +148,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=8000,
-        help="Port for SSE transport (default: 8000)"
+        default=8001,
+        help="Port for SSE transport (default: 8001)"
     )
     parser.add_argument(
         "--region",

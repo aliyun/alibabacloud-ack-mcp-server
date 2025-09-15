@@ -112,7 +112,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8001)
+    port = config.get("port", 8003)
     
     # Create runtime provider
     runtime_provider = ACKAddonManagementRuntimeProvider(config)
@@ -172,8 +172,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=8001,
-        help="Port for SSE transport (default: 8001)"
+        default=8003,
+        help="Port for SSE transport (default: 8003)"
     )
     parser.add_argument(
         "--region",

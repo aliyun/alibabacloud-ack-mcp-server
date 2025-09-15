@@ -306,13 +306,13 @@ class KubeAuditRuntimeProvider(RuntimeProvider):
                     sls_config = provider_config.get("alibaba_sls", {})
                     # Load credentials from environment variables
                     import os
-                    access_key_id = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
-                    access_key_secret = os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
+                    access_key_id = os.getenv("ACCESS_KEY_ID")
+                    access_key_secret = os.getenv("ACCESS_KEY_SECRET")
 
                     if not access_key_id or not access_key_secret:
                         raise ConfigValidationError(
                             f"Missing Alibaba Cloud credentials for cluster '{cluster_name}'. "
-                            f"Please set ALIBABA_CLOUD_ACCESS_KEY_ID and ALIBABA_CLOUD_ACCESS_KEY_SECRET environment variables."
+                            f"Please set ACCESS_KEY_ID and ACCESS_KEY_SECRET environment variables."
                         )
 
                     sls_config["access_key_id"] = access_key_id

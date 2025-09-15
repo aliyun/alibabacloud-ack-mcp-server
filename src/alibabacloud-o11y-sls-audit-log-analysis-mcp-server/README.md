@@ -70,7 +70,7 @@ clusters:
 ### 2. 配置认证
 
 #### 阿里云SLS
-- 通过环境变量：`ALIBABA_CLOUD_ACCESS_KEY_ID` 和 `ALIBABA_CLOUD_ACCESS_KEY_SECRET`
+- 通过环境变量：`ACCESS_KEY_ID` 和 `ACCESS_KEY_SECRET`
 
 
 ## 🎯 使用方法
@@ -146,8 +146,8 @@ alibabacloud-cluster-aduit-log-mcp-server --transport sse --host 0.0.0.0 --port 
          "command": "alibabacloud-cluster-aduit-log-mcp-server",
          "args": ["--config", "/path/to/your/config.yaml"],
          "env": {
-        	"ALIBABA_CLOUD_ACCESS_KEY_ID": "your-access-key-id",
-           "ALIBABA_CLOUD_ACCESS_KEY_SECRET": "your-access-key-secret"
+        	"ACCESS_KEY_ID": "your-access-key-id",
+           "ACCESS_KEY_SECRET": "your-access-key-secret"
       	  }
        }
      }
@@ -170,8 +170,8 @@ alibabacloud-cluster-aduit-log-mcp-server --transport sse --host 0.0.0.0 --port 
          "command": "alibabacloud-cluster-aduit-log-mcp-server",
          "args": ["--config", "/path/to/your/config.yaml"],
          "env": {
-           "ALIBABA_CLOUD_ACCESS_KEY_ID": "your-access-key-id",
-           "ALIBABA_CLOUD_ACCESS_KEY_SECRET": "your-access-key-secret"
+           "ACCESS_KEY_ID": "your-access-key-id",
+           "ACCESS_KEY_SECRET": "your-access-key-secret"
          }
        }
      }

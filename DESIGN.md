@@ -50,6 +50,25 @@ main_server.py中会通过 FastMCP Proxy Mount机制link各个子MCP Server。�
 
 各子MCP Server需要实现server.py，并可以在各自的server.py中实现main函数以支持单独运行此MCP Server。
 
+#### Ports Allocation
+
+为便于本地并行运行与统一网关映射，制定如下默认端口（均可通过各自 `server.py` 的 `--port` 参数覆盖）：
+
+- main_server: 8000
+- ack-cluster-management-mcp-server: 8001
+- kubernetes-client-mcp-server: 8002
+- ack-addon-management-mcp-server: 8003
+- ack-nodepool-management-mcp-server: 8004
+- ack-diagnose-mcp-server: 8005
+- alibabacloud-o11y-sls-audit-log-analysis-mcp-server: 8006
+- alibabacloud-o11y-sls-apiserver-log-mcp-server: 8007
+- alibabacloud-o11y-prometheus-mcp-server: 8008
+- alibabacloud-ack-cloudresource-monitor-mcp-server: 8009
+
+端口分配规则：
+- 8000 为主服务；子服务按模块职责顺序占用 8001-8009，便于记忆与冲突排查。
+- 子服务以 SSE 模式运行时占用端口；stdio 模式不占用端口。
+
 
 
 MCP servers should follow these guidelines for application entry points:

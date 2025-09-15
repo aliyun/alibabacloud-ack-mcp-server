@@ -115,7 +115,6 @@ class ACKAddonManagementRuntimeProvider(RuntimeProvider):
             region_id = config.get("region_id", "cn-hangzhou")
             
             if access_key_id and access_key_secret:
-                # 对齐 ack-diagnose 的 AK 传入方式
                 credential_client = CredentialClient()
                 cs_config = open_api_models.Config(credential=credential_client)
                 cs_config.access_key_id = access_key_id

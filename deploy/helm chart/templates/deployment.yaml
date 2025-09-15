@@ -55,12 +55,12 @@ spec:
           image: "{{ .Values.global.registry }}/obs-mcp-server:{{ .Values.global.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-          - name: ALIBABA_CLOUD_ACCESS_KEY_ID
+          - name: ACCESS_KEY_ID
             valueFrom:
               secretKeyRef:
                 name: {{ include "mcp-chart.fullname" . }}-obs-credentials
                 key: accessKeyId
-          - name: ALIBABA_CLOUD_ACCESS_KEY_SECRET
+          - name: ACCESS_KEY_SECRET
             valueFrom:
               secretKeyRef:
                 name: {{ include "mcp-chart.fullname" . }}-obs-credentials

@@ -116,7 +116,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8004)
+    port = config.get("port", 8002)
     
     # Create runtime provider
     runtime_provider = KubernetesClientRuntimeProvider(config)
@@ -176,8 +176,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=8004,
-        help="Port for SSE transport (default: 8004)"
+        default=8002,
+        help="Port for SSE transport (default: 8002)"
     )
     parser.add_argument(
         "--kubeconfig",

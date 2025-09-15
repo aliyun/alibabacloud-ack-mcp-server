@@ -133,7 +133,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8003)
+    port = config.get("port", 8005)
     
     # Create runtime provider
     runtime_provider = ACKDiagnoseRuntimeProvider(config)
@@ -180,7 +180,7 @@ def main():
         "-t",
         type=str,
         choices=["stdio", "sse"],
-        default="sse",
+        default="stdio",
         help="Transport method (default: stdio)"
     )
     parser.add_argument(
@@ -193,8 +193,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=8003,
-        help="Port for SSE transport (default: 8003)"
+        default=8005,
+        help="Port for SSE transport (default: 8005)"
     )
     parser.add_argument(
         "--region",

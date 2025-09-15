@@ -22,8 +22,16 @@ except ImportError:
     DOTENV_AVAILABLE = False
     logger.warning("python-dotenv not available, environment variables will be read from system")
 
-from .handler import ObservabilityAliyunPrometheusHandler
-from .runtime_provider import ObservabilityAliyunPrometheusRuntimeProvider
+# 兼容包相对导入与脚本直接运行两种方式
+try:
+    from .handler import ObservabilityAliyunPrometheusHandler
+    from .runtime_provider import ObservabilityAliyunPrometheusRuntimeProvider
+except Exception:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    from handler import ObservabilityAliyunPrometheusHandler  # type: ignore
+    from runtime_provider import ObservabilityAliyunPrometheusRuntimeProvider  # type: ignore
 
 # Server configuration
 SERVER_NAME = "alibabacloud-ack-prometheus-mcp-server"
@@ -64,7 +72,6 @@ SERVER_DEPENDENCIES = [
     "fastmcp",
     "pydantic",
     "loguru", 
-    "alibabacloud_cms20190101",  # CloudMonitor SDK
 ]
 
 
@@ -84,7 +91,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8005)
+    port = config.get("port", 8008)
     
     # Create runtime provider
     runtime_provider = ObservabilityAliyunPrometheusRuntimeProvider(config)
@@ -100,9 +107,8 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     server._host = host
     server._port = port
     
-    # Initialize handler
-    allow_write = config.get("allow_write", False)
-    ObservabilityAliyunPrometheusHandler(server, allow_write, config)
+    # Initialize handler (new signature)
+    ObservabilityAliyunPrometheusHandler(server)
     
     logger.info(f"Observability Aliyun Prometheus MCP Server created successfully on {host}:{port}")
     return server
@@ -144,8 +150,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=8005,
-        help="Port for SSE transport (default: 8005)"
+        default=8008,
+        help="Port for SSE transport (default: 8008)"
     )
     parser.add_argument(
         "--region",

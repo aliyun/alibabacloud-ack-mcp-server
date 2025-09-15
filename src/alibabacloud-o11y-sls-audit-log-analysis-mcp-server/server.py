@@ -9,8 +9,16 @@ from typing import Optional, Literal
 
 from fastmcp import FastMCP
 
-from .context.lifespan_manager import KubeAuditRuntimeProvider
-from .toolkits.kube_aduit_tool import KubeAuditTool
+# 兼容包相对导入与脚本直接运行两种方式
+try:
+    from .context.lifespan_manager import KubeAuditRuntimeProvider
+    from .toolkits.kube_aduit_tool import KubeAuditTool
+except Exception:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    from context.lifespan_manager import KubeAuditRuntimeProvider  # type: ignore
+    from toolkits.kube_aduit_tool import KubeAuditTool  # type: ignore
 
 
 def create_mcp_server(config: Optional[dict] = None) -> FastMCP:
@@ -34,7 +42,7 @@ def create_mcp_server(config: Optional[dict] = None) -> FastMCP:
     # Extract transport settings from config if available
     transport = config.get("transport", "stdio")
     host = config.get("host", "127.0.0.1")
-    port = config.get("port", 8000)
+    port = config.get("port", 8006)
     
     # Use the existing create_server function
     return create_server(
@@ -51,7 +59,7 @@ def create_server(
         config_dict: Optional[dict] = None,
         transport: Literal["stdio", "sse"] = "stdio",
         host: str = "127.0.0.1",
-        port: int = 8000
+        port: int = 8006
 ) -> FastMCP:
     """Create and configure the MCP server.
     
@@ -102,7 +110,7 @@ def run_server(
         config_dict: Optional[dict] = None,
         transport: Literal["stdio", "sse"] = "stdio",
         host: str = "localhost",
-        port: int = 8000
+        port: int = 8006
 ):
     """Run the MCP server with specified transport.
     
@@ -168,8 +176,8 @@ def main():
         "--port",
         "-p",
         type=int,
-        default=8000,
-        help="Port for SSE transport (default: 8000)"
+        default=8006,
+        help="Port for SSE transport (default: 8006)"
     )
     parser.add_argument(
         "--version",

@@ -65,7 +65,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8007)
+    port = config.get("port", 8009)
     
     runtime_provider = ObservabilityAliyunCloudMonitorResourceMonitorRuntimeProvider(config)
     
@@ -98,7 +98,7 @@ def main():
     parser.add_argument("--allow-write", action="store_true", default=False, help="Enable write access mode")
     parser.add_argument("--transport", "-t", choices=["stdio", "sse"], default="stdio", help="Transport method")
     parser.add_argument("--host", default="localhost", help="Host for SSE transport")
-    parser.add_argument("--port", "-p", type=int, default=8007, help="Port for SSE transport")
+    parser.add_argument("--port", "-p", type=int, default=8009, help="Port for SSE transport")
     parser.add_argument("--region", "-r", help="AlibabaCloud region (default: from env REGION_ID or cn-hangzhou)")
     parser.add_argument("--access-key-id", help="AlibabaCloud Access Key ID (default: from env ACCESS_KEY_ID)")
     parser.add_argument("--access-key-secret", help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)")

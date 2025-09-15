@@ -165,7 +165,7 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Extract server parameters from config
     host = config.get("host", "localhost")
-    port = config.get("port", 8002)
+    port = config.get("port", 8004)
     
     # Create runtime provider
     runtime_provider = ACKNodePoolManagementRuntimeProvider(config)
