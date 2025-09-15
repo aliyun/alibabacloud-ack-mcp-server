@@ -5,7 +5,7 @@ from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
-import json
+from alibabacloud_cs20151215.client import Client as CS20151215Client
 
 
 def _serialize_sdk_object(obj):
@@ -70,24 +70,24 @@ class ACKAddonManagementHandler:
             description="List available addons for ACK cluster"
         )
         async def list_addons(
+            region_id: Optional[str] = None,
             cluster_type: Optional[str] = None,
-            region: Optional[str] = None,
+            profile: Optional[str] = None,
             cluster_spec: Optional[str] = None,
             cluster_version: Optional[str] = None,
-            profile: Optional[str] = None,
             cluster_id: Optional[str] = None,
             ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """List available addons.
             
             Args:
-                cluster_type: Cluster type filter
-                region: Region filter  
-                cluster_spec: Cluster spec filter
-                cluster_version: Cluster version filter
-                profile: Cluster profile filter
-                cluster_id: Specific cluster ID
-                ctx: FastMCP context containing lifespan providers
+                region_id: Region filter (optional)
+                cluster_type: Cluster type filter (optional)
+                profile: Cluster profile filter (optional)
+                cluster_spec: Cluster spec filter (optional)
+                cluster_version: Cluster version filter (optional)
+                cluster_id: Specific cluster ID (optional)
+                ctx: FastMCP context containing lifespan providers (optional)
                 
             Returns:
                 List of available addons
@@ -99,7 +99,7 @@ class ACKAddonManagementHandler:
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -109,21 +109,20 @@ class ACKAddonManagementHandler:
             
             try:
                 # Build request with query parameters
-                request_dict = {}
+                request = cs20151215_models.ListAddonsRequest()
+                if region_id:
+                    request.region_id = region_id
                 if cluster_type:
-                    request_dict["cluster_type"] = cluster_type
-                if region:
-                    request_dict["region"] = region
-                if cluster_spec:
-                    request_dict["cluster_spec"] = cluster_spec
-                if cluster_version:
-                    request_dict["cluster_version"] = cluster_version
+                    request.cluster_type = cluster_type
                 if profile:
-                    request_dict["profile"] = profile
+                    request.profile = profile
+                if cluster_spec:
+                    request.cluster_spec = cluster_spec
+                if cluster_version:
+                    request.cluster_version = cluster_version
                 if cluster_id:
-                    request_dict["cluster_id"] = cluster_id
-                
-                request = cs20151215_models.ListAddonsRequest(**request_dict)
+                    request.cluster_id = cluster_id
+               
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
@@ -139,7 +138,7 @@ class ACKAddonManagementHandler:
                     "request_id": getattr(response.body, 'request_id', None) if response.body else None,
                     "query_params": {
                         "cluster_type": cluster_type,
-                        "region": region,
+                        "region": region_id,
                         "cluster_spec": cluster_spec,
                         "cluster_version": cluster_version,
                         "profile": profile,
@@ -281,10 +280,13 @@ class ACKAddonManagementHandler:
         )
         async def describe_addon(
             addon_name: str,
-            cluster_spec: Optional[str] = None,
+            region_id: Optional[str] = None,
             cluster_type: Optional[str] = None,
+            profile: Optional[str] = None,
+            cluster_spec: Optional[str] = None,
             cluster_version: Optional[str] = None,
-            region: Optional[str] = None,
+            cluster_id: Optional[str] = None,
+            version: Optional[str] = None,
             ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Describe addon information.
@@ -307,7 +309,7 @@ class ACKAddonManagementHandler:
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -317,17 +319,22 @@ class ACKAddonManagementHandler:
             
             try:
                 # Build request with query parameters
-                request_dict = {"addon_name": addon_name}
+                request = cs20151215_models.DescribeAddonRequest()
+                if cluster_id:
+                    request.cluster_id = cluster_id
                 if cluster_spec:
-                    request_dict["cluster_spec"] = cluster_spec
+                    request.cluster_spec = cluster_spec
                 if cluster_type:
-                    request_dict["cluster_type"] = cluster_type
+                    request.cluster_type = cluster_type
                 if cluster_version:
-                    request_dict["cluster_version"] = cluster_version
-                if region:
-                    request_dict["region"] = region
+                    request.cluster_version = cluster_version
+                if profile:
+                    request.profile = profile
+                if region_id:
+                    request.region_id = region_id
+                if version:
+                    request.version = version
                 
-                request = cs20151215_models.DescribeAddonRequest(**request_dict)
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
@@ -346,7 +353,10 @@ class ACKAddonManagementHandler:
                         "cluster_spec": cluster_spec,
                         "cluster_type": cluster_type,
                         "cluster_version": cluster_version,
-                        "region": region
+                        "region_id": region_id,
+                        "profile": profile,
+                        "cluster_id": cluster_id,
+                        "version": version
                     },
                     "status": "success"
                 }
@@ -376,7 +386,6 @@ class ACKAddonManagementHandler:
                        - name: Addon name (required)
                        - version: Addon version (optional)
                        - config: Addon configuration (optional)
-                       - disabled: Whether addon is disabled (optional)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -392,7 +401,7 @@ class ACKAddonManagementHandler:
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -401,10 +410,12 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # Build addon installation parameters
-                # Convert addons list to JSON string for body
-                request_body = json.dumps({'addons': addons})
                 request = cs20151215_models.InstallClusterAddonsRequest()
+                if addons:
+                    body: List[cs20151215_models.InstallClusterAddonsRequestBody] = []
+                    for _, el in enumerate(addons):
+                        body.append(cs20151215_models.InstallClusterAddonsRequestBody().from_map(el))
+                    request.body = body
                 
                 runtime = util_models.RuntimeOptions()
                 headers = {'Content-Type': 'application/json'}
@@ -464,7 +475,7 @@ class ACKAddonManagementHandler:
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -473,10 +484,13 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # Convert addons list to JSON string for body
-                request_body = json.dumps({'addons': addons})
                 request = cs20151215_models.UnInstallClusterAddonsRequest()
-                
+                if addons:
+                    body: List[cs20151215_models.UnInstallClusterAddonsRequestAddons] = []
+                    for _, el in enumerate(addons):
+                        body.append(cs20151215_models.UnInstallClusterAddonsRequestAddons().from_map(el))
+                request.body = body
+            
                 runtime = util_models.RuntimeOptions()
                 headers = {'Content-Type': 'application/json'}
                 
@@ -534,7 +548,7 @@ class ACKAddonManagementHandler:
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -543,12 +557,10 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # Build request
-                request_dict = {}
+                request = cs20151215_models.ModifyClusterAddonRequest()
                 if config:
-                    request_dict["config"] = config
-                
-                request = cs20151215_models.ModifyClusterAddonRequest(**request_dict)
+                    request.config = config
+
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
@@ -590,9 +602,11 @@ class ACKAddonManagementHandler:
             Args:
                 cluster_id: Target cluster ID
                 addons: List of addons to upgrade, each addon should contain:
-                       - name: Addon name (required)
-                       - version: Target version (required)
+                       - component_name: Addon name (required)
+                       - next_version: Target version (required)
+                       - version: Current version (optional)
                        - config: Addon configuration (optional)
+                       - policy: Upgrade policy, overwrite or canary (optional)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -608,7 +622,7 @@ class ACKAddonManagementHandler:
             try:
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -617,9 +631,12 @@ class ACKAddonManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # Convert addons list to JSON string for body
-                request_body = json.dumps({'addons': addons})
-                request = cs20151215_models.UpgradeClusterAddonsRequest()
+                request = cs20151215_models.UpgradeClusterAddonsRequest()                    
+                if addons:
+                    body: List[cs20151215_models.UpgradeClusterAddonsRequestBody] = []
+                    for _, el in enumerate(addons):
+                        body.append(cs20151215_models.UpgradeClusterAddonsRequestBody().from_map(el))
+                    request.body = body
                 
                 runtime = util_models.RuntimeOptions()
                 headers = {'Content-Type': 'application/json'}

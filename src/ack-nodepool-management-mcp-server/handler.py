@@ -7,7 +7,6 @@ from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 from alibabacloud_cs20151215.client import Client as CS20151215Client
-import json
 
 
 def _serialize_sdk_object(obj):
@@ -105,7 +104,7 @@ class ACKNodePoolManagementHandler:
                     return {"error": "Context is required"}
                 providers = ctx.request_context.lifespan_context.get("providers", {})
                 cs_client_info = providers.get("cs_client", {})
-                cs_client:CS20151215Client = cs_client_info.get("client")
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
                 if not cs_client:
                     return {"error": "CS client not available in lifespan context"}
@@ -719,120 +718,239 @@ class ACKNodePoolManagementHandler:
                     "status": "failed"
                 }
         
-        #TODO(): not finished
-        # @self.server.tool(
-        #     name="modify_nodepool_node_config",
-        #     description="Modify node pool node configuration"
-        # )
-        # async def modify_nodepool_node_config(
-        #     cluster_id: str,
-        #     nodepool_id: str,
-        #     # Kubelet configuration parameters
-        #     cpu_manager_policy: Optional[str] = None,
-        #     feature_gates: Optional[str] = None,
-        #     kube_reserved: Optional[str] = None,
-        #     system_reserved: Optional[str] = None,
-        #     eviction_hard: Optional[str] = None,
-        #     # OS configuration parameters
-        #     sysctl: Optional[dict] = None,
-        #     # Rolling policy parameters
-        #     max_parallelism: Optional[int] = None,
-        #     ctx: Optional[Context] = None
-        # ) -> Dict[str, Any]:
-        #     """Modify node pool node configuration.
+        @self.server.tool(
+            name="modify_nodepool_node_config",
+            description="Modify node pool node configuration"
+        )
+        async def modify_nodepool_node_config(
+            cluster_id: str,
+            nodepool_id: str,
+            # Kubelet configuration parameters - expanded from KubeletConfig
+            allowed_unsafe_sysctls: Optional[List[str]] = None,
+            cluster_dns: Optional[List[str]] = None,
+            container_log_max_files: Optional[int] = None,
+            container_log_max_size: Optional[str] = None,
+            container_log_max_workers: Optional[int] = None,
+            container_log_monitor_interval: Optional[str] = None,
+            cpu_cfsquota: Optional[bool] = None,
+            cpu_cfsquota_period: Optional[str] = None,
+            cpu_manager_policy: Optional[str] = None,
+            event_burst: Optional[int] = None,
+            event_record_qps: Optional[int] = None,
+            eviction_hard: Optional[Dict[str, Any]] = None,
+            eviction_soft: Optional[Dict[str, Any]] = None,
+            eviction_soft_grace_period: Optional[Dict[str, Any]] = None,
+            feature_gates: Optional[Dict[str, Any]] = None,
+            image_gchigh_threshold_percent: Optional[int] = None,
+            image_gclow_threshold_percent: Optional[int] = None,
+            kube_apiburst: Optional[int] = None,
+            kube_apiqps: Optional[int] = None,
+            kube_reserved: Optional[Dict[str, Any]] = None,
+            max_pods: Optional[int] = None,
+            memory_manager_policy: Optional[str] = None,
+            pod_pids_limit: Optional[int] = None,
+            read_only_port: Optional[int] = None,
+            registry_burst: Optional[int] = None,
+            registry_pull_qps: Optional[int] = None,
+            serialize_image_pulls: Optional[bool] = None,
+            system_reserved: Optional[Dict[str, Any]] = None,
+            topology_manager_policy: Optional[str] = None,
+            # OS configuration parameters
+            sysctl: Optional[Dict[str, Any]] = None,
+            # Rolling policy parameters
+            max_parallelism: Optional[int] = None,
+            ctx: Optional[Context] = None
+        ) -> Dict[str, Any]:
+            """Modify node pool node configuration.
             
-        #     Args:
-        #         cluster_id: Target cluster ID
-        #         nodepool_id: Target node pool ID
-        #         cpu_manager_policy: Kubelet CPU manager policy
-        #         feature_gates: Kubelet feature gates
-        #         kube_reserved: Kubernetes reserved resources
-        #         system_reserved: System reserved resources
-        #         eviction_hard: Eviction hard limits
-        #         sysctl: OS sysctl configuration
-        #         max_parallelism: Rolling update max parallelism
-        #         ctx: FastMCP context containing lifespan providers
+            Args:
+                cluster_id: Target cluster ID
+                nodepool_id: Target node pool ID
                 
-        #     Returns:
-        #         Modification result
-        #     """
+                # Kubelet configuration parameters
+                allowed_unsafe_sysctls: List of allowed unsafe sysctls
+                cluster_dns: List of cluster DNS servers
+                container_log_max_files: Maximum number of container log files
+                container_log_max_size: Maximum size of container log files
+                container_log_max_workers: Maximum number of log workers
+                container_log_monitor_interval: Container log monitor interval
+                cpu_cfsquota: Enable CPU CFS quota
+                cpu_cfsquota_period: CPU CFS quota period
+                cpu_manager_policy: CPU manager policy
+                event_burst: Event burst rate
+                event_record_qps: Event record QPS
+                eviction_hard: Hard eviction thresholds
+                eviction_soft: Soft eviction thresholds
+                eviction_soft_grace_period: Soft eviction grace periods
+                feature_gates: Feature gates configuration
+                image_gchigh_threshold_percent: Image GC high threshold percentage
+                image_gclow_threshold_percent: Image GC low threshold percentage
+                kube_apiburst: Kubernetes API burst rate
+                kube_apiqps: Kubernetes API QPS
+                kube_reserved: Kubernetes reserved resources
+                max_pods: Maximum number of pods per node
+                memory_manager_policy: Memory manager policy
+                pod_pids_limit: Pod PIDs limit
+                read_only_port: Read-only port
+                registry_burst: Registry burst rate
+                registry_pull_qps: Registry pull QPS
+                serialize_image_pulls: Serialize image pulls
+                system_reserved: System reserved resources
+                topology_manager_policy: Topology manager policy
+                
+                # OS configuration parameters
+                sysctl: OS sysctl configuration
+                
+                # Rolling policy parameters
+                max_parallelism: Rolling update max parallelism
+                
+                ctx: FastMCP context containing lifespan providers
+                
+            Returns:
+                Modification result
+            """
             
-            # if not self.allow_write:
-            #     return {"error": "Write operations are disabled"}
+            if not self.allow_write:
+                return {"error": "Write operations are disabled"}
             
-            # # Get CS client from lifespan context
-            # try:
-            #     if ctx is None:
-            #         return {"error": "Context is required"}
-            #     providers = ctx.request_context.lifespan_context.get("providers", {})
-            #     cs_client_info = providers.get("cs_client", {})
-            #     cs_client: CS20151215Client = cs_client_info.get("client")
+            # Get CS client from lifespan context
+            try:
+                if ctx is None:
+                    return {"error": "Context is required"}
+                providers = ctx.request_context.lifespan_context.get("providers", {})
+                cs_client_info = providers.get("cs_client", {})
+                cs_client: CS20151215Client = cs_client_info.get("client")
                 
-            #     if not cs_client:
-            #         return {"error": "CS client not available in lifespan context"}
-            # except Exception as e:
-            #     logger.error(f"Failed to get CS client from context: {e}")
-            #     return {"error": "Failed to access lifespan context"}
+                if not cs_client:
+                    return {"error": "CS client not available in lifespan context"}
+            except Exception as e:
+                logger.error(f"Failed to get CS client from context: {e}")
+                return {"error": "Failed to access lifespan context"}
             
-            # try:
-            #     # Create empty request object
-            #     request = cs20151215_models.ModifyNodePoolNodeConfigRequest()
+            try:
+                # Create empty request object
+                request = cs20151215_models.ModifyNodePoolNodeConfigRequest()
                 
-            #     # Build kubelet_config if any kubelet parameters are provided
-            #     if any([cpu_manager_policy, feature_gates, kube_reserved, system_reserved, eviction_hard]):
-            #         kubelet_config = cs20151215_models.KubeletConfig()
-            #         if cpu_manager_policy:
-            #             kubelet_config.cpu_manager_policy = cpu_manager_policy
-            #         if feature_gates:
-            #             kubelet_config.feature_gates = feature_gates
-            #         if kube_reserved:
-            #             kubelet_config.kube_reserved = kube_reserved
-            #         if system_reserved:
-            #             kubelet_config.system_reserved = system_reserved
-            #         if eviction_hard:
-            #             kubelet_config.eviction_hard = eviction_hard
-            #         request.kubelet_config = kubelet_config
+                # Build kubelet_config if any kubelet parameters are provided
+                kubelet_params = [
+                    allowed_unsafe_sysctls, cluster_dns, container_log_max_files, container_log_max_size,
+                    container_log_max_workers, container_log_monitor_interval, cpu_cfsquota, cpu_cfsquota_period,
+                    cpu_manager_policy, event_burst, event_record_qps, eviction_hard, eviction_soft,
+                    eviction_soft_grace_period, feature_gates, image_gchigh_threshold_percent,
+                    image_gclow_threshold_percent, kube_apiburst, kube_apiqps, kube_reserved, max_pods,
+                    memory_manager_policy, pod_pids_limit, read_only_port, registry_burst, registry_pull_qps,
+                    serialize_image_pulls, system_reserved, topology_manager_policy
+                ]
                 
-            #     # Build os_config if sysctl is provided
-            #     if sysctl:
-            #         os_config = cs20151215_models.ModifyNodePoolNodeConfigRequestOsConfig()
-            #         os_config.sysctl = sysctl
-            #         request.os_config = os_config
+                if any(param is not None for param in kubelet_params):
+                    kubelet_config = cs20151215_models.KubeletConfig()
+                    
+                    # Set all the kubelet parameters
+                    if allowed_unsafe_sysctls:
+                        kubelet_config.allowed_unsafe_sysctls = allowed_unsafe_sysctls
+                    if cluster_dns:
+                        kubelet_config.cluster_dns = cluster_dns
+                    if container_log_max_files:
+                        kubelet_config.container_log_max_files = container_log_max_files
+                    if container_log_max_size:
+                        kubelet_config.container_log_max_size = container_log_max_size
+                    if container_log_max_workers:
+                        kubelet_config.container_log_max_workers = container_log_max_workers
+                    if container_log_monitor_interval:
+                        kubelet_config.container_log_monitor_interval = container_log_monitor_interval
+                    if cpu_cfsquota:
+                        kubelet_config.cpu_cfsquota = cpu_cfsquota
+                    if cpu_cfsquota_period:
+                        kubelet_config.cpu_cfsquota_period = cpu_cfsquota_period
+                    if cpu_manager_policy:
+                        kubelet_config.cpu_manager_policy = cpu_manager_policy
+                    if event_burst:
+                        kubelet_config.event_burst = event_burst
+                    if event_record_qps:
+                        kubelet_config.event_record_qps = event_record_qps
+                    
+                    # Handle JSON string parameters that represent Dict[str, Any]
+                    if eviction_hard:
+                        kubelet_config.eviction_hard = eviction_hard
+                    if eviction_soft:
+                        kubelet_config.eviction_soft = eviction_soft
+                    if eviction_soft_grace_period:
+                        kubelet_config.eviction_soft_grace_period = eviction_soft_grace_period
+                    if feature_gates:
+                        kubelet_config.feature_gates = feature_gates
+                    if kube_reserved:
+                        kubelet_config.kube_reserved = kube_reserved
+                    if system_reserved:
+                        kubelet_config.system_reserved = system_reserved
+                    
+                    # Continue with remaining parameters
+                    if image_gchigh_threshold_percent:
+                        kubelet_config.image_gchigh_threshold_percent = image_gchigh_threshold_percent
+                    if image_gclow_threshold_percent:
+                        kubelet_config.image_gclow_threshold_percent = image_gclow_threshold_percent
+                    if kube_apiburst:
+                        kubelet_config.kube_apiburst = kube_apiburst
+                    if kube_apiqps:
+                        kubelet_config.kube_apiqps = kube_apiqps
+                    if max_pods:
+                        kubelet_config.max_pods = max_pods
+                    if memory_manager_policy:
+                        kubelet_config.memory_manager_policy = memory_manager_policy
+                    if pod_pids_limit:
+                        kubelet_config.pod_pids_limit = pod_pids_limit
+                    if read_only_port:
+                        kubelet_config.read_only_port = read_only_port
+                    if registry_burst:
+                        kubelet_config.registry_burst = registry_burst
+                    if registry_pull_qps:
+                        kubelet_config.registry_pull_qps = registry_pull_qps
+                    if serialize_image_pulls:
+                        kubelet_config.serialize_image_pulls = serialize_image_pulls
+                    if topology_manager_policy:
+                        kubelet_config.topology_manager_policy = topology_manager_policy
+                    
+                    request.kubelet_config = kubelet_config
                 
-            #     # Build rolling_policy if max_parallelism is provided
-            #     if max_parallelism:
-            #         rolling_policy = cs20151215_models.ModifyNodePoolNodeConfigRequestRollingPolicy()
-            #         rolling_policy.max_parallelism = max_parallelism
-            #         request.rolling_policy = rolling_policy
+                # Build os_config if sysctl is provided
+                if sysctl:
+                    os_config = cs20151215_models.ModifyNodePoolNodeConfigRequestOsConfig()
+                    os_config.sysctl = sysctl
+                    request.os_config = os_config
                 
-            #     runtime = util_models.RuntimeOptions()
-            #     headers = {}
+                # Build rolling_policy if max_parallelism is provided
+                if max_parallelism:
+                    rolling_policy = cs20151215_models.ModifyNodePoolNodeConfigRequestRollingPolicy()
+                    rolling_policy.max_parallelism = max_parallelism
+                    request.rolling_policy = rolling_policy
                 
-            #     response = await cs_client.modify_node_pool_node_config_with_options_async(
-            #         cluster_id, nodepool_id, request, headers, runtime
-            #     )
+                runtime = util_models.RuntimeOptions()
+                headers = {}
                 
-            #     # 序列化SDK响应对象为可JSON序列化的数据
-            #     response_data = _serialize_sdk_object(getattr(response, 'body', None)) if getattr(response, 'body', None) else {}
+                response = await cs_client.modify_node_pool_node_config_with_options_async(
+                    cluster_id, nodepool_id, request, headers, runtime
+                )
                 
-            #     return {
-            #         "cluster_id": cluster_id,
-            #         "nodepool_id": nodepool_id,
-            #         "task_id": getattr(getattr(response, 'body', None), 'task_id', None) if getattr(response, 'body', None) else None,
-            #         "request_id": getattr(response, 'request_id', None),
-            #         "status": "configuring",
-            #         "response": response_data
-            #     }
+                # 序列化SDK响应对象为可JSON序列化的数据
+                response_data = _serialize_sdk_object(getattr(response, 'body', None)) if getattr(response, 'body', None) else {}
                 
-            # except Exception as e:
-            #     logger.error(f"Failed to modify node pool node config: {e}")
-            #     return {
-            #         "cluster_id": cluster_id,
-            #         "nodepool_id": nodepool_id,
-            #         "error": str(e),
-            #         "status": "failed"
-            #     }
-        
+                return {
+                    "cluster_id": cluster_id,
+                    "nodepool_id": nodepool_id,
+                    "task_id": getattr(getattr(response, 'body', None), 'task_id', None) if getattr(response, 'body', None) else None,
+                    "request_id": getattr(response, 'request_id', None),
+                    "status": "configuring",
+                    "response": response_data
+                }
+                
+            except Exception as e:
+                logger.error(f"Failed to modify node pool node config: {e}")
+                return {
+                    "cluster_id": cluster_id,
+                    "nodepool_id": nodepool_id,
+                    "error": str(e),
+                    "status": "failed"
+                }
+
         @self.server.tool(
             name="upgrade_cluster_nodepool",
             description="Upgrade node pool Kubernetes version"
@@ -840,11 +958,16 @@ class ACKNodePoolManagementHandler:
         async def upgrade_cluster_nodepool(
             cluster_id: str,
             nodepool_id: str,
-            kubernetes_version: str,
             image_id: Optional[str] = None,
+            kubernetes_version: Optional[str] = None,
+            node_names: Optional[List[str]] = None,
             # Rolling policy parameters
-            max_unavailable: Optional[int] = None,
-            batch_size: Optional[int] = None,
+            batch_interval: Optional[int] = None,
+            max_parallelism: Optional[int] = None,
+            pause_policy: Optional[str] = None,
+            runtime_type: Optional[str] = None,
+            runtime_version: Optional[str] = None,
+            use_replace: Optional[bool] = None,
             ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Upgrade node pool Kubernetes version.
@@ -852,10 +975,15 @@ class ACKNodePoolManagementHandler:
             Args:
                 cluster_id: Target cluster ID
                 nodepool_id: Target node pool ID
-                kubernetes_version: Target Kubernetes version
                 image_id: Custom image ID (optional)
-                max_unavailable: Max unavailable nodes during upgrade
-                batch_size: Batch size for rolling upgrade
+                kubernetes_version: Target Kubernetes version
+                node_names: Node names to upgrade (optional)
+                batch_interval: Batch interval (optional)
+                max_parallelism: Maximum parallelism (optional)
+                pause_policy: Pause policy (optional)
+                runtime_type: Runtime type (optional)
+                runtime_version: Runtime version (optional)
+                use_replace: Is the node pool upgraded by replacing the node's system disk (optional)
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -880,23 +1008,34 @@ class ACKNodePoolManagementHandler:
             
             try:
                 # Create request object with required parameter
-                request = cs20151215_models.UpgradeClusterNodepoolRequest(
-                    kubernetes_version=kubernetes_version
-                )
+                request = cs20151215_models.UpgradeClusterNodepoolRequest()
                 
                 # Set optional parameters
                 if image_id:
                     request.image_id = image_id
+                if kubernetes_version:
+                    request.kubernetes_version = kubernetes_version
+                if node_names:
+                    request.node_names = node_names
+                
+                if runtime_version:
+                    request.runtime_version = runtime_version
+                if runtime_type:
+                    request.runtime_type = runtime_type
+                if use_replace:
+                    request.use_replace = use_replace
                 
                 # Build rolling policy if any rolling parameters are provided
-                if max_unavailable is not None or batch_size is not None:
-                    rolling_policy = {}
-                    if max_unavailable is not None:
-                        rolling_policy["max_unavailable"] = max_unavailable
-                    if batch_size is not None:
-                        rolling_policy["batch_size"] = batch_size
-                    # Note: Set as attribute since rolling_policy structure needs to match SDK expectations
-                
+                if batch_interval or max_parallelism or pause_policy:
+                    rolling_policy = cs20151215_models.UpgradeClusterNodepoolRequestRollingPolicy()
+                    if batch_interval:
+                        rolling_policy.batch_interval = batch_interval
+                    if max_parallelism:
+                        rolling_policy.max_parallelism = max_parallelism
+                    if pause_policy:
+                        rolling_policy.pause_policy = pause_policy
+                    request.rolling_policy = rolling_policy
+
                 runtime = util_models.RuntimeOptions()
                 headers = {}
                 
@@ -1043,6 +1182,8 @@ class ACKNodePoolManagementHandler:
                 request = cs20151215_models.FixNodePoolVulsRequest()
                 
                 # Set request parameters
+                if auto_restart:
+                    request.auto_restart = auto_restart
                 if vuls:
                     request.vuls = vuls
                 if nodes:
@@ -1175,14 +1316,12 @@ class ACKNodePoolManagementHandler:
         )
         async def sync_cluster_node_pool(
             cluster_id: str,
-            nodepool_id: str,
             ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Sync cluster node pool configuration.
             
             Args:
                 cluster_id: Target cluster ID
-                nodepool_id: Node pool ID to sync
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -1218,7 +1357,6 @@ class ACKNodePoolManagementHandler:
                 
                 return {
                     "cluster_id": cluster_id,
-                    "nodepool_id": nodepool_id,
                     "status": "syncing",
                     "response": response_data,
                     "request_id": getattr(response, 'request_id', None)
@@ -1228,7 +1366,6 @@ class ACKNodePoolManagementHandler:
                 logger.error(f"Failed to sync cluster node pool: {e}")
                 return {
                     "cluster_id": cluster_id,
-                    "nodepool_id": nodepool_id,
                     "error": str(e),
                     "status": "failed"
                 }
@@ -1240,7 +1377,7 @@ class ACKNodePoolManagementHandler:
         async def attach_instances_to_node_pool(
             cluster_id: str,
             nodepool_id: str,
-            instances: List[str],
+            instances: Optional[List[str]] = None,
             password: Optional[str] = None,
             format_disk: Optional[bool] = False,
             keep_instance_name: Optional[bool] = True,
@@ -1278,14 +1415,15 @@ class ACKNodePoolManagementHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                request = cs20151215_models.AttachInstancesToNodePoolRequest(
-                    instances=instances,
-                    format_disk=format_disk if format_disk is not None else False,
-                    keep_instance_name=keep_instance_name if keep_instance_name is not None else True
-                )
-                
+                request = cs20151215_models.AttachInstancesToNodePoolRequest()
+                if instances:
+                    request.instances = instances
                 if password:
                     request.password = password
+                if format_disk:
+                    request.format_disk = format_disk
+                if keep_instance_name:
+                    request.keep_instance_name = keep_instance_name
                 
                 runtime = util_models.RuntimeOptions()
                 headers = {}
@@ -1302,7 +1440,7 @@ class ACKNodePoolManagementHandler:
                     "nodepool_id": nodepool_id,
                     "task_id": getattr(getattr(response, 'body', None), 'task_id', None) if getattr(response, 'body', None) else None,
                     "status": "attaching",
-                    "instances_count": len(instances),
+                    "instances_count": 0 if instances is None else len(instances),
                     "instances": instances,
                     "format_disk": format_disk,
                     "keep_instance_name": keep_instance_name,
@@ -1328,10 +1466,19 @@ class ACKNodePoolManagementHandler:
             cluster_id: str,
             cool_down_duration: Optional[str] = None,
             unneeded_duration: Optional[str] = None,
-            utilize_utilization_threshold: Optional[str] = None,
+            utilization_threshold: Optional[str] = None,
             gpu_utilization_threshold: Optional[str] = None,
             scan_interval: Optional[str] = None,
             scale_down_enabled: Optional[bool] = True,
+            expander: Optional[str] = "least-waste",
+            skip_nodes_with_system_pods: Optional[bool] = None,
+            daemonset_eviction_for_nodes: Optional[bool] = None,
+            max_graceful_termination_sec: Optional[int] = None,
+            min_replica_count: Optional[int] = None,
+            recycle_node_deletion_enabled: Optional[bool] = None,
+            scale_up_from_zero: Optional[bool] = None,
+            scaler_type: Optional[str] = None,
+            priorities: Optional[List[str]] = None,
             ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Create autoscaling configuration for cluster.
@@ -1344,6 +1491,15 @@ class ACKNodePoolManagementHandler:
                 gpu_utilization_threshold: GPU utilization threshold
                 scan_interval: Scan interval
                 scale_down_enabled: Whether scale down is enabled
+                expander: NodePool expansion order strategy, least-waste, random or priority
+                skip_nodes_with_system_pods: The cluster-autoscaler does not scale in nodes that are running Pods in the kube-system namespace
+                daemonset_eviction_for_nodes: Whether to evict daemonset pods when scaling down
+                max_graceful_termination_sec: Maximum graceful termination seconds
+                min_replica_count: Minimum replica count
+                recycle_node_deletion_enabled: Whether to recycle node deletion
+                scale_up_from_zero: Whether to scale up from zero
+                scaler_type: Scaler type, goatscaler or cluster-autoscaler
+                priorities: NodePool expansion priority
                 ctx: FastMCP context containing lifespan providers
                 
             Returns:
@@ -1374,13 +1530,32 @@ class ACKNodePoolManagementHandler:
                     request.cool_down_duration = cool_down_duration
                 if unneeded_duration:
                     request.unneeded_duration = unneeded_duration
-                # Note: utilize_utilization_threshold attribute not available in SDK model
+                if utilization_threshold:
+                    request.utilization_threshold = utilization_threshold
                 if gpu_utilization_threshold:
                     request.gpu_utilization_threshold = gpu_utilization_threshold
                 if scan_interval:
                     request.scan_interval = scan_interval
-                if scale_down_enabled is not None:
+                if scale_down_enabled:
                     request.scale_down_enabled = scale_down_enabled
+                if expander:
+                    request.expander = expander
+                if skip_nodes_with_system_pods:
+                    request.skip_nodes_with_system_pods = skip_nodes_with_system_pods
+                if daemonset_eviction_for_nodes:
+                    request.daemonset_eviction_for_nodes = daemonset_eviction_for_nodes
+                if max_graceful_termination_sec:
+                    request.max_graceful_termination_sec = max_graceful_termination_sec
+                if min_replica_count:
+                    request.min_replica_count = min_replica_count
+                if recycle_node_deletion_enabled:
+                    request.recycle_node_deletion_enabled = recycle_node_deletion_enabled
+                if scale_up_from_zero:
+                    request.scale_up_from_zero = scale_up_from_zero
+                if scaler_type:
+                    request.scaler_type = scaler_type
+                if priorities:
+                    request.priorities = priorities
                 
                 runtime = util_models.RuntimeOptions()
                 headers = {}
@@ -1397,7 +1572,7 @@ class ACKNodePoolManagementHandler:
                     "status": "created",
                     "cool_down_duration": cool_down_duration,
                     "unneeded_duration": unneeded_duration,
-                    "utilize_utilization_threshold": utilize_utilization_threshold,
+                    "utilize_utilization_threshold": utilization_threshold,
                     "gpu_utilization_threshold": gpu_utilization_threshold,
                     "scan_interval": scan_interval,
                     "scale_down_enabled": scale_down_enabled,
@@ -1420,8 +1595,9 @@ class ACKNodePoolManagementHandler:
         async def describe_cluster_attach_scripts(
             cluster_id: str,
             nodepool_id: Optional[str] = None,
-            format_disk: Optional[bool] = False,
-            keep_instance_name: Optional[bool] = True,
+            format_disk: Optional[bool] = None,
+            keep_instance_name: Optional[bool] = None,
+            rds_instances: Optional[List[str]] = None,
             arch: Optional[str] = None,
             options: Optional[str] = None,
             ctx: Optional[Context] = None
@@ -1433,6 +1609,7 @@ class ACKNodePoolManagementHandler:
                 nodepool_id: Optional node pool ID
                 format_disk: Whether to format data disk
                 keep_instance_name: Whether to keep instance names
+                rds_instances: RDS instances
                 arch: Instance architecture
                 options: Additional options
                 ctx: FastMCP context containing lifespan providers
@@ -1461,17 +1638,19 @@ class ACKNodePoolManagementHandler:
                 headers = {}
                 
                 # Build query parameters
-                query_params = {}
+                request = cs20151215_models.DescribeClusterAttachScriptsRequest()
                 if nodepool_id:
-                    query_params["nodepool_id"] = nodepool_id
-                if format_disk is not None:
-                    query_params["format_disk"] = str(format_disk).lower()
-                if keep_instance_name is not None:
-                    query_params["keep_instance_name"] = str(keep_instance_name).lower()
+                    request.nodepool_id = nodepool_id
+                if format_disk:
+                    request.format_disk = format_disk
+                if keep_instance_name:
+                    request.keep_instance_name = keep_instance_name
+                if rds_instances:
+                    request.rds_instances = rds_instances
                 if arch:
-                    query_params["arch"] = arch
+                    request.arch = arch
                 if options:
-                    query_params["options"] = options
+                    request.options = options
                 
                 response = await cs_client.describe_cluster_attach_scripts_with_options_async(
                     cluster_id, request, headers, runtime
