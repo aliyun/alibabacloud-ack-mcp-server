@@ -33,7 +33,7 @@ certifi==2025.8.3
 cffi==1.17.1
 charset-normalizer==3.4.3
 click==8.2.1
-cryptography==45.0.7
+cryptography==44.0.3
 cyclopts==3.23.1
 darabonba-core==1.0.3
 distro==1.9.0
@@ -53,6 +53,7 @@ httptools==0.6.4
 httpx==0.28.1
 httpx-sse==0.4.1
 idna==3.10
+iniconfig==2.1.0
 isodate==0.7.2
 jiter==0.10.0
 jmespath==0.10.0
@@ -61,6 +62,7 @@ jsonschema-path==0.3.4
 jsonschema-specifications==2025.4.1
 kubernetes==33.1.0
 lazy-object-proxy==1.12.0
+loguru==0.7.3
 lz4==4.4.4
 markdown-it-py==4.0.0
 markupsafe==3.0.2
@@ -74,8 +76,10 @@ openapi-core==0.19.5
 openapi-pydantic==0.5.1
 openapi-schema-validator==0.6.3
 openapi-spec-validator==0.7.2
+packaging==25.0
 parse==1.20.2
 pathable==0.4.4
+pluggy==1.6.0
 propcache==0.3.2
 pyasn1==0.6.1
 pyasn1-modules==0.4.2
@@ -85,6 +89,8 @@ pydantic-core==2.33.2
 pydantic-settings==2.10.1
 pygments==2.19.2
 pyperclip==1.9.0
+pytest==8.3.5
+pytest-asyncio==0.24.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 python-multipart==0.0.20
@@ -115,7 +121,3 @@ websockets==15.0.1
 werkzeug==3.1.1
 yarl==1.20.1
 zstd==1.5.7.2
-
-loguru~=0.7.3
-pytest~=8.3.3
-pytest-asyncio~=0.24.0

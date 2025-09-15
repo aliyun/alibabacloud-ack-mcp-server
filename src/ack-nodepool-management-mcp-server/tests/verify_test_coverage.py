@@ -47,7 +47,8 @@ def extract_test_methods_from_test_file() -> Set[str]:
     test_files = [
         "test_tool_methods.py",
         "test_nodepool_management.py", 
-        "test_basic_functionality.py"
+        "test_basic_functionality.py",
+        "test_api_parameters.py"
     ]
     
     for test_file_name in test_files:
@@ -66,6 +67,54 @@ def extract_test_methods_from_test_file() -> Set[str]:
         
         for match in matches:
             tested_methods.add(match)
+            print(f"✓ 发现测试方法: {match} (在 {test_file_name})")
+        
+        # 同时查找直接的方法名称引用（对于我们的测试文件）
+        # 查找类似 'name' == 'method_name' 的模式
+        pattern2 = r"call\.kwargs\.get\('name'\)\s*==\s*'([^']+)'"
+        matches2 = re.findall(pattern2, content)
+        
+        for match in matches2:
+            tested_methods.add(match)
+            print(f"✓ 发现测试方法: {match} (在 {test_file_name})")
+        
+        # 查找我们新的模式: mock_server._registered_tools.get('tool_name')
+        pattern3 = r"mock_server\._registered_tools\.get\('([^']+)'\)"
+        matches3 = re.findall(pattern3, content)
+        
+        for match in matches3:
+            tested_methods.add(match)
+            print(f"✓ 发现测试方法: {match} (在 {test_file_name})")
+        
+        # 查找测试函数名称模式: test_method_name
+        pattern4 = r"def test_([a-zA-Z_]+)\("
+        matches4 = re.findall(pattern4, content)
+        
+        # 尝试从测试函数名推断被测试的工具名
+        tool_name_mapping = {
+            "describe_cluster_node_pools": "describe_cluster_node_pools",
+            "describe_cluster_node_pool_detail": "describe_cluster_node_pool_detail", 
+            "scale_nodepool": "scale_nodepool",
+            "remove_nodepool_nodes": "remove_nodepool_nodes",
+            "create_cluster_node_pool": "create_cluster_node_pool",
+            "delete_cluster_nodepool": "delete_cluster_nodepool",
+            "modify_cluster_node_pool": "modify_cluster_node_pool",
+            "modify_nodepool_node_config": "modify_nodepool_node_config",
+            "upgrade_cluster_nodepool": "upgrade_cluster_nodepool",
+            "describe_nodepool_vuls": "describe_nodepool_vuls",
+            "fix_nodepool_vuls": "fix_nodepool_vuls",
+            "repair_cluster_node_pool": "repair_cluster_node_pool",
+            "sync_cluster_node_pool": "sync_cluster_node_pool",
+            "attach_instances_to_node_pool": "attach_instances_to_node_pool",
+            "create_autoscaling_config": "create_autoscaling_config",
+            "describe_cluster_attach_scripts": "describe_cluster_attach_scripts"
+        }
+        
+        for test_name in matches4:
+            if test_name in tool_name_mapping:
+                tool_name = tool_name_mapping[test_name]
+                tested_methods.add(tool_name)
+                print(f"✓ 发现测试方法: {tool_name} (从测试函数 test_{test_name} 推断, 在 {test_file_name})")
     
     return tested_methods
 

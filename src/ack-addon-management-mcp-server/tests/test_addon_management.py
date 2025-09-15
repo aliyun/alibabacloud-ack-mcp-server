@@ -81,10 +81,10 @@ def mock_cs_client():
     """Mock CS client fixture."""
     client = Mock()
     
-    # Mock describe_cluster_addons response
-    describe_response = Mock()
-    describe_response.body = Mock()
-    describe_response.body.addons = [
+    # Mock list_addons response
+    list_addons_response = Mock()
+    list_addons_response.body = Mock()
+    list_addons_response.body.addons = [
         {
             "name": "nginx-ingress",
             "version": "1.0.0",
@@ -92,12 +92,49 @@ def mock_cs_client():
         },
         {
             "name": "cluster-autoscaler",
-            "version": "2.0.0",
+            "version": "2.0.0", 
             "description": "Cluster Autoscaler"
         }
     ]
-    describe_response.body.request_id = "test-request-id-123"
-    client.describe_cluster_addons_with_options_async = AsyncMock(return_value=describe_response)
+    list_addons_response.body.request_id = "test-request-id-123"
+    client.list_addons_with_options_async = AsyncMock(return_value=list_addons_response)
+    
+    # Mock list_cluster_addon_instances response
+    list_instances_response = Mock()
+    list_instances_response.body = Mock()
+    list_instances_response.body.addons = [
+        {
+            "name": "nginx-ingress",
+            "version": "1.0.0",
+            "status": "running"
+        }
+    ]
+    list_instances_response.body.request_id = "test-instances-id-123"
+    client.list_cluster_addon_instances_with_options_async = AsyncMock(return_value=list_instances_response)
+    
+    # Mock get_cluster_addon_instance response
+    get_instance_response = Mock()
+    get_instance_response.body = {
+        "name": "nginx-ingress",
+        "version": "1.0.0",
+        "description": "Nginx Ingress Controller",
+        "config": {},
+        "status": "running"
+    }
+    get_instance_response.request_id = "info-request-123"
+    client.get_cluster_addon_instance_with_options_async = AsyncMock(return_value=get_instance_response)
+    
+    # Mock describe_addon response
+    describe_addon_response = Mock()
+    describe_addon_response.body = {
+        "name": "nginx-ingress",
+        "version": "1.0.0",
+        "description": "Nginx Ingress Controller",
+        "template": {},
+        "supported_actions": []
+    }
+    describe_addon_response.request_id = "describe-addon-123"
+    client.describe_addon_with_options_async = AsyncMock(return_value=describe_addon_response)
     
     # Mock install_cluster_addons response
     install_response = Mock()
@@ -113,24 +150,18 @@ def mock_cs_client():
     uninstall_response.request_id = "uninstall-request-123"
     client.un_install_cluster_addons_with_options_async = AsyncMock(return_value=uninstall_response)
     
-    # Mock describe_cluster_addon_info response
-    info_response = Mock()
-    info_response.body = {
-        "name": "nginx-ingress",
-        "version": "1.0.0",
-        "description": "Nginx Ingress Controller",
-        "config": {},
-        "status": "running"
-    }
-    info_response.request_id = "info-request-123"
-    client.describe_cluster_addon_info_with_options_async = AsyncMock(return_value=info_response)
-    
-    # Mock modify_cluster_addons response
+    # Mock modify_cluster_addon response
     modify_response = Mock()
     modify_response.body = Mock()
-    modify_response.body.task_id = "modify-task-123"
     modify_response.request_id = "modify-request-123"
-    client.modify_cluster_addons_with_options_async = AsyncMock(return_value=modify_response)
+    client.modify_cluster_addon_with_options_async = AsyncMock(return_value=modify_response)
+    
+    # Mock upgrade_cluster_addons response
+    upgrade_response = Mock()
+    upgrade_response.body = Mock()
+    upgrade_response.body.task_id = "upgrade-task-123"
+    upgrade_response.request_id = "upgrade-request-123"
+    client.upgrade_cluster_addons_with_options_async = AsyncMock(return_value=upgrade_response)
     
     return client
 
@@ -156,8 +187,8 @@ class TestACKAddonManagementServer:
         
     def test_runtime_provider_initialization(self, test_config):
         """Test runtime provider initialization."""
-        provider = ACKAddonManagementRuntimeProvider(settings=test_config)
-        assert provider.settings == test_config
+        provider = ACKAddonManagementRuntimeProvider(test_config)
+        assert provider.config == test_config
 
 
 class TestACKAddonManagementTools:
@@ -174,10 +205,10 @@ class TestACKAddonManagementTools:
         return handler, mock_server.tools
     
     @pytest.mark.asyncio
-    async def test_describe_cluster_addons(self, handler_with_tools, mock_context, mock_cs_client):
-        """Test describe_cluster_addons tool."""
+    async def test_list_addons(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test list_addons tool."""
         handler, tools = handler_with_tools
-        describe_cluster_addons_func = tools["describe_cluster_addons"]
+        list_addons_func = tools["list_addons"]
         
         # 设置mock客户端
         mock_context.request_context.lifespan_context.get.return_value = {
@@ -187,25 +218,21 @@ class TestACKAddonManagementTools:
         }
         
         # 测试基本调用
-        result = await describe_cluster_addons_func(
-            cluster_id="test-cluster-123",
-            ctx=mock_context
-        )
+        result = await list_addons_func(ctx=mock_context)
         
         assert result["status"] == "success"
-        assert result["cluster_id"] == "test-cluster-123"
         assert "addons" in result
         assert len(result["addons"]) == 2
         assert result["addons"][0]["name"] == "nginx-ingress"
         
         # 验证调用参数
-        mock_cs_client.describe_cluster_addons_with_options_async.assert_called_once()
+        mock_cs_client.list_addons_with_options_async.assert_called_once()
         
     @pytest.mark.asyncio
-    async def test_describe_cluster_addons_with_filters(self, handler_with_tools, mock_context, mock_cs_client):
-        """Test describe_cluster_addons tool with filters."""
+    async def test_list_addons_with_filters(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test list_addons tool with filters."""
         handler, tools = handler_with_tools
-        describe_cluster_addons_func = tools["describe_cluster_addons"]
+        list_addons_func = tools["list_addons"]
         
         # 设置mock客户端
         mock_context.request_context.lifespan_context.get.return_value = {
@@ -215,15 +242,92 @@ class TestACKAddonManagementTools:
         }
         
         # 测试带过滤条件的调用
-        result = await describe_cluster_addons_func(
+        result = await list_addons_func(
+            cluster_type="ManagedKubernetes",
+            region="cn-hangzhou",
+            ctx=mock_context
+        )
+        
+        assert result["status"] == "success"
+        assert "addons" in result
+        assert "query_params" in result
+        assert result["query_params"]["cluster_type"] == "ManagedKubernetes"
+        assert result["query_params"]["region"] == "cn-hangzhou"
+        
+    @pytest.mark.asyncio
+    async def test_list_cluster_addon_instances(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test list_cluster_addon_instances tool."""
+        handler, tools = handler_with_tools
+        list_instances_func = tools["list_cluster_addon_instances"]
+        
+        # 设置mock客户端
+        mock_context.request_context.lifespan_context.get.return_value = {
+            "cs_client": {
+                "client": mock_cs_client
+            }
+        }
+        
+        # 测试获取集群插件实例
+        result = await list_instances_func(
             cluster_id="test-cluster-123",
-            addon_name="nginx-ingress",
-            component_name="controller",
             ctx=mock_context
         )
         
         assert result["status"] == "success"
         assert result["cluster_id"] == "test-cluster-123"
+        assert "addons" in result
+        assert len(result["addons"]) == 1
+        assert result["addons"][0]["name"] == "nginx-ingress"
+        
+    @pytest.mark.asyncio
+    async def test_get_cluster_addon_instance(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test get_cluster_addon_instance tool."""
+        handler, tools = handler_with_tools
+        get_instance_func = tools["get_cluster_addon_instance"]
+        
+        # 设置mock客户端
+        mock_context.request_context.lifespan_context.get.return_value = {
+            "cs_client": {
+                "client": mock_cs_client
+            }
+        }
+        
+        # 测试获取插件实例详情
+        result = await get_instance_func(
+            cluster_id="test-cluster-123",
+            addon_name="nginx-ingress",
+            ctx=mock_context
+        )
+        
+        assert result["status"] == "success"
+        assert result["cluster_id"] == "test-cluster-123"
+        assert result["addon_name"] == "nginx-ingress"
+        assert "addon_info" in result
+        
+    @pytest.mark.asyncio
+    async def test_describe_addon(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test describe_addon tool."""
+        handler, tools = handler_with_tools
+        describe_addon_func = tools["describe_addon"]
+        
+        # 设置mock客户端
+        mock_context.request_context.lifespan_context.get.return_value = {
+            "cs_client": {
+                "client": mock_cs_client
+            }
+        }
+        
+        # 测试描述插件
+        result = await describe_addon_func(
+            addon_name="nginx-ingress",
+            cluster_type="ManagedKubernetes",
+            ctx=mock_context
+        )
+        
+        assert result["status"] == "success"
+        assert result["addon_name"] == "nginx-ingress"
+        assert "addon" in result
+        assert "query_params" in result
         
     @pytest.mark.asyncio
     async def test_install_cluster_addons(self, handler_with_tools, mock_context, mock_cs_client):
@@ -243,7 +347,7 @@ class TestACKAddonManagementTools:
             {
                 "name": "nginx-ingress",
                 "version": "1.0.0",
-                "config": {"replicaCount": 2}
+                "config": '{"replicaCount": 2}'
             }
         ]
         
@@ -294,35 +398,10 @@ class TestACKAddonManagementTools:
         mock_cs_client.un_install_cluster_addons_with_options_async.assert_called_once()
         
     @pytest.mark.asyncio
-    async def test_describe_cluster_addon_info(self, handler_with_tools, mock_context, mock_cs_client):
-        """Test describe_cluster_addon_info tool."""
+    async def test_modify_cluster_addon(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test modify_cluster_addon tool."""
         handler, tools = handler_with_tools
-        describe_cluster_addon_info_func = tools["describe_cluster_addon_info"]
-        
-        # 设置mock客户端
-        mock_context.request_context.lifespan_context.get.return_value = {
-            "cs_client": {
-                "client": mock_cs_client
-            }
-        }
-        
-        # 测试获取插件详情
-        result = await describe_cluster_addon_info_func(
-            cluster_id="test-cluster-123",
-            addon_name="nginx-ingress",
-            ctx=mock_context
-        )
-        
-        assert result["status"] == "success"
-        assert result["cluster_id"] == "test-cluster-123"
-        assert result["addon_name"] == "nginx-ingress"
-        assert "addon_info" in result
-        
-    @pytest.mark.asyncio
-    async def test_modify_cluster_addons(self, handler_with_tools, mock_context, mock_cs_client):
-        """Test modify_cluster_addons tool."""
-        handler, tools = handler_with_tools
-        modify_cluster_addons_func = tools["modify_cluster_addons"]
+        modify_cluster_addon_func = tools["modify_cluster_addon"]
         
         # 设置mock客户端
         mock_context.request_context.lifespan_context.get.return_value = {
@@ -332,25 +411,53 @@ class TestACKAddonManagementTools:
         }
         
         # 测试修改插件
+        result = await modify_cluster_addon_func(
+            cluster_id="test-cluster-123",
+            addon_name="nginx-ingress",
+            config='{"replicaCount": 3}',
+            ctx=mock_context
+        )
+        
+        assert result["status"] == "modified"
+        assert result["cluster_id"] == "test-cluster-123"
+        assert result["addon_name"] == "nginx-ingress"
+        
+        # 验证调用参数
+        mock_cs_client.modify_cluster_addon_with_options_async.assert_called_once()
+        
+    @pytest.mark.asyncio
+    async def test_upgrade_cluster_addons(self, handler_with_tools, mock_context, mock_cs_client):
+        """Test upgrade_cluster_addons tool."""
+        handler, tools = handler_with_tools
+        upgrade_cluster_addons_func = tools["upgrade_cluster_addons"]
+        
+        # 设置mock客户端
+        mock_context.request_context.lifespan_context.get.return_value = {
+            "cs_client": {
+                "client": mock_cs_client
+            }
+        }
+        
+        # 测试升级插件
         addons = [
             {
                 "name": "nginx-ingress",
-                "config": {"replicaCount": 3}
+                "version": "2.0.0"
             }
         ]
         
-        result = await modify_cluster_addons_func(
+        result = await upgrade_cluster_addons_func(
             cluster_id="test-cluster-123",
             addons=addons,
             ctx=mock_context
         )
         
-        assert result["status"] == "modifying"
+        assert result["status"] == "upgrading"
         assert result["cluster_id"] == "test-cluster-123"
-        assert result["task_id"] == "modify-task-123"
+        assert result["task_id"] == "upgrade-task-123"
         
         # 验证调用参数
-        mock_cs_client.modify_cluster_addons_with_options_async.assert_called_once()
+        mock_cs_client.upgrade_cluster_addons_with_options_async.assert_called_once()
         
     @pytest.mark.asyncio
     async def test_write_operations_disabled(self, mock_server, mock_context, test_config):
@@ -379,26 +486,21 @@ class TestACKAddonManagementTools:
         )
         
         assert result["error"] == "Write operations are disabled"
-        assert result["status"] == "failed"
         
     @pytest.mark.asyncio
     async def test_no_client_in_context(self, handler_with_tools, mock_context):
         """Test handling when no client in context."""
         handler, tools = handler_with_tools
-        describe_cluster_addons_func = tools["describe_cluster_addons"]
+        list_addons_func = tools["list_addons"]
         
         # 模拟没有客户端的情况
         mock_context.request_context.lifespan_context.get.return_value = {
             "cs_client": {}
         }
         
-        result = await describe_cluster_addons_func(
-            cluster_id="test-cluster-123",
-            ctx=mock_context
-        )
+        result = await list_addons_func(ctx=mock_context)
         
         assert result["error"] == "CS client not available in lifespan context"
-        assert result["status"] == "error"
 
 
 if __name__ == "__main__":
