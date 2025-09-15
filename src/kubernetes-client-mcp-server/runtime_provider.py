@@ -124,16 +124,22 @@ class KubernetesClientRuntimeProvider(RuntimeProvider):
                 v1_client = client.CoreV1Api()
                 apps_v1_client = client.AppsV1Api()
                 networking_v1_client = None
+                batch_v1_client = None
                 try:
                     networking_v1_client = client.NetworkingV1Api()
                 except Exception:
                     networking_v1_client = None
+                try:
+                    batch_v1_client = client.BatchV1Api()
+                except Exception:
+                    batch_v1_client = None
                 
                 providers["k8s_client"] = {
                     "client": {
                         "core_v1": v1_client,
                         "apps_v1": apps_v1_client,
-                        "networking_v1": networking_v1_client
+                        "networking_v1": networking_v1_client,
+                        "batch_v1": batch_v1_client
                     },
                     "type": "kubernetes",
                     "kubeconfig": kubeconfig_path,

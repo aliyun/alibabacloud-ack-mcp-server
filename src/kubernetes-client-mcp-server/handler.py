@@ -64,13 +64,111 @@ class KubernetesClientHandler:
     
     def _register_tools(self):
         """Register Kubernetes client related tools."""
+        # 资源与客户端/方法映射，便于统一扩展
+        RESOURCE_METHODS = {
+            # CoreV1
+            'pod': {
+                'client': 'core_v1',
+                'get_ns': 'read_namespaced_pod',
+                'list_ns': 'list_namespaced_pod',
+                'list_all': 'list_pod_for_all_namespaces',
+                'delete_ns': 'delete_namespaced_pod',
+                'patch_ns': 'patch_namespaced_pod',
+            },
+            'service': {
+                'client': 'core_v1',
+                'get_ns': 'read_namespaced_service',
+                'list_ns': 'list_namespaced_service',
+                'list_all': 'list_service_for_all_namespaces',
+                'delete_ns': 'delete_namespaced_service',
+                'patch_ns': 'patch_namespaced_service',
+            },
+            'configmap': {
+                'client': 'core_v1',
+                'get_ns': 'read_namespaced_config_map',
+                'list_ns': 'list_namespaced_config_map',
+                'list_all': 'list_config_map_for_all_namespaces',
+            },
+            'secret': {
+                'client': 'core_v1',
+                'get_ns': 'read_namespaced_secret',
+                'list_ns': 'list_namespaced_secret',
+                'list_all': 'list_secret_for_all_namespaces',
+            },
+            'namespace': {
+                'client': 'core_v1',
+                'get': 'read_namespace',
+                'list': 'list_namespace',
+                'delete': 'delete_namespace',
+                'patch': 'patch_namespace',
+                'cluster_scoped': True,
+            },
+            # AppsV1
+            'deployment': {
+                'client': 'apps_v1',
+                'get_ns': 'read_namespaced_deployment',
+                'list_ns': 'list_namespaced_deployment',
+                'list_all': 'list_deployment_for_all_namespaces',
+                'delete_ns': 'delete_namespaced_deployment',
+                'patch_ns': 'patch_namespaced_deployment',
+            },
+            'replicaset': {
+                'client': 'apps_v1',
+                'get_ns': 'read_namespaced_replica_set',
+                'list_ns': 'list_namespaced_replica_set',
+                'list_all': 'list_replica_set_for_all_namespaces',
+            },
+            'daemonset': {
+                'client': 'apps_v1',
+                'get_ns': 'read_namespaced_daemon_set',
+                'list_ns': 'list_namespaced_daemon_set',
+                'list_all': 'list_daemon_set_for_all_namespaces',
+            },
+            'statefulset': {
+                'client': 'apps_v1',
+                'get_ns': 'read_namespaced_stateful_set',
+                'list_ns': 'list_namespaced_stateful_set',
+                'list_all': 'list_stateful_set_for_all_namespaces',
+            },
+            # NetworkingV1
+            'ingress': {
+                'client': 'networking_v1',
+                'get_ns': 'read_namespaced_ingress',
+                'list_ns': 'list_namespaced_ingress',
+                'list_all': 'list_ingress_for_all_namespaces',
+            },
+            # BatchV1
+            'job': {
+                'client': 'batch_v1',
+                'get_ns': 'read_namespaced_job',
+                'list_ns': 'list_namespaced_job',
+                'list_all': 'list_job_for_all_namespaces',
+            },
+            'cronjob': {
+                'client': 'batch_v1',
+                'get_ns': 'read_namespaced_cron_job',
+                'list_ns': 'list_namespaced_cron_job',
+                'list_all': 'list_cron_job_for_all_namespaces',
+            },
+        }
+        
+        def _get_k8s_clients(ctx: Context) -> Dict[str, Any]:
+            providers = ctx.request_context.lifespan_context.get("providers", {})
+            k8s_client_info = providers.get("k8s_client", {})
+            return k8s_client_info.get("client") or {}
+        
+        def _select_api(k8s_clients: Dict[str, Any], client_key: str):
+            api = k8s_clients.get(client_key)
+            if api is None:
+                raise RuntimeError(f"K8s API client '{client_key}' is not available")
+            return api
         
         @self.server.tool(
             name="k8s_resource_get_yaml",
             description="Get Kubernetes resource definition in YAML format"
         )
         async def k8s_resource_get_yaml(
-            resource_type: str,
+            resource_kind: str,
             resource_name: str,
             namespace: Optional[str] = None,
             ctx: Context = None
@@ -78,7 +176,7 @@ class KubernetesClientHandler:
             """Get resource YAML definition.
             
             Args:
-                resource_type: Type of Kubernetes resource (e.g., pod, service, deployment)
+                resource_kind: Kind of Kubernetes resource (e.g., pod, service, deployment)
                 resource_name: Name of the resource
                 namespace: Namespace (optional for cluster-scoped resources)
                 ctx: FastMCP context containing lifespan providers
@@ -99,37 +197,39 @@ class KubernetesClientHandler:
                 return {"error": "Failed to access lifespan context"}
             
             try:
-                # 根据资源类型选择合适的 API 客户端
-                if resource_type.lower() in ['pod', 'service', 'configmap', 'secret', 'namespace']:
-                    api_client = k8s_client['core_v1']
-                    if resource_type.lower() == 'pod':
-                        if namespace:
-                            resource = api_client.read_namespaced_pod(name=resource_name, namespace=namespace)
-                        else:
-                            return {"error": "Namespace is required for pod resources"}
-                    elif resource_type.lower() == 'service':
-                        if namespace:
-                            resource = api_client.read_namespaced_service(name=resource_name, namespace=namespace)
-                        else:
-                            return {"error": "Namespace is required for service resources"}
-                    # 添加更多资源类型...
-                elif resource_type.lower() in ['deployment', 'replicaset', 'daemonset', 'statefulset']:
-                    api_client = k8s_client['apps_v1']
-                    if resource_type.lower() == 'deployment':
-                        if namespace:
-                            resource = api_client.read_namespaced_deployment(name=resource_name, namespace=namespace)
-                        else:
-                            return {"error": "Namespace is required for deployment resources"}
-                    # 添加更多资源类型...
+                rtype = resource_kind.lower()
+                spec = RESOURCE_METHODS.get(rtype)
+                if not spec:
+                    return {"error": f"Unsupported resource kind: {resource_kind}"}
+                
+                # cluster-scoped 直接读取
+                if spec.get('cluster_scoped'):
+                    api = _select_api(k8s_client, spec['client'])
+                    get_method = getattr(api, spec['get'])
+                    resource = get_method(name=resource_name)
                 else:
-                    return {"error": f"Unsupported resource type: {resource_type}"}
+                    api = _select_api(k8s_client, spec['client'])
+                    if namespace:
+                        get_method = getattr(api, spec['get_ns'])
+                        resource = get_method(name=resource_name, namespace=namespace)
+                    else:
+                        # 默认：跨命名空间查找同名资源
+                        list_all = getattr(api, spec['list_all'])
+                        result = list_all(field_selector=f"metadata.name={resource_name}")
+                        matched = [item for item in getattr(result, 'items', []) if getattr(item.metadata, 'name', None) == resource_name]
+                        if len(matched) == 0:
+                            return {"error": f"Resource not found: {resource_kind}/{resource_name}"}
+                        if len(matched) > 1:
+                            namespaces = sorted(set(getattr(it.metadata, 'namespace', None) for it in matched))
+                            return {"error": "Multiple resources found; please specify namespace", "namespaces": namespaces}
+                        resource = matched[0]
                 
                 # 转换为 YAML 格式
                 resource_dict = _serialize_sdk_object(resource)
                 yaml_content = yaml.dump(resource_dict, default_flow_style=False)
                 
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "namespace": namespace,
                     "yaml": yaml_content
@@ -138,7 +238,7 @@ class KubernetesClientHandler:
             except ApiException as e:
                 logger.error(f"Kubernetes API error: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "namespace": namespace,
                     "error": f"Kubernetes API error: {e.reason}",
@@ -147,7 +247,7 @@ class KubernetesClientHandler:
             except Exception as e:
                 logger.error(f"Failed to get resource YAML: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "namespace": namespace,
                     "error": str(e),
@@ -159,7 +259,7 @@ class KubernetesClientHandler:
             description="List Kubernetes resources"
         )
         async def k8s_resource_list(
-            resource_type: str,
+            resource_kind: str,
             namespace: Optional[str] = None,
             label_selector: Optional[str] = None,
             ctx: Context = None
@@ -167,8 +267,8 @@ class KubernetesClientHandler:
             """List Kubernetes resources.
             
             Args:
-                resource_type: Type of Kubernetes resource
-                namespace: Namespace filter (optional)
+                resource_kind: Kind of Kubernetes resource
+                namespace: Namespace filter (optional), all namespace when None.
                 label_selector: Label selector filter (optional)
                 ctx: FastMCP context containing lifespan providers
                 
@@ -189,34 +289,23 @@ class KubernetesClientHandler:
             
             try:
                 resources = []
+                rtype = resource_kind.lower()
+                spec = RESOURCE_METHODS.get(rtype)
+                if not spec:
+                    return {"error": f"Unsupported resource kind: {resource_kind}"}
                 
-                # 根据资源类型选择合适的 API 客户端
-                if resource_type.lower() in ['pod', 'service', 'configmap', 'secret']:
-                    api_client = k8s_client['core_v1']
-                    if resource_type.lower() == 'pod':
-                        if namespace:
-                            result = api_client.list_namespaced_pod(namespace=namespace, label_selector=label_selector)
-                        else:
-                            result = api_client.list_pod_for_all_namespaces(label_selector=label_selector)
-                    elif resource_type.lower() == 'service':
-                        if namespace:
-                            result = api_client.list_namespaced_service(namespace=namespace, label_selector=label_selector)
-                        else:
-                            result = api_client.list_service_for_all_namespaces(label_selector=label_selector)
-                    # 添加更多资源类型...
-                elif resource_type.lower() in ['deployment', 'replicaset', 'daemonset', 'statefulset']:
-                    api_client = k8s_client['apps_v1']
-                    if resource_type.lower() == 'deployment':
-                        if namespace:
-                            result = api_client.list_namespaced_deployment(namespace=namespace, label_selector=label_selector)
-                        else:
-                            result = api_client.list_deployment_for_all_namespaces(label_selector=label_selector)
-                    # 添加更多资源类型...
-                elif resource_type.lower() == 'namespace':
-                    api_client = k8s_client['core_v1']
-                    result = api_client.list_namespace(label_selector=label_selector)
+                api = _select_api(k8s_client, spec['client'])
+                if spec.get('cluster_scoped'):
+                    list_fn = getattr(api, spec['list'])
+                    result = list_fn(label_selector=label_selector)
                 else:
-                    return {"error": f"Unsupported resource type: {resource_type}"}
+                    if namespace:
+                        list_fn = getattr(api, spec['list_ns'])
+                        result = list_fn(namespace=namespace, label_selector=label_selector)
+                    else:
+                        # 默认：全命名空间
+                        list_fn = getattr(api, spec['list_all'])
+                        result = list_fn(label_selector=label_selector)
                 
                 # 提取资源信息
                 if hasattr(result, 'items'):
@@ -236,7 +325,7 @@ class KubernetesClientHandler:
                         resources.append(resource_info)
                 
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "namespace": namespace,
                     "label_selector": label_selector,
                     "resources": resources,
@@ -246,7 +335,7 @@ class KubernetesClientHandler:
             except ApiException as e:
                 logger.error(f"Kubernetes API error: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "namespace": namespace,
                     "label_selector": label_selector,
                     "error": f"Kubernetes API error: {e.reason}",
@@ -255,7 +344,7 @@ class KubernetesClientHandler:
             except Exception as e:
                 logger.error(f"Failed to list resources: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "namespace": namespace,
                     "label_selector": label_selector,
                     "error": str(e),
@@ -358,7 +447,7 @@ class KubernetesClientHandler:
             description="Delete Kubernetes resource"
         )
         async def k8s_resource_delete(
-            resource_type: str,
+            resource_kind: str,
             resource_name: str,
             namespace: Optional[str] = None,
             ctx: Context = None
@@ -366,7 +455,7 @@ class KubernetesClientHandler:
             """Delete Kubernetes resource.
             
             Args:
-                resource_type: Type of Kubernetes resource
+                resource_kind: Kind of Kubernetes resource
                 resource_name: Name of the resource to delete
                 namespace: Namespace (optional for cluster-scoped resources)
                 ctx: FastMCP context containing lifespan providers
@@ -391,38 +480,38 @@ class KubernetesClientHandler:
             
             try:
                 # 根据资源类型选择合适的 API 客户端
-                if resource_type.lower() in ['pod', 'service', 'configmap', 'secret']:
+                if resource_kind.lower() in ['pod', 'service', 'configmap', 'secret']:
                     api_client = k8s_client['core_v1']
-                    if resource_type.lower() == 'pod':
+                    if resource_kind.lower() == 'pod':
                         if namespace:
                             result = api_client.delete_namespaced_pod(name=resource_name, namespace=namespace)
                         else:
                             return {"error": "Namespace is required for pod resources"}
-                    elif resource_type.lower() == 'service':
+                    elif resource_kind.lower() == 'service':
                         if namespace:
                             result = api_client.delete_namespaced_service(name=resource_name, namespace=namespace)
                         else:
                             return {"error": "Namespace is required for service resources"}
                     # 添加更多资源类型...
-                elif resource_type.lower() in ['deployment', 'replicaset', 'daemonset', 'statefulset']:
+                elif resource_kind.lower() in ['deployment', 'replicaset', 'daemonset', 'statefulset']:
                     api_client = k8s_client['apps_v1']
-                    if resource_type.lower() == 'deployment':
+                    if resource_kind.lower() == 'deployment':
                         if namespace:
                             result = api_client.delete_namespaced_deployment(name=resource_name, namespace=namespace)
                         else:
                             return {"error": "Namespace is required for deployment resources"}
                     # 添加更多资源类型...
-                elif resource_type.lower() == 'namespace':
+                elif resource_kind.lower() == 'namespace':
                     api_client = k8s_client['core_v1']
                     result = api_client.delete_namespace(name=resource_name)
                 else:
-                    return {"error": f"Unsupported resource type: {resource_type}"}
+                    return {"error": f"Unsupported resource kind: {resource_kind}"}
                 
                 # 序列化删除结果
                 result_data = _serialize_sdk_object(result)
                 
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "namespace": namespace,
                     "result": result_data,
@@ -432,7 +521,7 @@ class KubernetesClientHandler:
             except ApiException as e:
                 logger.error(f"Kubernetes API error: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "namespace": namespace,
                     "error": f"Kubernetes API error: {e.reason}",
@@ -441,7 +530,7 @@ class KubernetesClientHandler:
             except Exception as e:
                 logger.error(f"Failed to delete resource: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "namespace": namespace,
                     "error": str(e),
@@ -453,7 +542,7 @@ class KubernetesClientHandler:
             description="Patch Kubernetes resource"
         )
         async def k8s_resource_patch(
-            resource_type: str,
+            resource_kind: str,
             resource_name: str,
             patch_data: Dict[str, Any],
             namespace: Optional[str] = None,
@@ -463,7 +552,7 @@ class KubernetesClientHandler:
             """Patch Kubernetes resource.
             
             Args:
-                resource_type: Type of Kubernetes resource
+                resource_kind: Kind of Kubernetes resource
                 resource_name: Name of the resource to patch
                 patch_data: Patch data
                 namespace: Namespace (optional for cluster-scoped resources)
@@ -498,16 +587,16 @@ class KubernetesClientHandler:
                     patch_options = {"content_type": "application/strategic-merge-patch+json"}
                 
                 # 根据资源类型选择合适的 API 客户端
-                if resource_type.lower() in ['pod', 'service', 'configmap', 'secret']:
+                if resource_kind.lower() in ['pod', 'service', 'configmap', 'secret']:
                     api_client = k8s_client['core_v1']
-                    if resource_type.lower() == 'pod':
+                    if resource_kind.lower() == 'pod':
                         if namespace:
                             result = api_client.patch_namespaced_pod(
                                 name=resource_name, namespace=namespace, body=patch_data, **patch_options
                             )
                         else:
                             return {"error": "Namespace is required for pod resources"}
-                    elif resource_type.lower() == 'service':
+                    elif resource_kind.lower() == 'service':
                         if namespace:
                             result = api_client.patch_namespaced_service(
                                 name=resource_name, namespace=namespace, body=patch_data, **patch_options
@@ -515,9 +604,9 @@ class KubernetesClientHandler:
                         else:
                             return {"error": "Namespace is required for service resources"}
                     # 添加更多资源类型...
-                elif resource_type.lower() in ['deployment', 'replicaset', 'daemonset', 'statefulset']:
+                elif resource_kind.lower() in ['deployment', 'replicaset', 'daemonset', 'statefulset']:
                     api_client = k8s_client['apps_v1']
-                    if resource_type.lower() == 'deployment':
+                    if resource_kind.lower() == 'deployment':
                         if namespace:
                             result = api_client.patch_namespaced_deployment(
                                 name=resource_name, namespace=namespace, body=patch_data, **patch_options
@@ -526,13 +615,13 @@ class KubernetesClientHandler:
                             return {"error": "Namespace is required for deployment resources"}
                     # 添加更多资源类型...
                 else:
-                    return {"error": f"Unsupported resource type: {resource_type}"}
+                    return {"error": f"Unsupported resource kind: {resource_kind}"}
                 
                 # 序列化补丁结果
                 result_data = _serialize_sdk_object(result)
                 
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "patch_data": patch_data,
                     "namespace": namespace,
@@ -544,7 +633,7 @@ class KubernetesClientHandler:
             except ApiException as e:
                 logger.error(f"Kubernetes API error: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "patch_data": patch_data,
                     "namespace": namespace,
@@ -555,7 +644,7 @@ class KubernetesClientHandler:
             except Exception as e:
                 logger.error(f"Failed to patch resource: {e}")
                 return {
-                    "resource_type": resource_type,
+                    "resource_kind": resource_kind,
                     "resource_name": resource_name,
                     "patch_data": patch_data,
                     "namespace": namespace,
