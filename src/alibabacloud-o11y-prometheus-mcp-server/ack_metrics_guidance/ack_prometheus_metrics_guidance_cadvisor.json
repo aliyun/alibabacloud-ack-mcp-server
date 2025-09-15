@@ -1,0 +1,266 @@
+{
+    "cadvisor": {
+        "metrics": [
+            {
+                "description": "容器CPU使用时间总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_usage_seconds_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器内存工作集字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_working_set_bytes",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器CPU周期总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_cfs_periods_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器CPU节流周期总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_cfs_throttled_periods_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器CPU节流时间总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_cfs_throttled_seconds_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器内存缓存字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_cache",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器内存RSS字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_rss",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器内存映射文件字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_mapped_file",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器内存使用字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_usage_bytes",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器内存限制字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_limit_bytes",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器内存软限制字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_soft_limit_bytes",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器网络接收字节总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_bytes_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络接收错误总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_errors_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络接收包总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_packets_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络接收丢包总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_packets_dropped_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络发送字节总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_bytes_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络发送错误总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_errors_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络发送包总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_packets_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器网络发送丢包总计",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_packets_dropped_total",
+                "metric_type": "counter"
+            },
+            {
+                "description": "容器文件系统限制字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_limit_bytes",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器文件系统使用字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_usage_bytes",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器文件系统已用字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_inodes_free",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器文件系统空闲字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_inodes_total",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器启动时间秒",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_start_time_seconds",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器CPU负载平均值",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_load_average_10s",
+                "metric_type": "gauge"
+            },
+            {
+                "description": "容器内存可回收字节",
+                "dimensions": [
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_swap",
+                "metric_type": "gauge"
+            }
+        ]
+    }
+}
