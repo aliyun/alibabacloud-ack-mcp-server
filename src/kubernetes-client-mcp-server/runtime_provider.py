@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict, Any
 from loguru import logger
 from fastmcp import FastMCP
-from kubernetes import client, config
+from kubernetes import client, config as k8s_config
 import yaml
 
 # 添加父目录到路径以导入interfaces
@@ -115,21 +115,25 @@ class KubernetesClientRuntimeProvider(RuntimeProvider):
             # 尝试加载 kubeconfig
             try:
                 if os.path.exists(os.path.expanduser(kubeconfig_path)):
-                    config.load_kube_config(config_file=kubeconfig_path)
+                    k8s_config.load_kube_config(config_file=kubeconfig_path)
                 else:
                     # 尝试使用集群内配置
-                    config.load_incluster_config()
+                    k8s_config.load_incluster_config()
                 
-                # 创建 Kubernetes 客户端
+                # 创建 Kubernetes 客户端（移除已废弃的 ExtensionsV1beta1Api）
                 v1_client = client.CoreV1Api()
                 apps_v1_client = client.AppsV1Api()
-                extensions_v1_client = client.ExtensionsV1beta1Api()
+                networking_v1_client = None
+                try:
+                    networking_v1_client = client.NetworkingV1Api()
+                except Exception:
+                    networking_v1_client = None
                 
                 providers["k8s_client"] = {
                     "client": {
                         "core_v1": v1_client,
                         "apps_v1": apps_v1_client,
-                        "extensions_v1": extensions_v1_client
+                        "networking_v1": networking_v1_client
                     },
                     "type": "kubernetes",
                     "kubeconfig": kubeconfig_path,

@@ -22,8 +22,16 @@ except ImportError:
     DOTENV_AVAILABLE = False
     logger.warning("python-dotenv not available, environment variables will be read from system")
 
-from .handler import KubernetesClientHandler
-from .runtime_provider import KubernetesClientRuntimeProvider
+# 兼容包内相对导入与脚本直接运行两种方式
+try:
+    from .handler import KubernetesClientHandler
+    from .runtime_provider import KubernetesClientRuntimeProvider
+except Exception:
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    from handler import KubernetesClientHandler  # type: ignore
+    from runtime_provider import KubernetesClientRuntimeProvider  # type: ignore
 
 # Server configuration
 SERVER_NAME = "kubernetes-client-mcp-server"
