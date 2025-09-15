@@ -21,6 +21,9 @@ from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fi
 from utils.utils import handle_tea_exception
 from alibabacloud_arms20190808 import models as arms_models
 import httpx
+import os
+import json
+from pydantic import BaseModel
 
 
 class ObservabilityAliyunPrometheusHandler:
@@ -385,6 +388,62 @@ class ObservabilityAliyunPrometheusHandler:
         #     }
         #     print(result)
         #     return result
+
+        class MetricsGuidanceResponse(BaseModel):
+            resource_type: str
+            matched_files: List[str]
+            matched_metrics: List[Dict[str, Any]]
+
+        @self.server.tool()
+        async def get_ack_prometheus_metric_guidance(
+                ctx: Context,
+                resource_type: str = Field(
+                    ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+                ),
+        ) -> MetricsGuidanceResponse:
+            """遍历 ack_metrics_guidance 目录的 JSON，匹配入参 resource_type 的 labels 提示集。"""
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            guidance_dir = os.path.join(base_dir, 'ack_metrics_guidance')
+            matched_files: List[str] = []
+            matched_metrics: List[Dict[str, Any]] = []
+
+            if not os.path.isdir(guidance_dir):
+                return MetricsGuidanceResponse(resource_type=resource_type, matched_files=[], matched_metrics=[])
+
+            for name in os.listdir(guidance_dir):
+                if not name.endswith('.json'):
+                    continue
+                fpath = os.path.join(guidance_dir, name)
+                try:
+                    with open(fpath, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                except Exception as e:
+                    logger.warning(f"skip {name}: {e}")
+                    continue
+
+                # 约定结构：每个 json 中包含一个 metrics 列表，每项至少包含 labels 与（可选）resource_type/description/promql 示例
+                metrics_list = data if isinstance(data, list) else data.get('metrics') if isinstance(data, dict) else []
+                if not isinstance(metrics_list, list):
+                    continue
+
+                file_matched = False
+                for item in metrics_list:
+                    if not isinstance(item, dict):
+                        continue
+                    labels = item.get('labels') or {}
+                    item_resource_type = (item.get('resource_type') or labels.get('resource_type') or '').lower()
+                    if item_resource_type == resource_type.lower():
+                        matched_metrics.append(item)
+                        file_matched = True
+
+                if file_matched:
+                    matched_files.append(name)
+
+            return MetricsGuidanceResponse(
+                resource_type=resource_type,
+                matched_files=matched_files,
+                matched_metrics=matched_metrics,
+            )
 
 
 # class CMSSPLContainer:
