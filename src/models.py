@@ -184,4 +184,29 @@ class AuditLogErrorCodes:
     LOGSTORE_NOT_FOUND = "LOGSTORE_NOT_FOUND"
 
 
+# ==================== Kubectl 相关模型 ====================
+
+class KubectlInput(BaseModel):
+    """Kubectl 命令输入参数"""
+    command: str = Field(..., description="kubectl 命令参数，例如 'get pods -A'")
+    cluster_id: Optional[str] = Field(None, description="可选的集群 ID，如果提供则通过 ACK API 获取 kubeconfig")
+
+
+class KubectlOutput(BaseModel):
+    """Kubectl 命令输出结果"""
+    status: str = Field(..., description="执行状态：success 或 error")
+    exit_code: int = Field(..., description="命令退出码")
+    stdout: Optional[str] = Field(None, description="标准输出")
+    stderr: Optional[str] = Field(None, description="标准错误输出")
+    error: Optional[str] = Field(None, description="错误信息")
+    kubeconfig_source: Optional[str] = Field(None, description="kubeconfig 来源：local 或 ack_api")
+
+
+# Kubectl 错误码定义
+class KubectlErrorCodes:
+    KUBECONFIG_FETCH_FAILED = "KUBECONFIG_FETCH_FAILED"
+    CLUSTER_NOT_FOUND = "CLUSTER_NOT_FOUND"
+    INVALID_CLUSTER_ID = "INVALID_CLUSTER_ID"
+    KUBECTL_COMMAND_FAILED = "KUBECTL_COMMAND_FAILED"
+
 
