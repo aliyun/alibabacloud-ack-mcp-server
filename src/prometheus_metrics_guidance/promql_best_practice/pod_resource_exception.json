@@ -1,0 +1,71 @@
+{
+  "resource": "pod",
+  "rules": [
+    {
+      "rule_name": "Abnormal pod status",
+      "description": "An alert is triggered if a pod has been in an abnormal state for the last 5 minutes.\n\nIn the console, click Cluster Container Replica Abnormalities Alert Rule Set and set the Abnormal Pod Status alert rule.",
+      "recommendation_sop": "For more information about how to handle abnormal pod statuses, see Troubleshoot pod abnormalities. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/support/pod-troubleshooting#task-2187029",
+      "expression": "min_over_time(sum by (namespace, pod, phase) (kube_pod_status_phase{phase=~\"Pending|Unknown|Failed\"})[5m:1m]) > 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "pod"
+      ]
+    },
+    {
+      "rule_name": "Pod fails to start",
+      "description": "An alert is triggered if a pod fails to start more than three times in the last 5 minutes.\n\nIn the console, click Cluster Container Replica Abnormalities Alert Rule Set and set the Pod Fails To Start alert rule.",
+      "recommendation_sop": "For more information about how to handle pod startup failures, see Troubleshoot pod abnormalities. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/support/pod-troubleshooting#task-2187029",
+      "expression": "sum_over_time(increase(kube_pod_container_status_restarts_total{}[1m])[5m:1m]) > 3",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "pod"
+      ]
+    },
+    {
+      "rule_name": "More than 1,000 pods fail to be scheduled",
+      "description": "An alert is triggered if more than 1,000 pods are in the Pending state due to scheduling failures within the last 5 minutes.",
+      "recommendation_sop": "This issue may be caused by excessive task pressure in a large-scale cluster scheduling scenario. ACK Pro clusters provide enhanced core capabilities, such as cluster scheduling, and offer a Service-Level Agreement (SLA). We recommend that you use ACK Pro clusters.",
+      "expression": "sum(sum(max_over_time(kube_pod_status_phase{ phase=~\"Pending\"}[5m])) by (pod)) > 1000",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "cluster"
+      ]
+    },
+    {
+      "rule_name": "Frequent container CPU throttling",
+      "description": "An alert is triggered if the container CPU is frequently throttled. This occurs if the throttled CPU time is greater than 25% of the total CPU time in the last 3 minutes.",
+      "recommendation_sop": "CPU throttling reduces the CPU time slices available to processes in a container. This affects their runtime and can slow down business processes.\n\nYou should evaluate whether the pod's CPU resource limit is set too low. We recommend that you use the CPU Burst performance optimization policy to mitigate CPU throttling. For more information, see Enable the CPU Burst policy. If your cluster nodes are multi-core servers, we recommend that you use CPU topology-aware scheduling to maximize the use of fragmented CPU resources. For more information, see Enable CPU topology-aware scheduling.",
+      "expression": "rate(container_cpu_cfs_throttled_seconds_total[3m]) * 100 > 25",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "pod"
+      ]
+    },
+    {
+      "rule_name": "CPU resource usage of a container replica pod is higher than 85%",
+      "description": "An alert is triggered when the CPU resource usage of a container replica pod in a specified namespace or pod exceeds 85% of the pod's limit.\n\nIf a Limit is not configured for this Pod, the value defaults to 0.\n\nThe default threshold of 85% is a recommended value. You can adjust it based on your business needs.\n\nTo filter data for a specific pod or namespace, replace pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\" with the actual values. To query data for all pods in the cluster, you can delete this filter condition.",
+      "recommendation_sop": "High CPU resource usage in a pod can cause CPU throttling. This leads to insufficient CPU time slice allocation and affects the execution of processes in the pod.\n\nYou should evaluate whether the pod's CPU resource limit is set too low. We recommend that you use the CPU Burst performance optimization policy to mitigate CPU throttling. For more information, see Enable the CPU Burst policy. If your cluster nodes are multi-core servers, we recommend that you use CPU topology-aware scheduling to maximize the use of fragmented CPU resources. For more information, see Enable CPU topology-aware scheduling.",
+      "expression": "(sum(irate(container_cpu_usage_seconds_total{pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\",container!=\"\",container!=\"POD\"}[1m])) by (namespace,pod) / sum(container_spec_cpu_quota{pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\",container!=\"\",container!=\"POD\"}/100000) by (namespace,pod) * 100 <= 100 or on() vector(0)) >= 85",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "pod"
+      ]
+    },
+    {
+      "rule_name": "Memory resource usage of a container replica pod is higher than 85%",
+      "description": "((sum(container_memory_working_set_bytes{pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\",container !=\"\",container!=\"POD\"}) by (pod,namespace)/ sum(container_spec_memory_limit_bytes{pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\",container !=\"\",container!=\"POD\"}) by (pod, namespace) * 100) <= 100 or on() vector(0)) >= 85",
+      "recommendation_sop": "High memory resource usage in a pod can cause the pod to be OOMKilled, which leads to a pod restart.\n\nYou should determine whether the pod's memory resource limit is set too low. We recommend that you use the resource profiling feature to configure the pod's memory limit. For more information, see Resource profiling.",
+      "expression": "(sum(irate(container_cpu_usage_seconds_total{pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\",container!=\"\",container!=\"POD\"}[1m])) by (namespace,pod) / sum(container_spec_cpu_quota{pod=~\"{{PodName}}.*\",namespace=~\"{{Namespace}}.*\",container!=\"\",container!=\"POD\"}/100000) by (namespace,pod) * 100 <= 100 or on() vector(0)) >= 85",
+      "severity": "Critical",
+      "category": "memory",
+      "labels": [
+        "pod"
+      ]
+    }
+  ]
+}

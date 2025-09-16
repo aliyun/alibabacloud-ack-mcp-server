@@ -7,13 +7,22 @@ from pydantic import Field
 import json
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
-from models import (
-    ErrorModel,
-    DiagnoseResourceInput,
-    DiagnoseResourceOutput,
-    GetDiagnoseResourceResultInput,
-    GetDiagnoseResourceResultOutput,
-)
+try:
+    from .models import (
+        ErrorModel,
+        DiagnoseResourceInput,
+        DiagnoseResourceOutput,
+        GetDiagnoseResourceResultInput,
+        GetDiagnoseResourceResultOutput,
+    )
+except ImportError:
+    from models import (
+        ErrorModel,
+        DiagnoseResourceInput,
+        DiagnoseResourceOutput,
+        GetDiagnoseResourceResultInput,
+        GetDiagnoseResourceResultOutput,
+    )
 
 
 def _serialize_sdk_object(obj):
@@ -75,14 +84,14 @@ class DiagnoseHandler:
         ) -> DiagnoseResourceOutput | Dict[str, Any]:
             """发起一个ACK集群的资源的异步诊断任务"""
             if not self.allow_write:
-                return {"error": ErrorModel(error_code="WriteDisabled", error_message="Write operations are disabled").model_json()}
+                return {"error": ErrorModel(error_code="WriteDisabled", error_message="Write operations are disabled").model_dump()}
 
             try:
                 # 解析 resource_target JSON
                 try:
                     target_dict = json.loads(resource_target)
                 except json.JSONDecodeError as e:
-                    return {"error": ErrorModel(error_code="InvalidTarget", error_message=f"Invalid JSON in resource_target: {e}").model_json()}
+                    return {"error": ErrorModel(error_code="InvalidTarget", error_message=f"Invalid JSON in resource_target: {e}").model_dump()}
 
                 # 获取 CS 客户端
                 cs_client = _get_cs_client(ctx, region_id)
@@ -102,7 +111,7 @@ class DiagnoseHandler:
                 # 提取诊断任务ID
                 diagnose_task_id = getattr(response.body, 'diagnosis_id', None) if response.body else None
                 if not diagnose_task_id:
-                    return {"error": ErrorModel(error_code="NoTaskId", error_message="Failed to get diagnosis task ID from response").model_json()}
+                    return {"error": ErrorModel(error_code="NoTaskId", error_message="Failed to get diagnosis task ID from response").model_dump()}
 
                 return DiagnoseResourceOutput(
                     diagnose_task_id=diagnose_task_id,
@@ -119,7 +128,7 @@ class DiagnoseHandler:
                 elif "NO_RAM_POLICY_AUTH" in str(e):
                     error_code = "NO_RAM_POLICY_AUTH"
                 
-                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_json()}
+                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_dump()}
 
         @self.server.tool(
             name="get_diagnose_resource_result",
@@ -148,7 +157,7 @@ class DiagnoseHandler:
                 )
 
                 if not response.body:
-                    return {"error": ErrorModel(error_code="NoResponse", error_message="No response body from diagnosis result query").model_json()}
+                    return {"error": ErrorModel(error_code="NoResponse", error_message="No response body from diagnosis result query").model_dump()}
 
                 # 提取结果信息
                 result = getattr(response.body, 'result', None)
@@ -176,4 +185,4 @@ class DiagnoseHandler:
                 elif "NO_RAM_POLICY_AUTH" in str(e):
                     error_code = "NO_RAM_POLICY_AUTH"
                 
-                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_json()}
+                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_dump()}

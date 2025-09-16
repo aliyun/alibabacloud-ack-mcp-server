@@ -6,15 +6,26 @@ import httpx
 import os
 import json
 from datetime import datetime
-from models import (
-    ErrorModel,
-    QueryPrometheusInput,
-    QueryPrometheusSeriesPoint,
-    QueryPrometheusOutput,
-    QueryPrometheusMetricGuidanceInput,
-    QueryPrometheusMetricGuidanceOutput,
-    MetricDefinition,
-)
+try:
+    from .models import (
+        ErrorModel,
+        QueryPrometheusInput,
+        QueryPrometheusSeriesPoint,
+        QueryPrometheusOutput,
+        QueryPrometheusMetricGuidanceInput,
+        QueryPrometheusMetricGuidanceOutput,
+        MetricDefinition,
+    )
+except ImportError:
+    from models import (
+        ErrorModel,
+        QueryPrometheusInput,
+        QueryPrometheusSeriesPoint,
+        QueryPrometheusOutput,
+        QueryPrometheusMetricGuidanceInput,
+        QueryPrometheusMetricGuidanceOutput,
+        MetricDefinition,
+    )
 
 
 class PrometheusHandler:
@@ -89,7 +100,7 @@ class PrometheusHandler:
         ) -> QueryPrometheusOutput | Dict[str, Any]:
             endpoint = self._resolve_prometheus_endpoint(ctx, cluster_id)
             if not endpoint:
-                return {"error": ErrorModel(error_code="MissingEndpoint", error_message="无法解析 Prometheus HTTP API，请配置 ARMS 客户端或环境变量 PROMETHEUS_HTTP_API[_<cluster_id>]").model_json()}
+                return {"error": ErrorModel(error_code="MissingEndpoint", error_message="无法获取 Prometheus HTTP API，请确定此集群是否已经正常部署阿里云Prometheus 或 环境变量 PROMETHEUS_HTTP_API[_<cluster_id>]").model_dump()}
 
             has_range = bool(start_time and end_time)
             params: Dict[str, Any] = {"query": promql}
@@ -139,32 +150,65 @@ class PrometheusHandler:
                 metric_category: str = Field(..., description="指标分类：cpu/memory/network/disk"),
         ) -> QueryPrometheusMetricGuidanceOutput | Dict[str, Any]:
             base_dir = os.path.dirname(os.path.abspath(__file__))
-            # guidance 文件位于 src/data 下
-            guidance_path = os.path.join(os.path.dirname(base_dir), "data", "ack_prometheus_metrics_guidance_cadvisor.json")
-            if not os.path.isfile(guidance_path):
-                return {"error": ErrorModel(error_code="GuidanceNotFound", error_message=f"not found: {guidance_path}").model_json()}
-
-            try:
-                with open(guidance_path, "r", encoding="utf-8") as f:
-                    guidance = json.load(f)
-            except Exception as e:
-                return {"error": {"error_code": "GuidanceReadError", "error_message": str(e)}}
+            # guidance 文件位于 src/prometheus_metrics_dictionary 目录下
+            guidance_dir = os.path.join(base_dir, "prometheus_metrics_guidance/metrics_dictionary")
+            
+            if not os.path.isdir(guidance_dir):
+                return {"error": ErrorModel(error_code="GuidanceDirectoryNotFound", error_message=f"Directory not found: {guidance_dir}").model_dump()}
 
             metrics: List[MetricDefinition] = []
-            cadvisor = guidance.get("cadvisor", {}) if isinstance(guidance, dict) else {}
-            items = cadvisor.get("metrics", []) if isinstance(cadvisor, dict) else []
-            for m in items:
-                if not isinstance(m, dict):
-                    continue
-                labels = m.get("labels", []) or []
-                category = str(m.get("category", "")).lower()
-                if (resource_label in labels) and (category == metric_category.lower()):
-                    metrics.append(MetricDefinition(
-                        description=m.get("description"),
-                        category=m.get("category"),
-                        labels=m.get("labels") or [],
-                        name=m.get("name"),
-                        type=m.get("type"),
-                    ))
+            errors: List[str] = []
+            
+            # 遍历目录下的所有 JSON 文件
+            try:
+                for filename in os.listdir(guidance_dir):
+                    if not filename.endswith('.json'):
+                        continue
+                        
+                    file_path = os.path.join(guidance_dir, filename)
+                    try:
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            guidance_data = json.load(f)
+                            
+                        # 处理每个 JSON 文件中的指标定义
+                        # 支持不同的文件结构，如 {"cadvisor": {"metrics": [...]}} 或直接的 {"metrics": [...]}
+                        if isinstance(guidance_data, dict):
+                            # 如果文件结构是 {"cadvisor": {"metrics": [...]}}
+                            if "metrics" in guidance_data:
+                                items = guidance_data["metrics"]
+                            # 如果整个文件就是一个指标数组
+                            elif isinstance(guidance_data.get("metrics"), list):
+                                items = guidance_data["metrics"]
+                            else:
+                                # 尝试将整个文件作为指标数组处理
+                                items = guidance_data if isinstance(guidance_data, list) else []
+                            
+                            # 处理每个指标
+                            for m in items:
+                                if not isinstance(m, dict):
+                                    continue
+                                labels = m.get("labels", []) or []
+                                category = str(m.get("category", "")).lower()
+                                if (resource_label in labels) and (category == metric_category.lower()):
+                                    metrics.append(MetricDefinition(
+                                        description=m.get("description"),
+                                        category=m.get("category"),
+                                        labels=m.get("labels") or [],
+                                        name=m.get("name"),
+                                        type=m.get("type"),
+                                    ))
+                                    
+                    except Exception as e:
+                        error_msg = f"Error reading {filename}: {str(e)}"
+                        errors.append(error_msg)
+                        logger.warning(error_msg)
+                        continue
+                        
+            except Exception as e:
+                return {"error": ErrorModel(error_code="GuidanceReadError", error_message=f"Error reading guidance directory: {str(e)}").model_dump()}
+
+            # 如果有错误但也有一些成功的指标，记录警告但继续返回结果
+            if errors:
+                logger.warning(f"Some guidance files had errors: {errors}")
 
             return QueryPrometheusMetricGuidanceOutput(metrics=metrics, error=None)

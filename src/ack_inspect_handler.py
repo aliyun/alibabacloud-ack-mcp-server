@@ -5,13 +5,22 @@ from loguru import logger
 from pydantic import Field
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
-from models import (
-    ErrorModel,
-    QueryInspectReportInput,
-    QueryInspectReportOutput,
-    InspectSummary,
-    CheckItemResult,
-)
+try:
+    from .models import (
+        ErrorModel,
+        QueryInspectReportInput,
+        QueryInspectReportOutput,
+        InspectSummary,
+        CheckItemResult,
+    )
+except ImportError:
+    from models import (
+        ErrorModel,
+        QueryInspectReportInput,
+        QueryInspectReportOutput,
+        InspectSummary,
+        CheckItemResult,
+    )
 
 
 def _serialize_sdk_object(obj):
@@ -87,13 +96,13 @@ class InspectHandler:
                 )
 
                 if not list_response.body or not list_response.body.reports:
-                    return {"error": ErrorModel(error_code="NO_INSPECT_REPORT", error_message="当前没有已生成的巡检报告").model_json()}
+                    return {"error": ErrorModel(error_code="NO_INSPECT_REPORT", error_message="当前没有已生成的巡检报告").model_dump()}
 
                 # 获取最新的报告ID
                 latest_report = list_response.body.reports[0]
                 report_id = getattr(latest_report, 'report_id', None)
                 if not report_id:
-                    return {"error": ErrorModel(error_code="NO_REPORT_ID", error_message="无法获取巡检报告ID").model_json()}
+                    return {"error": ErrorModel(error_code="NO_REPORT_ID", error_message="无法获取巡检报告ID").model_dump()}
 
                 # 2. 获取巡检报告详情
                 detail_request = cs20151215_models.GetClusterInspectReportDetailRequest(
@@ -105,7 +114,7 @@ class InspectHandler:
                 )
 
                 if not detail_response.body:
-                    return {"error": ErrorModel(error_code="NO_DETAIL_RESPONSE", error_message="无法获取巡检报告详情").model_json()}
+                    return {"error": ErrorModel(error_code="NO_DETAIL_RESPONSE", error_message="无法获取巡检报告详情").model_dump()}
 
                 # 3. 解析响应数据
                 body = detail_response.body
@@ -151,4 +160,4 @@ class InspectHandler:
                 elif "NO_INSPECT_REPORT" in str(e):
                     error_code = "NO_INSPECT_REPORT"
                 
-                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_json()}
+                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_dump()}
