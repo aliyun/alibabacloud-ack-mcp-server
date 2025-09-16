@@ -15,6 +15,7 @@ try:
         QueryPrometheusMetricGuidanceInput,
         QueryPrometheusMetricGuidanceOutput,
         MetricDefinition,
+        PromQLSample,
     )
 except ImportError:
     from models import (
@@ -25,6 +26,7 @@ except ImportError:
         QueryPrometheusMetricGuidanceInput,
         QueryPrometheusMetricGuidanceOutput,
         MetricDefinition,
+        PromQLSample,
     )
 
 
@@ -143,72 +145,92 @@ class PrometheusHandler:
                 result=[QueryPrometheusSeriesPoint(**item) for item in normalized],
             )
 
-        @self.server.tool(name="query_prometheus_metric_guidance", description="获取Prometheus指标定义")
+        @self.server.tool(name="query_prometheus_metric_guidance", description="获取Prometheus指标定义和最佳实践")
         async def query_prometheus_metric_guidance(
                 ctx: Context,
                 resource_label: str = Field(..., description="资源维度label：node/pod/container 等"),
-                metric_category: str = Field(..., description="指标分类：cpu/memory/network/disk"),
+                metric_category: str = Field(..., description="指标分类：cpu/memory/network/disk/state"),
         ) -> QueryPrometheusMetricGuidanceOutput | Dict[str, Any]:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            # guidance 文件位于 src/prometheus_metrics_dictionary 目录下
-            guidance_dir = os.path.join(base_dir, "prometheus_metrics_guidance/metrics_dictionary")
+            # 从 runtime context 获取 Prometheus 指标指引数据
+            lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
+            providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
+            prometheus_guidance = providers.get("prometheus_guidance", {}) if isinstance(providers, dict) else {}
             
-            if not os.path.isdir(guidance_dir):
-                return {"error": ErrorModel(error_code="GuidanceDirectoryNotFound", error_message=f"Directory not found: {guidance_dir}").model_dump()}
+            if not prometheus_guidance or not prometheus_guidance.get("initialized"):
+                return {"error": ErrorModel(error_code="GuidanceNotInitialized", error_message="Prometheus guidance not initialized").model_dump()}
 
             metrics: List[MetricDefinition] = []
-            errors: List[str] = []
+            promql_samples: List[PromQLSample] = []
             
-            # 遍历目录下的所有 JSON 文件
             try:
-                for filename in os.listdir(guidance_dir):
-                    if not filename.endswith('.json'):
+                # 查询指标定义
+                metrics_dict = prometheus_guidance.get("metrics_dictionary", {})
+                for file_key, file_data in metrics_dict.items():
+                    if not isinstance(file_data, dict):
                         continue
                         
-                    file_path = os.path.join(guidance_dir, filename)
-                    try:
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            guidance_data = json.load(f)
-                            
-                        # 处理每个 JSON 文件中的指标定义
-                        # 支持不同的文件结构，如 {"cadvisor": {"metrics": [...]}} 或直接的 {"metrics": [...]}
-                        if isinstance(guidance_data, dict):
-                            # 如果文件结构是 {"cadvisor": {"metrics": [...]}}
-                            if "metrics" in guidance_data:
-                                items = guidance_data["metrics"]
-                            # 如果整个文件就是一个指标数组
-                            elif isinstance(guidance_data.get("metrics"), list):
-                                items = guidance_data["metrics"]
-                            else:
-                                # 尝试将整个文件作为指标数组处理
-                                items = guidance_data if isinstance(guidance_data, list) else []
-                            
-                            # 处理每个指标
-                            for m in items:
-                                if not isinstance(m, dict):
-                                    continue
-                                labels = m.get("labels", []) or []
-                                category = str(m.get("category", "")).lower()
-                                if (resource_label in labels) and (category == metric_category.lower()):
-                                    metrics.append(MetricDefinition(
-                                        description=m.get("description"),
-                                        category=m.get("category"),
-                                        labels=m.get("labels") or [],
-                                        name=m.get("name"),
-                                        type=m.get("type"),
-                                    ))
-                                    
-                    except Exception as e:
-                        error_msg = f"Error reading {filename}: {str(e)}"
-                        errors.append(error_msg)
-                        logger.warning(error_msg)
+                    # 处理不同的文件结构
+                    metrics_list = []
+                    if "metrics" in file_data:
+                        metrics_list = file_data["metrics"]
+                    elif isinstance(file_data.get("metrics"), list):
+                        metrics_list = file_data["metrics"]
+                    elif isinstance(file_data, list):
+                        metrics_list = file_data
+                        
+                    # 过滤指标
+                    for m in metrics_list:
+                        if not isinstance(m, dict):
+                            continue
+                        labels = m.get("labels", []) or []
+                        category = str(m.get("category", "")).lower()
+                        if (resource_label in labels) and (category == metric_category.lower()):
+                            metrics.append(MetricDefinition(
+                                description=m.get("description"),
+                                category=m.get("category"),
+                                labels=m.get("labels") or [],
+                                name=m.get("name"),
+                                type=m.get("type"),
+                            ))
+
+                # 查询 PromQL 最佳实践
+                practice_dict = prometheus_guidance.get("promql_best_practice", {})
+                for file_key, file_data in practice_dict.items():
+                    if not isinstance(file_data, dict):
                         continue
                         
+                    # 处理不同的文件结构
+                    rules_list = []
+                    if "rules" in file_data:
+                        rules_list = file_data["rules"]
+                    elif isinstance(file_data.get("rules"), list):
+                        rules_list = file_data["rules"]
+                    elif isinstance(file_data, list):
+                        rules_list = file_data
+                        
+                    # 过滤规则
+                    for rule in rules_list:
+                        if not isinstance(rule, dict):
+                            continue
+                        rule_category = str(rule.get("category", "")).lower()
+                        rule_labels = rule.get("labels", []) or []
+                        if (rule_category == metric_category.lower()) and (resource_label in rule_labels):
+                            promql_samples.append(PromQLSample(
+                                rule_name=rule.get("rule_name", ""),
+                                description=rule.get("description"),
+                                recommendation_sop=rule.get("recommendation_sop"),
+                                expression=rule.get("expression", ""),
+                                severity=rule.get("severity", ""),
+                                category=rule.get("category", ""),
+                                labels=rule.get("labels", [])
+                            ))
+                            
             except Exception as e:
-                return {"error": ErrorModel(error_code="GuidanceReadError", error_message=f"Error reading guidance directory: {str(e)}").model_dump()}
+                return {"error": ErrorModel(error_code="GuidanceQueryError", error_message=f"Error querying guidance data: {str(e)}").model_dump()}
 
-            # 如果有错误但也有一些成功的指标，记录警告但继续返回结果
-            if errors:
-                logger.warning(f"Some guidance files had errors: {errors}")
-
-            return QueryPrometheusMetricGuidanceOutput(metrics=metrics, error=None)
+            # 构建返回结果，包含指标定义和 PromQL 最佳实践
+            return QueryPrometheusMetricGuidanceOutput(
+                metrics=metrics,
+                promql_samples=promql_samples,
+                error=None
+            )

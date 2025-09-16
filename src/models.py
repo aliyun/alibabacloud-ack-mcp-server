@@ -38,8 +38,20 @@ class MetricDefinition(BaseModel):
     type: Optional[str]
 
 
+class PromQLSample(BaseModel):
+    """PromQL 最佳实践样例"""
+    rule_name: str = Field(..., description="观测异常现象的PromQL查询规则名")
+    description: Optional[str] = Field(None, description="此查询规则的详细描述")
+    recommendation_sop: Optional[str] = Field(None, description="此查询规则观测到的异常如何解决的推荐SOP")
+    expression: str = Field(..., description="PromQL 表达式")
+    severity: str = Field(..., description="严重程度：Critical / Warning / Normal")
+    category: str = Field(..., description="观测查询规则的使用场景")
+    labels: List[str] = Field(default_factory=list, description="观测查询规则的关联资源labels列表")
+
+
 class QueryPrometheusMetricGuidanceOutput(BaseModel):
-    metrics: List[MetricDefinition] = Field(default_factory=list)
+    metrics: List[MetricDefinition] = Field(default_factory=list, description="指标定义列表")
+    promql_samples: List[PromQLSample] = Field(default_factory=list, description="PromQL最佳实践样例列表")
     error: Optional[ErrorModel] = None
 
 

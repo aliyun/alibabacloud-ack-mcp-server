@@ -1,5 +1,10 @@
 import json
+import os
+import sys
 import pytest
+
+# 添加 src 目录到路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import ack_prometheus_handler as module_under_test
 
@@ -123,14 +128,211 @@ async def test_query_prometheus_range(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_query_prometheus_metric_guidance():
+async def test_query_prometheus_metric_guidance_success():
+    """测试成功查询 Prometheus 指标指引"""
     _, tools = make_handler_and_tools()
     tool = tools["query_prometheus_metric_guidance"]
 
-    ctx = FakeContext()
-    out = await tool(ctx, resource_label="node", metric_category="cpu")
-    assert out.error is None
-    assert isinstance(out.metrics, list)
-    assert any(m.name for m in out.metrics)
+    # 模拟 runtime context 中的 Prometheus 指标指引数据
+    mock_guidance = {
+        "initialized": True,
+        "metrics_dictionary": {
+            "test_metrics": {
+                "metrics": [
+                    {
+                        "name": "container_cpu_usage_seconds_total",
+                        "category": "cpu",
+                        "labels": ["pod", "container"],
+                        "description": "容器CPU使用时间总计",
+                        "type": "counter"
+                    },
+                    {
+                        "name": "container_memory_working_set_bytes",
+                        "category": "memory",
+                        "labels": ["pod", "container"],
+                        "description": "容器内存工作集字节",
+                        "type": "gauge"
+                    }
+                ]
+            }
+        },
+        "promql_best_practice": {
+            "test_practice": {
+                "rules": [
+                    {
+                        "rule_name": "CPU resource usage high",
+                        "category": "cpu",
+                        "labels": ["pod"],
+                        "description": "CPU usage is higher than 85%",
+                        "expression": "cpu_usage > 85",
+                        "severity": "Critical",
+                        "recommendation_sop": "Check CPU limits"
+                    }
+                ]
+            }
+        }
+    }
+
+    ctx = FakeContext({
+        "providers": {
+            "prometheus_guidance": mock_guidance
+        }
+    })
+
+    result = await tool(ctx, resource_label="pod", metric_category="cpu")
+    
+    # 验证返回结果结构
+    assert hasattr(result, "metrics")
+    assert hasattr(result, "promql_samples")
+    assert result.error is None
+    
+    # 验证指标定义
+    assert len(result.metrics) == 1
+    assert result.metrics[0].name == "container_cpu_usage_seconds_total"
+    assert result.metrics[0].category == "cpu"
+    
+    # 验证 PromQL 最佳实践
+    assert len(result.promql_samples) == 1
+    assert result.promql_samples[0].rule_name == "CPU resource usage high"
+    assert result.promql_samples[0].category == "cpu"
+
+
+@pytest.mark.asyncio
+async def test_query_prometheus_metric_guidance_not_initialized():
+    """测试 Prometheus 指标指引未初始化时的处理"""
+    _, tools = make_handler_and_tools()
+    tool = tools["query_prometheus_metric_guidance"]
+
+    ctx = FakeContext({
+        "providers": {
+            "prometheus_guidance": {
+                "initialized": False,
+                "error": "Guidance not initialized"
+            }
+        }
+    })
+
+    result = await tool(ctx, resource_label="pod", metric_category="cpu")
+    
+    assert "error" in result
+    assert result["error"]["error_code"] == "GuidanceNotInitialized"
+
+
+@pytest.mark.asyncio
+async def test_query_prometheus_metric_guidance_missing_providers():
+    """测试缺少 providers 时的处理"""
+    _, tools = make_handler_and_tools()
+    tool = tools["query_prometheus_metric_guidance"]
+
+    ctx = FakeContext({
+        "providers": {}
+    })
+
+    result = await tool(ctx, resource_label="pod", metric_category="cpu")
+    
+    assert "error" in result
+    assert result["error"]["error_code"] == "GuidanceNotInitialized"
+
+
+@pytest.mark.asyncio
+async def test_query_prometheus_metric_guidance_no_match():
+    """测试没有匹配结果时的查询"""
+    _, tools = make_handler_and_tools()
+    tool = tools["query_prometheus_metric_guidance"]
+
+    mock_guidance = {
+        "initialized": True,
+        "metrics_dictionary": {
+            "test_metrics": {
+                "metrics": [
+                    {
+                        "name": "node_cpu_usage",
+                        "category": "cpu",
+                        "labels": ["node"],  # 不包含 "pod"
+                        "description": "Node CPU usage",
+                        "type": "gauge"
+                    }
+                ]
+            }
+        },
+        "promql_best_practice": {
+            "test_practice": {
+                "rules": [
+                    {
+                        "rule_name": "Node CPU high",
+                        "category": "cpu",
+                        "labels": ["node"],  # 不包含 "pod"
+                        "description": "Node CPU usage is high",
+                        "expression": "node_cpu > 80",
+                        "severity": "Critical"
+                    }
+                ]
+            }
+        }
+    }
+
+    ctx = FakeContext({
+        "providers": {
+            "prometheus_guidance": mock_guidance
+        }
+    })
+
+    result = await tool(ctx, resource_label="pod", metric_category="cpu")
+    
+    assert result.error is None
+    assert len(result.metrics) == 0
+    assert len(result.promql_samples) == 0
+
+
+@pytest.mark.asyncio
+async def test_query_prometheus_metric_guidance_case_insensitive():
+    """测试大小写不敏感的查询"""
+    _, tools = make_handler_and_tools()
+    tool = tools["query_prometheus_metric_guidance"]
+
+    mock_guidance = {
+        "initialized": True,
+        "metrics_dictionary": {
+            "test_metrics": {
+                "metrics": [
+                    {
+                        "name": "container_cpu_usage",
+                        "category": "CPU",  # 大写
+                        "labels": ["pod"],
+                        "description": "Container CPU usage",
+                        "type": "gauge"
+                    }
+                ]
+            }
+        },
+        "promql_best_practice": {
+            "test_practice": {
+                "rules": [
+                    {
+                        "rule_name": "CPU High",
+                        "category": "CPU",  # 大写
+                        "labels": ["pod"],
+                        "description": "CPU usage is high",
+                        "expression": "cpu > 80",
+                        "severity": "Critical"
+                    }
+                ]
+            }
+        }
+    }
+
+    ctx = FakeContext({
+        "providers": {
+            "prometheus_guidance": mock_guidance
+        }
+    })
+
+    result = await tool(ctx, resource_label="pod", metric_category="cpu")  # 小写查询
+    
+    assert result.error is None
+    assert len(result.metrics) == 1
+    assert result.metrics[0].name == "container_cpu_usage"
+    assert len(result.promql_samples) == 1
+    assert result.promql_samples[0].rule_name == "CPU High"
 
 

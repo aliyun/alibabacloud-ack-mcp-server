@@ -1,8 +1,9 @@
 """Runtime provider for ACK Addon Management MCP Server."""
 
 import os
+import json
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict, Any, List, Optional
 from loguru import logger
 from fastmcp import FastMCP
 from alibabacloud_cs20151215.client import Client as CS20151215Client
@@ -112,6 +113,15 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
             logger.warning(f"Initialize SLS client factory failed: {e}")
             providers["sls_client_factory"] = None
 
+        # 初始化 Prometheus 指标指引
+        try:
+            prometheus_guidance = self.initialize_prometheus_guidance()
+            providers["prometheus_guidance"] = prometheus_guidance
+            logger.info("Prometheus guidance initialized")
+        except Exception as e:
+            logger.warning(f"Initialize Prometheus guidance failed: {e}")
+            providers["prometheus_guidance"] = None
+
         return providers
 
     def get_default_cluster(self, config: Dict[str, Any]) -> str:
@@ -151,3 +161,159 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
                 raise RuntimeError(f"SLS client initialization failed: {str(e)}")
         
         return sls_client_factory
+
+    def initialize_prometheus_guidance(self) -> Dict[str, Any]:
+        """初始化 Prometheus 指标指引数据。"""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        guidance_dir = os.path.join(base_dir, "prometheus_metrics_guidance")
+        
+        guidance_data = {
+            "metrics_dictionary": {},
+            "promql_best_practice": {},
+            "initialized": True,
+            "error": None
+        }
+        
+        try:
+            # 读取指标定义文件
+            metrics_dict_dir = os.path.join(guidance_dir, "metrics_dictionary")
+            if os.path.isdir(metrics_dict_dir):
+                guidance_data["metrics_dictionary"] = self._load_metrics_dictionary(metrics_dict_dir)
+            
+            # 读取 PromQL 最佳实践文件
+            promql_practice_dir = os.path.join(guidance_dir, "promql_best_practice")
+            if os.path.isdir(promql_practice_dir):
+                guidance_data["promql_best_practice"] = self._load_promql_best_practice(promql_practice_dir)
+                
+        except Exception as e:
+            logger.error(f"Failed to initialize Prometheus guidance: {e}")
+            guidance_data["initialized"] = False
+            guidance_data["error"] = str(e)
+            
+        return guidance_data
+
+    def _load_metrics_dictionary(self, directory: str) -> Dict[str, Any]:
+        """加载指标定义文件。"""
+        metrics_data = {}
+        
+        for filename in os.listdir(directory):
+            if not filename.endswith('.json'):
+                continue
+                
+            file_path = os.path.join(directory, filename)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    
+                # 提取文件名作为key（去掉.json后缀）
+                key = filename[:-5] if filename.endswith('.json') else filename
+                metrics_data[key] = data
+                
+            except Exception as e:
+                logger.warning(f"Failed to load metrics dictionary file {filename}: {e}")
+                continue
+                
+        return metrics_data
+
+    def _load_promql_best_practice(self, directory: str) -> Dict[str, Any]:
+        """加载 PromQL 最佳实践文件。"""
+        practice_data = {}
+        
+        for filename in os.listdir(directory):
+            if not filename.endswith('.json'):
+                continue
+                
+            file_path = os.path.join(directory, filename)
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    
+                # 提取文件名作为key（去掉.json后缀）
+                key = filename[:-5] if filename.endswith('.json') else filename
+                practice_data[key] = data
+                
+            except Exception as e:
+                logger.warning(f"Failed to load PromQL best practice file {filename}: {e}")
+                continue
+                
+        return practice_data
+
+    def query_metrics_by_category_and_label(self, category: str, resource_label: str) -> List[Dict[str, Any]]:
+        """根据分类和资源标签查询指标定义。"""
+        # 重新初始化指引数据
+        guidance = self.initialize_prometheus_guidance()
+        if not guidance or not guidance.get("initialized"):
+            return []
+            
+        metrics = []
+        metrics_dict = guidance.get("metrics_dictionary", {})
+        
+        for file_key, file_data in metrics_dict.items():
+            # 处理不同的文件结构
+            metrics_list = []
+            if isinstance(file_data, list):
+                # 直接是数组结构
+                metrics_list = file_data
+            elif isinstance(file_data, dict):
+                if "metrics" in file_data:
+                    metrics_list = file_data["metrics"]
+                elif isinstance(file_data.get("metrics"), list):
+                    metrics_list = file_data["metrics"]
+            else:
+                continue
+                
+            # 过滤指标
+            for metric in metrics_list:
+                if not isinstance(metric, dict):
+                    continue
+                    
+                metric_category = str(metric.get("category", "")).lower()
+                metric_labels = metric.get("labels", []) or []
+                
+                if (metric_category == category.lower()) and (resource_label in metric_labels):
+                    metrics.append({
+                        "file_source": file_key,
+                        "metric": metric
+                    })
+                    
+        return metrics
+
+    def query_promql_practices_by_category_and_label(self, category: str, resource_label: str) -> List[Dict[str, Any]]:
+        """根据分类和资源标签查询 PromQL 最佳实践。"""
+        # 重新初始化指引数据
+        guidance = self.initialize_prometheus_guidance()
+        if not guidance or not guidance.get("initialized"):
+            return []
+            
+        practices = []
+        practice_dict = guidance.get("promql_best_practice", {})
+        
+        for file_key, file_data in practice_dict.items():
+            # 处理不同的文件结构
+            rules_list = []
+            if isinstance(file_data, list):
+                # 直接是数组结构
+                rules_list = file_data
+            elif isinstance(file_data, dict):
+                if "rules" in file_data:
+                    rules_list = file_data["rules"]
+                elif isinstance(file_data.get("rules"), list):
+                    rules_list = file_data["rules"]
+            else:
+                continue
+                
+            # 过滤规则
+            for rule in rules_list:
+                if not isinstance(rule, dict):
+                    continue
+                    
+                rule_category = str(rule.get("category", "")).lower()
+                rule_labels = rule.get("labels", []) or []
+                
+                if (rule_category == category.lower()) and (resource_label in rule_labels):
+                    practices.append({
+                        "file_source": file_key,
+                        "rule": rule
+                    })
+                    
+        return practices
