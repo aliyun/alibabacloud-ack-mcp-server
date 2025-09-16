@@ -273,7 +273,7 @@ def main():
         "--transport",
         "-t",
         type=str,
-        choices=["stdio", "sse"],
+        choices=["stdio", "sse", "http"],
         default="stdio",
         help="Transport method (default: stdio)"
     )
@@ -396,9 +396,9 @@ def main():
         if args.transport == "stdio":
             logger.info("Starting stdio server...")
             main_server.run()
-        elif args.transport == "sse":
+        elif args.transport == "http" or args.transport == "sse":
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            main_server.run(transport="sse", host=args.host, port=args.port)
+            main_server.run(transport=args.transport, host=args.host, port=args.port)
     
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")
