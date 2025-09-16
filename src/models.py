@@ -182,6 +182,28 @@ class QueryAuditLogsOutput(BaseModel):
 class AuditLogErrorCodes:
     SLS_CLIENT_INIT_AK_ERROR = "SLS_CLIENT_INIT_AK_ERROR"
     LOGSTORE_NOT_FOUND = "LOGSTORE_NOT_FOUND"
+    CLUSTER_NOT_FOUND = "CLUSTER_NOT_FOUND"
+    AUDIT_NOT_ENABLED = "AUDIT_NOT_ENABLED"
+
+
+# ==================== 集群审计项目信息相关模型 ====================
+
+class GetClusterAuditProjectInput(BaseModel):
+    """获取集群审计项目信息输入参数"""
+    cluster_id: str = Field(..., description="ACK 集群 ID")
+
+
+class ClusterAuditProjectInfo(BaseModel):
+    """集群审计项目信息"""
+    sls_project_name: Optional[str] = Field(None, description="集群 API Server 审计日志所在的 SLS Project")
+    audit_enabled: bool = Field(False, description="当前集群是否已启用 API Server 审计功能")
+
+
+class GetClusterAuditProjectOutput(BaseModel):
+    """获取集群审计项目信息输出结果"""
+    cluster_id: str = Field(..., description="集群 ID")
+    audit_info: Optional[ClusterAuditProjectInfo] = Field(None, description="审计项目信息")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
 
 
 # ==================== Kubectl 相关模型 ====================
@@ -208,5 +230,13 @@ class KubectlErrorCodes:
     CLUSTER_NOT_FOUND = "CLUSTER_NOT_FOUND"
     INVALID_CLUSTER_ID = "INVALID_CLUSTER_ID"
     KUBECTL_COMMAND_FAILED = "KUBECTL_COMMAND_FAILED"
+
+
+class GetCurrentTimeOutput(BaseModel):
+    """获取当前时间的输出模型"""
+    current_time_iso: str = Field(..., description="当前时间，ISO 8601 格式 (UTC)")
+    current_time_unix: int = Field(..., description="当前时间，Unix 时间戳（秒级）")
+    timezone: str = Field(default="UTC", description="时区信息")
+    error: Optional[ErrorModel] = None
 
 

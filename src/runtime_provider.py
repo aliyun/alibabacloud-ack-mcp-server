@@ -135,8 +135,10 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
                     access_key_id=access_key_id,
                     access_key_secret=access_key_secret,
                     region_id=region_id,
-                    endpoint=f"https://{region_id}.log.aliyuncs.com"
+                    # endpoint=f"https://{region_id}.log.aliyuncs.com"
                 )
+                # refer: https://help.aliyun.com/zh/sls/developer-reference/get-oss-ingestion
+                sls_config.endpoint = f"{region_id}.log.aliyuncs.com"
 
                 # 创建 SLS 客户端
                 sls_client = SLSClient(sls_config)

@@ -51,10 +51,41 @@ class FakeSLSClient:
         return FakeSLSResponse(self._response_logs)
 
 
-def make_handler_and_tool(settings=None):
+class FakeCSClient:
+    def __init__(self, audit_enabled=True, sls_project_name="k8s-log-test"):
+        self.audit_enabled = audit_enabled
+        self.sls_project_name = sls_project_name
+
+    def get_cluster_audit_project(self, cluster_id):
+        class FakeResponse:
+            class FakeBody:
+                def __init__(self, audit_enabled, sls_project_name):
+                    self.audit_enabled = audit_enabled
+                    self.sls_project_name = sls_project_name
+            def __init__(self, audit_enabled, sls_project_name):
+                self.body = self.FakeBody(audit_enabled, sls_project_name)
+        return FakeResponse(self.audit_enabled, self.sls_project_name)
+
+
+class FakeCSClientFactory:
+    def __init__(self, audit_enabled=True, sls_project_name="k8s-log-test"):
+        self.audit_enabled = audit_enabled
+        self.sls_project_name = sls_project_name
+
+    def __call__(self, region_id):
+        return FakeCSClient(self.audit_enabled, self.sls_project_name)
+
+
+def make_handler_and_tool(settings=None, tool_name="query_audit_logs"):
     server = FakeServer()
-    module_under_test.ACKAuditLogHandler(server, settings or {})
-    return server.tools["query_audit_logs"]
+    handler = module_under_test.ACKAuditLogHandler(server, settings)
+    # 根据指定的工具名称获取工具
+    if tool_name in server.tools:
+        tool = server.tools[tool_name]
+    else:
+        # 默认使用 query_audit_logs
+        tool = server.tools.get("query_audit_logs")
+    return handler, tool
 
 
 @pytest.mark.asyncio
@@ -84,14 +115,19 @@ async def test_query_audit_logs_success():
         }
     ]
 
-    tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
     def sls_client_factory(cluster_id: str, region_id: str):
         return FakeSLSClient(fake_logs)
 
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
+
     ctx = FakeContext({
         "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
-        "providers": {"sls_client_factory": sls_client_factory}
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
     })
 
     result = await tool(
@@ -99,6 +135,8 @@ async def test_query_audit_logs_success():
         cluster_id="c123456", 
         namespace="default", 
         verbs="get", 
+        start_time="2025-09-16T08:09:44Z",
+        end_time="2025-09-16T10:09:44Z",
         limit=10
     )
 
@@ -122,14 +160,19 @@ async def test_query_audit_logs_success():
 @pytest.mark.asyncio
 async def test_query_audit_logs_no_sls_client():
     """测试 SLS 客户端不可用的情况"""
-    tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
+
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
 
     ctx = FakeContext({
-        "config": {"access_key_id": "ak", "access_key_secret": "sk"},
-        "providers": {"sls_client_factory": None}
+        "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
+        "providers": {
+            "sls_client_factory": None,
+            "cs_client_factory": cs_client_factory
+        }
     })
 
-    result = await tool(ctx, cluster_id="c123456", namespace="default")
+    result = await tool(ctx, cluster_id="c123456", namespace="default", start_time="2025-09-16T08:09:44Z", end_time="2025-09-16T10:09:44Z")
 
     assert isinstance(result, QueryAuditLogsOutput)
     assert result.total == 0
@@ -141,14 +184,19 @@ async def test_query_audit_logs_no_sls_client():
 @pytest.mark.asyncio
 async def test_query_audit_logs_missing_cluster_id():
     """测试缺少 cluster_id 参数的情况"""
-    tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
     def sls_client_factory(cluster_id: str, region_id: str):
         return FakeSLSClient([])
 
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
+
     ctx = FakeContext({
-        "config": {"access_key_id": "ak", "access_key_secret": "sk"},
-        "providers": {"sls_client_factory": sls_client_factory}
+        "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
     })
 
     result = await tool(ctx, cluster_id="", namespace="default")
@@ -163,17 +211,22 @@ async def test_query_audit_logs_missing_cluster_id():
 @pytest.mark.asyncio
 async def test_query_audit_logs_empty_result():
     """测试返回空结果的情况"""
-    tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
     def sls_client_factory(cluster_id: str, region_id: str):
         return FakeSLSClient([])
 
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
+
     ctx = FakeContext({
         "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
-        "providers": {"sls_client_factory": sls_client_factory}
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
     })
 
-    result = await tool(ctx, cluster_id="c123456", namespace="default")
+    result = await tool(ctx, cluster_id="c123456", namespace="default", start_time="2025-09-16T08:09:44Z", end_time="2025-09-16T10:09:44Z")
 
     assert isinstance(result, QueryAuditLogsOutput)
     assert result.total == 0
@@ -203,14 +256,19 @@ async def test_query_audit_logs_with_filters():
         }
     ]
 
-    tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
     def sls_client_factory(cluster_id: str, region_id: str):
         return FakeSLSClient(fake_logs)
 
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
+
     ctx = FakeContext({
         "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
-        "providers": {"sls_client_factory": sls_client_factory}
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
     })
 
     result = await tool(
@@ -221,8 +279,8 @@ async def test_query_audit_logs_with_filters():
         resource_types="deployments",
         resource_name="nginx-deployment",
         user="kube-admin",
-        start_time="1h",
-        end_time="30m",
+        start_time="2025-09-16T08:09:44Z",
+        end_time="2025-09-16T10:09:44Z",
         limit=50
     )
 
@@ -242,14 +300,19 @@ async def test_query_audit_logs_with_filters():
 @pytest.mark.asyncio
 async def test_query_audit_logs_limit_validation():
     """测试结果限制验证"""
-    tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
     def sls_client_factory(cluster_id: str, region_id: str):
         return FakeSLSClient([])
 
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
+
     ctx = FakeContext({
         "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
-        "providers": {"sls_client_factory": sls_client_factory}
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
     })
 
     # 测试超过最大限制的情况
@@ -260,35 +323,98 @@ async def test_query_audit_logs_limit_validation():
     assert result.total == 0
 
 
-def test_parse_time_relative():
-    """测试相对时间解析"""
-    # 测试分钟
-    timestamp = module_under_test._parse_time("30m")
+@pytest.mark.asyncio
+async def test_query_audit_logs_audit_not_enabled():
+    """测试审计功能未启用的情况"""
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
+
+    def sls_client_factory(cluster_id: str, region_id: str):
+        return FakeSLSClient([])
+
+    cs_client_factory = FakeCSClientFactory(audit_enabled=False, sls_project_name=None)
+
+    ctx = FakeContext({
+        "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
+    })
+
+    result = await tool(ctx, cluster_id="c123456", namespace="default", start_time="2025-09-16T08:09:44Z", end_time="2025-09-16T10:09:44Z")
+
+    assert isinstance(result, QueryAuditLogsOutput)
+    assert result.total == 0
+    assert result.entries == []
+    assert result.error is not None
+    assert result.error.error_code == AuditLogErrorCodes.AUDIT_NOT_ENABLED
+    assert "Audit logging is not enabled" in result.error.error_message
+
+
+@pytest.mark.asyncio
+async def test_query_audit_logs_no_sls_project_name():
+    """测试 SLS 项目名称缺失的情况"""
+    _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
+
+    def sls_client_factory(cluster_id: str, region_id: str):
+        return FakeSLSClient([])
+
+    cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name=None)
+
+    ctx = FakeContext({
+        "config": {"access_key_id": "ak", "access_key_secret": "sk", "region_id": "cn-hangzhou"},
+        "providers": {
+            "sls_client_factory": sls_client_factory,
+            "cs_client_factory": cs_client_factory
+        }
+    })
+
+    result = await tool(ctx, cluster_id="c123456", namespace="default", start_time="2025-09-16T08:09:44Z", end_time="2025-09-16T10:09:44Z")
+
+    assert isinstance(result, QueryAuditLogsOutput)
+    assert result.total == 0
+    assert result.entries == []
+    assert result.error is not None
+    assert result.error.error_code == AuditLogErrorCodes.LOGSTORE_NOT_FOUND
+    assert "SLS project name not found" in result.error.error_message
+
+
+def test_parse_time_iso_format():
+    """测试 ISO 8601 格式解析"""
+    # 测试 UTC 时间格式
+    timestamp = module_under_test._parse_time("2025-09-16T08:09:44Z")
     assert isinstance(timestamp, int)
     assert timestamp > 0
     
-    # 测试小时
-    timestamp = module_under_test._parse_time("1h")
-    assert isinstance(timestamp, int)
-    assert timestamp > 0
-    
-    # 测试天
-    timestamp = module_under_test._parse_time("7d")
+    # 测试带时区的时间格式
+    timestamp = module_under_test._parse_time("2025-09-16T08:09:44+08:00")
     assert isinstance(timestamp, int)
     assert timestamp > 0
 
 
-def test_parse_time_iso():
-    """测试 ISO 时间格式解析"""
-    timestamp = module_under_test._parse_time("2024-01-01T10:00:00")
+def test_parse_time_unix_timestamp():
+    """测试 Unix 时间戳解析"""
+    # 测试秒级时间戳
+    timestamp = module_under_test._parse_time("1758037055")
     assert isinstance(timestamp, int)
-    assert timestamp > 0
+    assert timestamp == 1758037055
+    
+    # 测试毫秒级时间戳
+    timestamp = module_under_test._parse_time("1758037055000")
+    assert isinstance(timestamp, int)
+    assert timestamp == 1758037055  # 应该转换为秒级
 
 
 def test_parse_time_invalid():
     """测试无效时间格式"""
     with pytest.raises(ValueError):
         module_under_test._parse_time("invalid-time")
+    
+    with pytest.raises(ValueError):
+        module_under_test._parse_time("now-4h")
+    
+    with pytest.raises(ValueError):
+        module_under_test._parse_time("30m")
 
 
 def test_build_sls_query():
@@ -306,9 +432,9 @@ def test_build_sls_query():
     
     query = module_under_test._build_sls_query(params)
     
-    assert "objectRef.namespace: \"default\"" in query
-    assert "verb: \"get\"" in query or "verb: \"list\"" in query
-    assert "objectRef.resource: \"pods\"" in query or "objectRef.resource: \"services\"" in query
+    assert "objectRef.namespace: default" in query
+    assert "verb: get" in query or "verb: list" in query
+    assert "objectRef.resource: pods" in query or "objectRef.resource: services" in query
     assert "objectRef.name: nginx-*" in query
     assert "user.username: system:*" in query
 
@@ -436,3 +562,7 @@ def test_audit_log_error_codes():
     """测试错误码常量"""
     assert AuditLogErrorCodes.SLS_CLIENT_INIT_AK_ERROR == "SLS_CLIENT_INIT_AK_ERROR"
     assert AuditLogErrorCodes.LOGSTORE_NOT_FOUND == "LOGSTORE_NOT_FOUND"
+    assert AuditLogErrorCodes.CLUSTER_NOT_FOUND == "CLUSTER_NOT_FOUND"
+    assert AuditLogErrorCodes.AUDIT_NOT_ENABLED == "AUDIT_NOT_ENABLED"
+
+

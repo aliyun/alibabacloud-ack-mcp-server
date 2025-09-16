@@ -28,6 +28,8 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from fastmcp import FastMCP
 
+from ack_audit_log_handler import ACKAuditLogHandler
+
 # 尝试导入python-dotenv
 try:
     from dotenv import load_dotenv
@@ -162,6 +164,8 @@ def create_main_server(
     DiagnoseHandler(main_mcp, settings)
     # Register inspect tools
     InspectHandler(main_mcp, settings)
+    # Register audit log tools
+    ACKAuditLogHandler(main_mcp, settings)
 
     return main_mcp
 
