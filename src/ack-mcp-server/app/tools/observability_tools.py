@@ -22,8 +22,12 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
     @mcp_server.tool("cms_translate_text_to_promql")
     async def cms_translate_text_to_promql(
-        cluster_id: Annotated[str, Field(description="目标集群的ID。")],
-        text: Annotated[str, Field(description="用于生成 PromQL 的自然语言文本。")],
+        cluster_id: str = Field(
+            ..., description="目标集群的ID。"
+        ),
+        text: str = Field(
+            ..., description="用于生成 PromQL 的自然语言文本。"
+        ),
     ) -> str:
         """
         将自然语言文本转换为指定集群的 Prometheus PromQL 查询语句。
@@ -57,16 +61,18 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
     @mcp_server.tool("cms_execute_promql_query")
     async def cms_execute_promql_query(
-        cluster_id: Annotated[str, Field(description="目标集群的ID。")],
-        query: Annotated[str, Field(description="要执行的 PromQL 查询语句。")],
-        from_timestamp: Annotated[
-            Optional[int],
-            Field(description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。"),
-        ] = None,
-        to_timestamp: Annotated[
-            Optional[int],
-            Field(description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。"),
-        ] = None,
+        cluster_id: str = Field(
+            ..., description="目标集群的ID。"
+        ),
+        query: str = Field(
+            ..., description="要执行的 PromQL 查询语句。"
+        ),
+        from_timestamp: Optional[int] = Field(
+            None, description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。"
+        ),
+        to_timestamp: Optional[int] = Field(
+            None, description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。"
+        ),
     ) -> List[Dict[str, Any]]:
         """
         在指定集群的 ARMS 指标库中执行 PromQL 查询并返回结果。
@@ -116,16 +122,15 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
     @mcp_server.tool("sls_translate_text_to_sql_query")
     async def sls_translate_text_to_sql_query(
-        cluster_id: Annotated[str, Field(description="目标集群的ID。")],
-        text: Annotated[
-            str, Field(description="用于生成 SLS SQL 查询的自然语言文本。")
-        ],
-        logstore: Annotated[
-            Optional[str],
-            Field(
-                description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。除非您需要查询特定的非默认日志库，否则建议不填写此项。"
-            ),
-        ] = None,
+        cluster_id: str = Field(
+            ..., description="目标集群的ID。"
+        ),
+        text: str = Field(
+            ..., description="用于生成 SLS SQL 查询的自然语言文本。"
+        ),
+        logstore: Optional[str] = Field(
+            None, description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。"
+        ),
     ) -> str:
         """
         将自然语言文本转换为指定集群日志库的 SLS Log-SQL 查询语句。
@@ -170,26 +175,24 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
     @mcp_server.tool("sls_execute_sql_query")
     async def sls_execute_sql_query(
-        cluster_id: Annotated[str, Field(description="目标集群的ID。")],
-        query: Annotated[str, Field(description="要执行的 Log-SQL 查询语句。")],
-        logstore: Annotated[
-            Optional[str],
-            Field(
-                description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。除非您需要查询特定的非默认日志库，否则建议不填写此项。"
-            ),
-        ] = None,
-        limit: Annotated[
-            int,
-            Field(description="返回结果的最大数量，范围1-100，默认100。", ge=1, le=100),
-        ] = 100,
-        from_timestamp: Annotated[
-            Optional[int],
-            Field(description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。"),
-        ] = None,
-        to_timestamp: Annotated[
-            Optional[int],
-            Field(description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。"),
-        ] = None,
+        cluster_id: str = Field(
+            ..., description="目标集群的ID。"
+        ),
+        query: str = Field(
+            ..., description="要执行的 Log-SQL 查询语句。"
+        ),
+        logstore: Optional[str] = Field(
+            None, description="可选的日志库名称。如果留空，将自动使用与 cluster_id 关联的默认日志库。"
+        ),
+        limit: int = Field(
+            100, description="返回结果的最大数量，范围1-100，默认100。", ge=1, le=100
+        ),
+        from_timestamp: Optional[int] = Field(
+            None, description="查询开始时间戳（秒，Unix Timestamp）。默认为一小时前。"
+        ),
+        to_timestamp: Optional[int] = Field(
+            None, description="查询结束时间戳（秒，Unix Timestamp）。默认为当前时间。"
+        ),
     ) -> List[Dict[str, Any]]:
         """
         在指定集群的 SLS 日志库中执行 Log-SQL 查询并返回结果。
@@ -241,9 +244,15 @@ def register_observability_tools(mcp_server: FastMCP, obs_svc: ObservabilityServ
 
     @mcp_server.tool("sls_diagnose_query")
     async def sls_diagnose_query(
-        cluster_id: Annotated[str, Field(description="目标集群的ID。")],
-        query: Annotated[str, Field(description="需要诊断的 SLS 查询语句。")],
-        error_message: Annotated[str, Field(description="执行查询时返回的错误信息。")],
+        cluster_id: str = Field(
+            ..., description="目标集群的ID。"
+        ),
+        query: str = Field(
+            ..., description="需要诊断的 SLS 查询语句。"
+        ),
+        error_message: str = Field(
+            ..., description="执行查询时返回的错误信息。"
+        ),
     ) -> str:
         """
         当 SLS 查询语句在指定集群的日志库中执行失败时，调用此工具进行诊断。

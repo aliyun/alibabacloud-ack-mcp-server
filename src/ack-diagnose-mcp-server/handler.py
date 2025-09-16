@@ -71,18 +71,22 @@ class ACKDiagnoseHandler:
             description="Create a cluster diagnosis task for ACK cluster"
         )
         async def create_cluster_diagnosis(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             diagnosis_type: Optional[str] = "cluster",
             target: Optional[Dict[str, Any]] = None,
-            ctx: Context = None,
         ) -> Dict[str, Any]:
             """Create cluster diagnosis task.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 diagnosis_type: Type of diagnosis (node, ingress, cluster, memory, pod, service, network)
                 target: Target specification for diagnosis
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Diagnosis task creation result
@@ -140,16 +144,20 @@ class ACKDiagnoseHandler:
             description="Get cluster diagnosis result"
         )
         async def get_cluster_diagnosis_result(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             diagnosis_id: str,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis result.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 diagnosis_id: Diagnosis task ID
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Diagnosis result
@@ -207,18 +215,22 @@ class ACKDiagnoseHandler:
             description="Get cluster diagnosis check items"
         )
         async def get_cluster_diagnosis_check_items(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             diagnosis_id: str,
             language: Optional[str] = "zh_CN",
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis check items.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 diagnosis_id: Diagnosis ID
                 language: Language for check items (zh_CN, en)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Available diagnosis check items
@@ -274,18 +286,22 @@ class ACKDiagnoseHandler:
             description="Get cluster inspection reports list"
         )
         async def list_cluster_inspect_reports(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             next_token: Optional[str] = None,
             max_results: Optional[int] = 20,
-            ctx: Context = None,
         ) -> Dict[str, Any]:
             """List cluster inspection reports.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 next_token: Pagination token for next page
                 max_results: Maximum number of results to return (max 50)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 List of inspection reports
@@ -335,16 +351,20 @@ class ACKDiagnoseHandler:
             description="Get cluster inspection result"
         )
         async def get_cluster_inspection_result(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             inspection_id: str,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection result.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 inspection_id: Inspection task ID
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Inspection result
@@ -400,18 +420,22 @@ class ACKDiagnoseHandler:
             description="Get cluster inspection check items"
         )
         async def get_cluster_inspection_check_items(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             inspection_id: str,
             language: Optional[str] = "zh_CN",
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection check items.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 inspection_id: Inspection ID
                 language: Language for check items (zh_CN, en)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Available inspection check items
@@ -466,18 +490,22 @@ class ACKDiagnoseHandler:
             description="Create a cluster inspection task for ACK cluster"
         )
         async def create_cluster_inspection(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             inspection_type: Optional[str] = "cluster",
             target: Optional[Dict[str, Any]] = None,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Create cluster inspection task.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 inspection_type: Type of inspection (node, ingress, cluster, memory, pod, service, network)
                 target: Target specification for inspection
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Inspection task creation result
@@ -535,6 +563,10 @@ class ACKDiagnoseHandler:
             description="Get cluster inspection report detail"
         )
         async def get_cluster_inspect_report_detail(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             report_id: str,
             language: Optional[str] = "zh_CN",
@@ -544,11 +576,12 @@ class ACKDiagnoseHandler:
             enable_filter: Optional[bool] = False,
             next_token: Optional[str] = None,
             max_results: Optional[int] = 20,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection report detail.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 report_id: Inspection report ID
                 language: Query language (zh_CN, en_US)
@@ -558,7 +591,6 @@ class ACKDiagnoseHandler:
                 enable_filter: Only return abnormal items when True
                 next_token: Pagination token
                 max_results: Maximum results per page (max 50)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Detailed inspection report
@@ -618,16 +650,20 @@ class ACKDiagnoseHandler:
             description="Run cluster inspection to create inspection report"
         )
         async def run_cluster_inspect(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             client_token: Optional[str] = None,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Run cluster inspection.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 client_token: Idempotent token (optional)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Inspection run result
@@ -679,18 +715,22 @@ class ACKDiagnoseHandler:
             description="Get cluster diagnosis report"
         )
         async def get_cluster_diagnosis_report(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             diagnosis_id: str,
             report_type: Optional[str] = "summary",
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster diagnosis report.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 diagnosis_id: Diagnosis task ID
                 report_type: Type of report (summary, detail, pdf)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Diagnosis report
@@ -746,20 +786,24 @@ class ACKDiagnoseHandler:
             description="Create cluster inspection configuration"
         )
         async def create_cluster_inspect_config(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             enabled: bool,
             recurrence: str,
             disabled_check_items: Optional[List[str]] = None,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Create cluster inspection configuration.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 enabled: Whether to enable inspection
                 recurrence: Inspection schedule using RFC5545 syntax (e.g., "FREQ=DAILY;BYHOUR=10;BYMINUTE=15")
                 disabled_check_items: List of disabled check items
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Configuration creation result
@@ -811,20 +855,24 @@ class ACKDiagnoseHandler:
             description="Update cluster inspection configuration"
         )
         async def update_cluster_inspect_config(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
             enabled: Optional[bool] = None,
             schedule_time: Optional[str] = None,
             disabled_check_items: Optional[List[str]] = None,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Update cluster inspection configuration.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 enabled: Whether to enable inspection
                 schedule_time: Inspection schedule using RFC5545 syntax
                 disabled_check_items: List of disabled check items
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Configuration update result
@@ -876,14 +924,18 @@ class ACKDiagnoseHandler:
             description="Get cluster inspection configuration"
         )
         async def get_cluster_inspect_config(
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             cluster_id: str,
-            ctx: Context = None
         ) -> Dict[str, Any]:
             """Get cluster inspection configuration.
             
             Args:
-                cluster_id: Target cluster ID
                 ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
+                cluster_id: Target cluster ID
                 
             Returns:
                 Inspection configuration

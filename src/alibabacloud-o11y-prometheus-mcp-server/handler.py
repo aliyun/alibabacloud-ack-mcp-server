@@ -28,17 +28,17 @@ from pydantic import BaseModel
 
 class ObservabilityAliyunPrometheusHandler:
     """aliyun observability tools manager"""
-
+    
     def __init__(self, server: FastMCP):
         """
         initialize the tools manager
-
+        
         Args:
             server: FastMCP server instance
         """
         self.server = server
         self._register_tools()
-
+    
     def _register_tools(self):
         """register alibabacloud prometheus related tools functions"""
 
@@ -143,10 +143,11 @@ class ObservabilityAliyunPrometheusHandler:
         @handle_tea_exception
         def get_cluster_aliyun_prometheus_endpoints(
                 ctx: Context,
-                clusterId: str = Field(..., description="Prometheus 实例 ID (ClusterId)"),
+                clusterId: str = Field(
+                    ..., description="Prometheus 实例 ID (ClusterId)"
+                ),
                 regionId: Optional[str] = Field(
-                    default=None,
-                    description="地域 ID，如 cn-hangzhou；默认取运行时配置 REGION_ID",
+                    None, description="地域 ID，如 cn-hangzhou；默认取运行时配置 REGION_ID"
                 ),
         ) -> dict:
             """获取指定 Prometheus 实例的访问端点信息。
@@ -159,6 +160,11 @@ class ObservabilityAliyunPrometheusHandler:
             - push_gateway_inter_url / push_gateway_intra_url
             - auth_token（如开启鉴权）
             - product, version, access_type 等概要信息
+
+            Args:
+                ctx: MCP上下文，用于访问ARMS客户端
+                clusterId: Prometheus 实例 ID (ClusterId)
+                regionId: 地域 ID，如 cn-hangzhou；默认取运行时配置 REGION_ID
             """
             # 读取 region 与客户端
             lifespan = ctx.request_context.lifespan_context
@@ -218,11 +224,29 @@ class ObservabilityAliyunPrometheusHandler:
 
         @self.server.tool()
         async def execute_prometheus_instant_query(
-                prometheus_endpoint: str = Field(..., description="Prometheus HTTP base endpoint, e.g. https://example.com/api/v1/"),
-                query_promql: str = Field(..., description="PromQL expression"),
-                time: Optional[str] = Field(None, description="RFC3339 or unix timestamp (optional)")
+                ctx: Context,
+                resource_type: str = Field(
+                    ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+                ),
+                prometheus_endpoint: str = Field(
+                    ..., description="Prometheus HTTP base endpoint, e.g. https://example.com/api/v1/"
+                ),
+                query_promql: str = Field(
+                    ..., description="PromQL expression"
+                ),
+                time: Optional[str] = Field(
+                    None, description="RFC3339 or unix timestamp (optional)"
+                )
         ) -> Dict[str, Any]:
-            """执行 Prometheus 瞬时查询 /api/v1/query"""
+            """执行 Prometheus 瞬时查询 /api/v1/query
+            
+            Args:
+                ctx: MCP上下文，用于访问生命周期提供者
+                resource_type: 资源类型，用于获取相关指标 (cluster, node, pod, namespace, )
+                prometheus_endpoint: Prometheus HTTP基础端点，例如 https://example.com/api/v1/
+                query_promql: PromQL表达式
+                time: RFC3339或unix时间戳（可选）
+            """
             params = {"query": query_promql}
             if time:
                 params["time"] = time
@@ -234,13 +258,37 @@ class ObservabilityAliyunPrometheusHandler:
 
         @self.server.tool()
         async def execute_prometheus_range_query(
-                prometheus_endpoint: str = Field(..., description="Prometheus HTTP base endpoint, e.g. https://example.com/api/v1/"),
-                query_promql: str = Field(..., description="PromQL expression"),
-                start: str = Field(..., description="range start (rfc3339 or unix)"),
-                end: str = Field(..., description="range end (rfc3339 or unix)"),
-                step: str = Field(..., description="query step, e.g. 30s")
+                ctx: Context,
+                resource_type: str = Field(
+                    ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+                ),
+                prometheus_endpoint: str = Field(
+                    ..., description="Prometheus HTTP base endpoint, e.g. https://example.com/api/v1/"
+                ),
+                query_promql: str = Field(
+                    ..., description="PromQL expression"
+                ),
+                start: str = Field(
+                    ..., description="range start (rfc3339 or unix)"
+                ),
+                end: str = Field(
+                    ..., description="range end (rfc3339 or unix)"
+                ),
+                step: str = Field(
+                    ..., description="query step, e.g. 30s"
+                )
         ) -> Dict[str, Any]:
-            """执行 Prometheus 区间查询 /api/v1/query_range"""
+            """执行 Prometheus 区间查询 /api/v1/query_range
+            
+            Args:
+                ctx: MCP上下文，用于访问生命周期提供者
+                resource_type: 资源类型，用于获取相关指标 (cluster, node, pod, namespace, )
+                prometheus_endpoint: Prometheus HTTP基础端点，例如 https://example.com/api/v1/
+                query_promql: PromQL表达式
+                start: 查询开始时间 (rfc3339或unix格式)
+                end: 查询结束时间 (rfc3339或unix格式)
+                step: 查询步长，例如 30s
+            """
             params = {"query": query_promql, "start": start, "end": end, "step": step}
             url = prometheus_endpoint + "/api/v1/query_range"
             async with httpx.AsyncClient(timeout=60.0) as client:
@@ -250,9 +298,21 @@ class ObservabilityAliyunPrometheusHandler:
 
         @self.server.tool()
         async def list_prometheus_metrics(
-                prometheus_endpoint: str = Field(..., description="Prometheus HTTP base endpoint")
+                ctx: Context,
+                resource_type: str = Field(
+                    ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+                ),
+                prometheus_endpoint: str = Field(
+                    ..., description="Prometheus HTTP base endpoint"
+                )
         ) -> List[str]:
-            """获取所有指标名 /api/v1/label/__name__/values"""
+            """获取所有指标名 /api/v1/label/__name__/values
+            
+            Args:
+                ctx: MCP上下文，用于访问生命周期提供者
+                resource_type: 资源类型，用于获取相关指标 (cluster, node, pod, namespace, )
+                prometheus_endpoint: Prometheus HTTP基础端点
+            """
             url = prometheus_endpoint + "/api/v1/label/__name__/values"
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.get(url)
@@ -264,10 +324,25 @@ class ObservabilityAliyunPrometheusHandler:
 
         @self.server.tool()
         async def get_prometheus_metric_metadata(
-                prometheus_endpoint: str = Field(..., description="Prometheus HTTP base endpoint"),
-                metric_name: str = Field(..., description="metric name")
+                ctx: Context,
+                resource_type: str = Field(
+                    ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+                ),
+                prometheus_endpoint: str = Field(
+                    ..., description="Prometheus HTTP base endpoint"
+                ),
+                metric_name: str = Field(
+                    ..., description="metric name"
+                )
         ) -> List[Dict[str, Any]]:
-            """获取指标元数据 /api/v1/metadata?metric=<name>"""
+            """获取指标元数据 /api/v1/metadata?metric=<name>
+            
+            Args:
+                ctx: MCP上下文，用于访问生命周期提供者
+                resource_type: 资源类型，用于获取相关指标 (cluster, node, pod, namespace, )
+                prometheus_endpoint: Prometheus HTTP基础端点
+                metric_name: 指标名称
+            """
             url = prometheus_endpoint + "/api/v1/metadata"
             params = {"metric": metric_name}
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -401,7 +476,12 @@ class ObservabilityAliyunPrometheusHandler:
                     ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
                 ),
         ) -> MetricsGuidanceResponse:
-            """遍历 ack_metrics_guidance 目录的 JSON，匹配入参 resource_type 的 labels 提示集。"""
+            """遍历 ack_metrics_guidance 目录的 JSON，匹配入参 resource_type 的 labels 提示集。
+            
+            Args:
+                ctx: MCP上下文，用于访问生命周期提供者
+                resource_type: 资源类型，用于获取相关指标 (cluster, node, pod, namespace, )
+            """
             base_dir = os.path.dirname(os.path.abspath(__file__))
             guidance_dir = os.path.join(base_dir, 'ack_metrics_guidance')
             matched_files: List[str] = []

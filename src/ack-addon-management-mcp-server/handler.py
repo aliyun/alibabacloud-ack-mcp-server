@@ -6,6 +6,7 @@ from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 from alibabacloud_cs20151215.client import Client as CS20151215Client
+from pydantic import Field
 
 
 def _serialize_sdk_object(obj):
@@ -70,24 +71,28 @@ class ACKAddonManagementHandler:
             description="List available addons for ACK cluster"
         )
         async def list_addons(
-            region_id: Optional[str] = None,
-            cluster_type: Optional[str] = None,
-            profile: Optional[str] = None,
-            cluster_spec: Optional[str] = None,
-            cluster_version: Optional[str] = None,
-            cluster_id: Optional[str] = None,
-            ctx: Optional[Context] = None
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            region_id: Optional[str] = Field(None, description="Region filter (optional)"),
+            cluster_type: Optional[str] = Field(None, description="Cluster type filter (optional)"),
+            profile: Optional[str] = Field(None, description="Cluster profile filter (optional)"),
+            cluster_spec: Optional[str] = Field(None, description="Cluster spec filter (optional)"),
+            cluster_version: Optional[str] = Field(None, description="Cluster version filter (optional)"),
+            cluster_id: Optional[str] = Field(None, description="Cluster ID filter (optional)"),
         ) -> Dict[str, Any]:
             """List available addons.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 region_id: Region filter (optional)
                 cluster_type: Cluster type filter (optional)
                 profile: Cluster profile filter (optional)
                 cluster_spec: Cluster spec filter (optional)
                 cluster_version: Cluster version filter (optional)
                 cluster_id: Specific cluster ID (optional)
-                ctx: FastMCP context containing lifespan providers (optional)
                 
             Returns:
                 List of available addons
@@ -159,14 +164,18 @@ class ACKAddonManagementHandler:
             description="List installed addon instances for ACK cluster"
         )
         async def list_cluster_addon_instances(
+            ctx: Context,
             cluster_id: str,
-            ctx: Optional[Context] = None
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """List installed addon instances for cluster.
             
             Args:
-                cluster_id: Target cluster ID
                 ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
+                cluster_id: Target cluster ID
                 
             Returns:
                 List of installed addon instances
@@ -217,16 +226,20 @@ class ACKAddonManagementHandler:
             description="Get detailed information of a specific addon instance"
         )
         async def get_cluster_addon_instance(
+            ctx: Context,
             cluster_id: str,
             addon_name: str,
-            ctx: Optional[Context] = None
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Get detailed information of a specific addon instance.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 addon_name: Addon name
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Addon detailed information
@@ -279,25 +292,29 @@ class ACKAddonManagementHandler:
             description="Describe addon information"
         )
         async def describe_addon(
+            ctx: Context,
             addon_name: str,
-            region_id: Optional[str] = None,
-            cluster_type: Optional[str] = None,
-            profile: Optional[str] = None,
-            cluster_spec: Optional[str] = None,
-            cluster_version: Optional[str] = None,
-            cluster_id: Optional[str] = None,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            region_id: Optional[str] = Field(None),
+            cluster_type: Optional[str] = Field(None),
+            profile: Optional[str] = Field(None),
+            cluster_spec: Optional[str] = Field(None),
+            cluster_version: Optional[str] = Field(None),
+            cluster_id: Optional[str] = Field(None),
             version: Optional[str] = None,
-            ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Describe addon information.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 addon_name: Addon name
                 cluster_spec: Cluster spec filter
                 cluster_type: Cluster type filter
                 cluster_version: Cluster version filter
                 region: Region filter
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Addon information
@@ -374,19 +391,23 @@ class ACKAddonManagementHandler:
             description="Install addons to ACK cluster"
         )
         async def install_cluster_addons(
+            ctx: Context,
             cluster_id: str,
             addons: List[Dict[str, Any]],
-            ctx: Optional[Context] = None
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Install addons to cluster.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 addons: List of addons to install, each addon should contain:
                        - name: Addon name (required)
                        - version: Addon version (optional)
                        - config: Addon configuration (optional)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Installation result
@@ -449,18 +470,22 @@ class ACKAddonManagementHandler:
             description="Uninstall addons from ACK cluster"
         )
         async def uninstall_cluster_addons(
+            ctx: Context,
             cluster_id: str,
             addons: List[Dict[str, Any]],
-            ctx: Optional[Context] = None
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Uninstall addons from cluster.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 addons: List of addons to uninstall, each addon should contain:
                        - name: Addon name (required)
                        - cleanup_cloud_resources: Whether to cleanup cloud resources (optional)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Uninstallation result
@@ -522,18 +547,22 @@ class ACKAddonManagementHandler:
             description="Modify cluster addon configuration"
         )
         async def modify_cluster_addon(
+            ctx: Context,
             cluster_id: str,
             addon_name: str,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
             config: Optional[str] = None,
-            ctx: Optional[Context] = None
         ) -> Dict[str, Any]:
             """Modify cluster addon configuration.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 addon_name: Addon name
                 config: Addon configuration in JSON string format
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Modification result
@@ -593,13 +622,18 @@ class ACKAddonManagementHandler:
             description="Upgrade cluster addons"
         )
         async def upgrade_cluster_addons(
+            ctx: Context,
             cluster_id: str,
             addons: List[Dict[str, Any]],
-            ctx: Optional[Context] = None
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Upgrade cluster addons.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 addons: List of addons to upgrade, each addon should contain:
                        - component_name: Addon name (required)
@@ -607,7 +641,6 @@ class ACKAddonManagementHandler:
                        - version: Current version (optional)
                        - config: Addon configuration (optional)
                        - policy: Upgrade policy, overwrite or canary (optional)
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Upgrade result

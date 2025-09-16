@@ -9,6 +9,7 @@ from alibabacloud_cs20151215.client import Client as CS20151215Client
 from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_credentials.client import Client as CredentialClient
 import json
+from pydantic import Field
 
 
 def _serialize_sdk_object(obj):
@@ -88,19 +89,24 @@ class ACKClusterManagementHandler:
             description="List and query ACK clusters"
         )
         async def describe_clusters(
-            cluster_name: Optional[str] = None,
-            cluster_type: Optional[str] = None,
-            cluster_spec: Optional[str] = None,
-            profile: Optional[str] = None,
-            region_id: Optional[str] = None,
-            cluster_id: Optional[str] = None,
-            page_size: Optional[int] = 10,
-            page_number: Optional[int] = 1,
-            ctx: Context = None
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            cluster_name: Optional[str] = Field(None, description="Cluster name filter"),
+            cluster_type: Optional[str] = Field(None, description="Cluster type (Kubernetes, ManagedKubernetes, ExternalKubernetes)"),
+            cluster_spec: Optional[str] = Field(None, description="Cluster spec (ack.pro.small, ack.standard)"),
+            profile: Optional[str] = Field(None, description="Cluster profile (Default, Edge, Serverless, Lingjun)"),
+            region_id: Optional[str] = Field(None, description="Region ID filter"),
+            cluster_id: Optional[str] = Field(None, description="Specific cluster ID"),
+            page_size: Optional[int] = Field(10, description="Page size (max 100), if not set is default 10."),
+            page_number: Optional[int] = Field(1, description="Page number, if not set is default 1."),
         ) -> Dict[str, Any]:
             """List ACK clusters.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_name: Cluster name filter
                 cluster_type: Cluster type (Kubernetes, ManagedKubernetes, ExternalKubernetes)
                 cluster_spec: Cluster spec (ack.pro.small, ack.standard)
@@ -109,7 +115,6 @@ class ACKClusterManagementHandler:
                 cluster_id: Specific cluster ID
                 page_size: Page size (max 100), if not set is default 10.
                 page_number: Page number
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 List of clusters
@@ -178,16 +183,20 @@ class ACKClusterManagementHandler:
             description="Quick list brief all clusters and output. default page_size 500."
         )
         async def describe_clusters_brief(
-            regions: Optional[List[str]] = None,
-            page_size: Optional[int] = 500,
-            ctx: Context = None
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            regions: Optional[List[str]] = Field(None, description="Region list to query; defaults to common regions"),
+            page_size: Optional[int] = Field(500, description="Page size, default 500"),
         ) -> Dict[str, Any]:
             """List clusters with brief fields across regions.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 regions: Region list to query; defaults to common regions
                 page_size: Page size, default 500
-                ctx: FastMCP context containing lifespan providers
             
             Returns:
                 Brief cluster list with fields: name, cluster_id, state, region_id, node_count, cluster_type
@@ -242,14 +251,18 @@ class ACKClusterManagementHandler:
             description="Get detailed information of a specific ACK cluster"
         )
         async def describe_cluster_detail(
-            cluster_id: str,
-            ctx: Context = None
+            ctx: Context,
+            cluster_id: str = Field(..., description="Target cluster ID"),
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Get cluster detailed information.
             
             Args:
-                cluster_id: Target cluster ID
                 ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
+                cluster_id: Target cluster ID
                 
             Returns:
                 Detailed cluster information
@@ -295,21 +308,26 @@ class ACKClusterManagementHandler:
             description="Modify ACK cluster configuration"
         )
         async def modify_cluster(
-            cluster_id: str,
-            cluster_name: Optional[str] = None,
-            deletion_protection: Optional[bool] = None,
-            instance_deletion_protection: Optional[bool] = None,
-            resource_group_id: Optional[str] = None,
-            api_server_eip: Optional[bool] = None,
-            api_server_eip_id: Optional[str] = None,
-            ingress_domain_rebinding: Optional[bool] = None,
-            ingress_loadbalancer_id: Optional[str] = None,
-            enable_rrsa: Optional[bool] = None,
-            ctx: Context = None
+            ctx: Context,
+            cluster_id: str = Field(..., description="Target cluster ID"),
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            cluster_name: Optional[str] = Field(None, description="New cluster name"),
+            deletion_protection: Optional[bool] = Field(None, description="Enable cluster deletion protection"),
+            instance_deletion_protection: Optional[bool] = Field(None, description="Enable instance deletion protection"),
+            resource_group_id: Optional[str] = Field(None, description="Resource group ID"),
+            api_server_eip: Optional[bool] = Field(None, description="Bind EIP to API Server"),
+            api_server_eip_id: Optional[str] = Field(None, description="EIP instance ID for API Server"),
+            ingress_domain_rebinding: Optional[bool] = Field(None, description="Rebind ingress test domain"),
+            ingress_loadbalancer_id: Optional[str] = Field(None, description="Ingress LoadBalancer ID"),
+            enable_rrsa: Optional[bool] = Field(None, description="Enable RRSA functionality"),
         ) -> Dict[str, Any]:
             """Modify cluster configuration.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 cluster_name: New cluster name
                 deletion_protection: Enable cluster deletion protection
@@ -320,7 +338,6 @@ class ACKClusterManagementHandler:
                 ingress_domain_rebinding: Rebind ingress test domain
                 ingress_loadbalancer_id: Ingress LoadBalancer ID
                 enable_rrsa: Enable RRSA functionality
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Modification result
@@ -396,14 +413,18 @@ class ACKClusterManagementHandler:
             description="Get task information"
         )
         async def describe_task_info(
-            task_id: str,
-            ctx: Context = None
+            ctx: Context,
+            task_id: str = Field(..., description="Task ID"),
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Get task information.
             
             Args:
-                task_id: Task ID
                 ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
+                task_id: Task ID
                 
             Returns:
                 Task information
@@ -450,25 +471,30 @@ class ACKClusterManagementHandler:
             description="Create a new ACK cluster"
         )
         async def create_cluster(
-            name: str,
-            region_id: str,
-            cluster_type: str,
-            kubernetes_version: str,
-            cluster_spec: str,
-            vpc_id: Optional[str] = None,
-            vswitch_ids: Optional[List[str]] = None,
-            container_cidr: Optional[str] = None,
-            service_cidr: Optional[str] = None,
-            master_instance_types: Optional[List[str]] = None,
-            worker_instance_types: Optional[List[str]] = None,
-            num_of_nodes: Optional[int] = None,
-            login_password: Optional[str] = None,
-            key_pair: Optional[str] = None,
-            ctx: Context = None
+            ctx: Context,
+            name: str = Field(..., description="Cluster name"),
+            region_id: str = Field(..., description="Region ID"),
+            cluster_type: str = Field(..., description="Cluster type (ManagedKubernetes, Kubernetes)"),
+            kubernetes_version: str = Field(..., description="Kubernetes version"),
+            cluster_spec: str = Field(..., description="Cluster spec"),
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            vpc_id: Optional[str] = Field(None, description="VPC ID"),
+            vswitch_ids: Optional[List[str]] = Field(None, description="VSwitch IDs"),
+            container_cidr: Optional[str] = Field(None, description="Container CIDR"),
+            service_cidr: Optional[str] = Field(None, description="Service CIDR"),
+            master_instance_types: Optional[List[str]] = Field(None, description="Master instance types"),
+            worker_instance_types: Optional[List[str]] = Field(None, description="Worker instance types"),
+            num_of_nodes: Optional[int] = Field(None, description="Number of worker nodes"),
+            login_password: Optional[str] = Field(None, description="Login password"),
+            key_pair: Optional[str] = Field(None, description="Key pair name"),
         ) -> Dict[str, Any]:
             """Create a new ACK cluster.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 name: Cluster name
                 region_id: Region ID
                 cluster_type: Cluster type (ManagedKubernetes, Kubernetes)
@@ -483,7 +509,6 @@ class ACKClusterManagementHandler:
                 num_of_nodes: Number of worker nodes
                 login_password: Login password
                 key_pair: Key pair name
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Cluster creation result
@@ -564,16 +589,20 @@ class ACKClusterManagementHandler:
             description="Delete an ACK cluster"
         )
         async def delete_cluster(
-            cluster_id: str,
-            retain_all_resources: Optional[bool] = False,
-            ctx: Context = None
+            ctx: Context,
+            cluster_id: str = Field(..., description="Target cluster ID"),
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            retain_all_resources: Optional[bool] = Field(False, description="Whether to retain all resources"),
         ) -> Dict[str, Any]:
             """Delete an ACK cluster.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 retain_all_resources: Whether to retain all resources
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Cluster deletion result
@@ -630,18 +659,22 @@ class ACKClusterManagementHandler:
             description="Upgrade an ACK cluster"
         )
         async def upgrade_cluster(
-            cluster_id: str,
-            next_version: str,
-            master_only: Optional[bool] = False,
-            ctx: Context = None
+            ctx: Context,
+            cluster_id: str = Field(..., description="Target cluster ID"),
+            next_version: str = Field(..., description="Target Kubernetes version"),
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            master_only: Optional[bool] = Field(False, description="Upgrade master only"),
         ) -> Dict[str, Any]:
             """Upgrade an ACK cluster.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 cluster_id: Target cluster ID
                 next_version: Target Kubernetes version
                 master_only: Whether to upgrade master only
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Cluster upgrade result
@@ -701,14 +734,18 @@ class ACKClusterManagementHandler:
             description="Get cluster logs"
         )
         async def describe_cluster_logs(
+            ctx: Context,
             cluster_id: str,
-            ctx: Context = None
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Get cluster logs.
             
             Args:
-                cluster_id: Target cluster ID
                 ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
+                cluster_id: Target cluster ID
                 
             Returns:
                 Cluster logs
@@ -756,12 +793,16 @@ class ACKClusterManagementHandler:
             description="Get user quota information"
         )
         async def describe_user_quota(
-            ctx: Context = None
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
         ) -> Dict[str, Any]:
             """Get user quota information.
             
             Args:
                 ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 
             Returns:
                 User quota information
@@ -806,16 +847,20 @@ class ACKClusterManagementHandler:
             description="Get Kubernetes version metadata"
         )
         async def describe_kubernetes_version_metadata(
-            region: Optional[str] = None,
-            cluster_type: Optional[str] = None,
-            ctx: Context = None
+            ctx: Context,
+            resource_type: str = Field(
+                ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
+            ),
+            region: Optional[str] = Field(None),
+            cluster_type: Optional[str] = Field(None),
         ) -> Dict[str, Any]:
             """Get Kubernetes version metadata.
             
             Args:
+                ctx: FastMCP context containing lifespan providers
+                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
                 region: Region ID
                 cluster_type: Cluster type
-                ctx: FastMCP context containing lifespan providers
                 
             Returns:
                 Kubernetes version metadata
