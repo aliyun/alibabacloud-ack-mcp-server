@@ -141,4 +141,47 @@ class ClusterErrorCodes:
     MISS_REGION_ID = "MISS_REGION_ID"
 
 
+# ACK Audit Log Models
+class QueryAuditLogsInput(BaseModel):
+    cluster_id: str = Field(..., description="集群ID，例如 cxxxxx")
+    namespace: Optional[str] = Field("default", description="命名空间，支持精确匹配和后缀通配符")
+    verbs: Optional[str] = Field(None, description="操作动词，多个值用逗号分隔，如 get,list,create")
+    resource_types: Optional[str] = Field(None, description="K8s资源类型，多个值用逗号分隔，如 pods,services")
+    resource_name: Optional[str] = Field(None, description="资源名称，支持精确匹配和后缀通配符")
+    user: Optional[str] = Field(None, description="用户名，支持精确匹配和后缀通配符")
+    start_time: Optional[str] = Field("24h", description="查询开始时间，支持ISO 8601格式或相对时间")
+    end_time: Optional[str] = Field(None, description="查询结束时间，支持ISO 8601格式或相对时间")
+    limit: Optional[int] = Field(10, description="结果限制，默认10，最大100")
+
+
+class AuditLogEntry(BaseModel):
+    timestamp: Optional[str] = Field(None, description="日志时间戳")
+    verb: Optional[str] = Field(None, description="操作动词")
+    resource_type: Optional[str] = Field(None, description="资源类型")
+    resource_name: Optional[str] = Field(None, description="资源名称")
+    namespace: Optional[str] = Field(None, description="命名空间")
+    user: Optional[str] = Field(None, description="用户名")
+    source_ips: Optional[List[str]] = Field(default_factory=list, description="源IP地址")
+    user_agent: Optional[str] = Field(None, description="用户代理")
+    response_code: Optional[int] = Field(None, description="响应代码")
+    response_status: Optional[str] = Field(None, description="响应状态")
+    request_uri: Optional[str] = Field(None, description="请求URI")
+    request_object: Optional[Dict[str, Any]] = Field(default_factory=dict, description="请求对象")
+    response_object: Optional[Dict[str, Any]] = Field(default_factory=dict, description="响应对象")
+    raw_log: Optional[str] = Field(None, description="原始日志内容")
+
+
+class QueryAuditLogsOutput(BaseModel):
+    query: Optional[str] = Field(None, description="查询语句")
+    entries: List[AuditLogEntry] = Field(default_factory=list, description="返回的日志条目")
+    total: int = Field(0, description="总数")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+
+
+# 审计日志错误码定义
+class AuditLogErrorCodes:
+    SLS_CLIENT_INIT_AK_ERROR = "SLS_CLIENT_INIT_AK_ERROR"
+    LOGSTORE_NOT_FOUND = "LOGSTORE_NOT_FOUND"
+
+
 
