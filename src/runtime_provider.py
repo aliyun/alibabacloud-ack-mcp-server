@@ -6,6 +6,7 @@ from typing import AsyncIterator, Dict, Any
 from loguru import logger
 from fastmcp import FastMCP
 from alibabacloud_cs20151215.client import Client as CS20151215Client
+from alibabacloud_arms20190808.client import Client as ARMSClient
 from alibabacloud_tea_openapi import models as open_api_models
 from alibabacloud_credentials.client import Client as CredentialClient
 
@@ -227,6 +228,32 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
             providers["credential_client"] = None
             providers["cs_client_factory"] = None
             providers["cs_clients"] = {}
+
+        # 初始化 ARMS Client（Prometheus 管理端点解析使用）
+        try:
+            region_id = config.get("region_id") or "cn-hangzhou"
+            arms_cfg = open_api_models.Config(credential=credential_client)
+            if config.get("access_key_id"):
+                arms_cfg.access_key_id = config.get("access_key_id")
+            if config.get("access_key_secret"):
+                arms_cfg.access_key_secret = config.get("access_key_secret")
+            arms_cfg.region_id = region_id
+            arms_cfg.endpoint = f"arms.{region_id}.aliyuncs.com"
+            arms_client = ARMSClient(arms_cfg)
+            providers["arms_client"] = {
+                "client": arms_client,
+                "region": region_id,
+                "initialized": True,
+            }
+            logger.info("ARMS client initialized for region: {}".format(region_id))
+        except Exception as e:
+            logger.warning(f"Initialize ARMS client failed: {e}")
+            providers["arms_client"] = {
+                "client": None,
+                "region": config.get("region_id"),
+                "initialized": False,
+                "error": str(e),
+            }
 
         return providers
 

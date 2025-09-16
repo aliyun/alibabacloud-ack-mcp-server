@@ -3,6 +3,7 @@
         "metrics": [
             {
                 "description": "容器CPU使用时间总计",
+                "category": "cpu",
                 "labels": [
                     "namespace",
                     "container",
@@ -14,6 +15,7 @@
             },
             {
                 "description": "容器内存工作集字节，此指标代表ack上容器使用的内存",
+                "category": "cpu",
                 "labels": [
                     "namespace",
                     "container",
@@ -25,6 +27,7 @@
             },
             {
                 "description": "容器CPU被限流时间总计",
+                "category": "cpu",
                 "labels": [
                     "namespace",
                     "container",
@@ -36,6 +39,7 @@
             },
             {
                 "description": "容器内存缓存字节",
+                "category": "memory",
                 "labels": [
                     "namespace",
                     "container",
@@ -47,6 +51,7 @@
             },
             {
                 "description": "容器内存RSS字节",
+                "category": "memory",
                 "labels": [
                     "namespace",
                     "container",
@@ -58,6 +63,7 @@
             },
             {
                 "description": "容器内存限制字节",
+                "category": "memory",
                 "labels": [
                     "namespace",
                     "container",
@@ -69,6 +75,7 @@
             },
             {
                 "description": "容器网络接收字节总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -80,6 +87,7 @@
             },
             {
                 "description": "容器网络接收错误总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -91,6 +99,7 @@
             },
             {
                 "description": "容器网络接收包总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -102,6 +111,7 @@
             },
             {
                 "description": "容器网络接收丢包总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -113,6 +123,7 @@
             },
             {
                 "description": "容器网络发送字节总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -124,6 +135,7 @@
             },
             {
                 "description": "容器网络发送错误总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -135,6 +147,7 @@
             },
             {
                 "description": "容器网络发送包总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -146,6 +159,7 @@
             },
             {
                 "description": "容器网络发送丢包总计",
+                "category": "network",
                 "labels": [
                     "namespace",
                     "container",
@@ -157,6 +171,7 @@
             },
             {
                 "description": "容器文件系统限制字节",
+                "category": "disk",
                 "labels": [
                     "namespace",
                     "container",
@@ -168,6 +183,7 @@
             },
             {
                 "description": "容器文件系统使用字节",
+                "category": "disk",
                 "labels": [
                     "namespace",
                     "container",
@@ -179,6 +195,7 @@
             },
             {
                 "description": "容器文件系统已用字节",
+                "category": "disk",
                 "labels": [
                     "namespace",
                     "container",
@@ -190,6 +207,7 @@
             },
             {
                 "description": "容器文件系统空闲字节",
+                "category": "disk",
                 "labels": [
                     "namespace",
                     "container",
