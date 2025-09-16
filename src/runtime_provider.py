@@ -166,3 +166,70 @@ class ACKAddonManagementRuntimeProvider(RuntimeProvider):
         if not default_cluster:
             logger.warning("No default cluster ID configured")
         return default_cluster
+
+
+class ACKClusterRuntimeProvider(RuntimeProvider):
+    """Runtime provider for ACK Cluster Handler."""
+
+    @asynccontextmanager
+    async def init_runtime(self, app: FastMCP) -> AsyncIterator[Dict[str, Any]]:
+        """Initialize runtime context for ACK Cluster Handler."""
+        logger.info("Initializing ACK Cluster Handler runtime...")
+
+        # 获取配置
+        config = getattr(app, '_config', {})
+
+        # 初始化提供者
+        providers = self.initialize_providers(config)
+
+        # 构建运行时上下文
+        lifespan_context = {
+            "config": config,
+            "providers": providers,
+        }
+
+        try:
+            yield lifespan_context
+        finally:
+            logger.info("ACK Cluster Handler runtime cleanup completed")
+
+    def initialize_providers(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Initialize providers for ACK Cluster Handler."""
+        providers: Dict[str, Any] = {}
+
+        # 初始化凭证客户端（使用全局默认凭证链）
+        try:
+            credential_client = CredentialClient()
+            cs_client_cache: Dict[str, Any] = {}
+
+            def cs_client_factory(target_region: str) -> CS20151215Client:
+                if target_region in cs_client_cache:
+                    return cs_client_cache[target_region]
+                cs_config = open_api_models.Config(credential=credential_client)
+                # 明确支持通过 config 覆盖 AK 信息
+                if config.get("access_key_id"):
+                    cs_config.access_key_id = config.get("access_key_id")
+                if config.get("access_key_secret"):
+                    cs_config.access_key_secret = config.get("access_key_secret")
+                cs_config.region_id = target_region or config.get("region_id")
+                cs_config.endpoint = f"cs.{cs_config.region_id}.aliyuncs.com"
+                client = CS20151215Client(cs_config)
+                cs_client_cache[target_region] = client
+                return client
+
+            providers["credential_client"] = credential_client
+            providers["cs_client_factory"] = cs_client_factory
+            providers["cs_clients"] = cs_client_cache
+            providers["region_id"] = config.get("region_id")
+            logger.info("ACK Cluster Handler providers initialized (cs_client_factory ready)")
+        except Exception as e:
+            logger.warning(f"Initialize providers partially without CS factory: {e}")
+            providers["credential_client"] = None
+            providers["cs_client_factory"] = None
+            providers["cs_clients"] = {}
+
+        return providers
+
+    def get_default_cluster(self, config: Dict[str, Any]) -> str:
+        """Get default cluster name."""
+        return config.get("default_cluster_id", "")

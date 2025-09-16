@@ -37,9 +37,14 @@ except ImportError:
     logger.warning("python-dotenv not available, environment variables will be read from system")
 
 from config import Configs, get_settings
+from interfaces.runtime_provider import RuntimeProvider
+from runtime_provider import ACKClusterRuntimeProvider
+from ack_cluster_handler import ACKClusterHandler
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 
 # Define main server configuration
-MAIN_SERVER_NAME = "alibabacloud-ack-mcp-server"
+MAIN_SERVER_NAME = "alibabacloud-cs-main-server"
 MAIN_SERVER_INSTRUCTIONS = """
 AlibabaCloud Container Service Main MCP Server
 
@@ -177,16 +182,25 @@ def create_main_server(
     Returns:
         Configured main FastMCP server instance with mounted sub-servers
     """
+    # Normalize settings
+    settings: Dict[str, Any] = settings_dict or {}
+
+    # Create runtime provider for main server (reuse ACK cluster runtime)
+    runtime_provider = ACKClusterRuntimeProvider()
+
     # Create main MCP server
     main_mcp = FastMCP(
         name=MAIN_SERVER_NAME,
         instructions=MAIN_SERVER_INSTRUCTIONS,
         lifespan=runtime_provider.init_runtime,
     )
-    
 
+    # Attach config for lifespan provider access
+    setattr(main_mcp, "_config", settings)
 
-    
+    # Register ACK Cluster tools directly on main server
+    ACKClusterHandler(main_mcp, settings)
+
     return main_mcp
 
 
