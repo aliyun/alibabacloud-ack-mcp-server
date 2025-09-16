@@ -107,4 +107,38 @@ class QueryInspectReportOutput(BaseModel):
     error: Optional[ErrorModel] = None
 
 
+# ACK Cluster Management Models
+class ListClustersInput(BaseModel):
+    region_id: str = Field(..., description="区域ID，例如 cn-hangzhou")
+    page_size: Optional[int] = Field(500, description="查询每个region集群列表的一页大小，默认500")
+    page_num: Optional[int] = Field(1, description="查询每个region集群列表的分页页码，默认1")
+
+
+class ClusterInfo(BaseModel):
+    cluster_name: str = Field(..., description="集群名")
+    cluster_id: str = Field(..., description="集群的唯一id")
+    state: str = Field(..., description="集群当前的状态，例如 Running")
+    region_id: str = Field(..., description="集群所在的region")
+    cluster_type: str = Field(..., description="集群的类型，ManagedKubernetes（托管集群）、Kubernetes（专有版集群）")
+    current_version: Optional[str] = Field(None, description="集群k8s版本")
+    vpc_id: Optional[str] = Field(None, description="集群专有网络 ID")
+    vswitch_ids: List[str] = Field(default_factory=list, description="控制面虚拟交换机")
+    resource_group_id: Optional[str] = Field(None, description="资源组id")
+    security_group_id: Optional[str] = Field(None, description="安全组id")
+    network_mode: Optional[str] = Field(None, description="网络类型")
+    proxy_mode: Optional[str] = Field(None, description="kube-proxy 代理模式")
+
+
+class ListClustersOutput(BaseModel):
+    count: int = Field(..., description="返回的集群数")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+    clusters: List[ClusterInfo] = Field(default_factory=list, description="集群列表")
+
+
+# 错误码定义
+class ClusterErrorCodes:
+    NO_RAM_POLICY_AUTH = "NO_RAM_POLICY_AUTH"
+    MISS_REGION_ID = "MISS_REGION_ID"
+
+
 
