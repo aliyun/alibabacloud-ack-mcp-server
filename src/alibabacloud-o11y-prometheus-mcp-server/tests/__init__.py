@@ -1,1 +1,0 @@
-"""Tests for AlibabaCloud O11y Prometheus MCP Server."""

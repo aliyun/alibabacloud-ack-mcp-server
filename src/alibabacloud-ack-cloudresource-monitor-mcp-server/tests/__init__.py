@@ -1,1 +1,0 @@
-"""Tests for AlibabaCloud ACK CloudResource Monitor MCP Server."""

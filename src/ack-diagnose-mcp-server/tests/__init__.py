@@ -1,1 +1,0 @@
-"""Tests for ACK Diagnose MCP Server."""
