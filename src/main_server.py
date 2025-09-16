@@ -42,6 +42,8 @@ from runtime_provider import ACKClusterRuntimeProvider
 from ack_cluster_handler import ACKClusterHandler
 from kubectl_handler import KubectlHandler
 from ack_prometheus_handler import PrometheusHandler
+from ack_diagnose_handler import DiagnoseHandler
+from ack_inspect_handler import InspectHandler
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -156,6 +158,10 @@ def create_main_server(
     KubectlHandler(main_mcp, settings)
     # Register prometheus tools
     PrometheusHandler(main_mcp, settings)
+    # Register diagnose tools
+    DiagnoseHandler(main_mcp, settings)
+    # Register inspect tools
+    InspectHandler(main_mcp, settings)
 
     return main_mcp
 

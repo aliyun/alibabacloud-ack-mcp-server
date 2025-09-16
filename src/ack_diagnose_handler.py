@@ -1,85 +1,96 @@
 
 
+from typing import Dict, Any, Optional, List
+from fastmcp import FastMCP, Context
+from loguru import logger
+from pydantic import Field
+import json
+from alibabacloud_cs20151215 import models as cs20151215_models
+from alibabacloud_tea_util import models as util_models
+from models import (
+    ErrorModel,
+    DiagnoseResourceInput,
+    DiagnoseResourceOutput,
+    GetDiagnoseResourceResultInput,
+    GetDiagnoseResourceResultOutput,
+)
+
+
+def _serialize_sdk_object(obj):
+    """序列化阿里云SDK对象为可JSON序列化的字典."""
+    if obj is None:
+        return None
+    
+    if isinstance(obj, (str, int, float, bool)):
+        return obj
+    
+    if isinstance(obj, (list, tuple)):
+        return [_serialize_sdk_object(item) for item in obj]
+    
+    if isinstance(obj, dict):
+        return {key: _serialize_sdk_object(value) for key, value in obj.items()}
+    
+    try:
+        if hasattr(obj, 'to_map'):
+            return obj.to_map()
+        
+        if hasattr(obj, '__dict__'):
+            return _serialize_sdk_object(obj.__dict__)
+        
+        return str(obj)
+    except Exception:
+        return str(obj)
+
+
+def _get_cs_client(ctx: Context, region: str):
+    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
+    providers = getattr(ctx.request_context, "lifespan_context", {}).get("providers", {})
+    factory = providers.get("cs_client_factory") if isinstance(providers, dict) else None
+    if not factory:
+        raise RuntimeError("cs_client_factory not available in runtime providers")
+    return factory(region)
 
 
 class DiagnoseHandler:
     """Handler for ACK diagnose operations."""
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
-        """Initialize the ACK addon management handler.
-
-        Args:
-            server: FastMCP server instance
-            allow_write: Whether to allow write operations
-            settings: Configuration settings
-        """
         self.server = server
-        self.allow_write = settings.get("allow_write", True)
         self.settings = settings or {}
-
-        # Register tools
+        self.allow_write = self.settings.get("allow_write", True)
         self._register_tools()
-
-        logger.info("ACK Addon Management Handler initialized")
-
-    def run_command(self, cmd: List[str]) -> str:
-        """Run a kubectl command and return the output."""
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return result.stdout.strip()
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Command failed: {' '.join(cmd)}")
-            logger.error(f"Error output: {e.stderr}")
-            return f"Error: {e.stderr}"
+        logger.info("ACK Diagnose Handler initialized")
 
     def _register_tools(self):
-        """Register addon management related tools."""
-
-        # Cluster Diagnosis Tools
         @self.server.tool(
-            name="invoke_diagnose_resource_task",
-            description="Create a cluster diagnosis task for ACK cluster"
+            name="diagnose_resource",
+            description="发起一个ACK集群的资源的异步诊断任务，大概3分钟后需要按返回的diagnose_task_id查询诊断结果"
         )
-        async def invoke_diagnose_resource_task(
+        async def diagnose_resource(
                 ctx: Context,
-                resource_type: str = Field(
-                    ..., description='Type of resource to get metrics for (cluster, node, pod, namespace, )'
-                ),
-                cluster_id: str,
-                diagnosis_type: Optional[str] = "cluster",
-                target: Optional[Dict[str, Any]] = None,
-        ) -> Dict[str, Any]:
-            """Create cluster diagnosis task.
-
-            Args:
-                ctx: FastMCP context containing lifespan providers
-                resource_type: Type of resource to get metrics for (cluster, node, pod, namespace, )
-                cluster_id: Target cluster ID
-                diagnosis_type: Type of diagnosis (node, ingress, cluster, memory, pod, service, network)
-                target: Target specification for diagnosis
-
-            Returns:
-                Diagnosis task creation result
-            """
+                cluster_id: str = Field(..., description="需要查询的prometheus所在的集群clusterId"),
+                region_id: str = Field(..., description="集群所在的regionId"),
+                resource_type: str = Field(..., description="诊断的目标资源类型：node/ingress/cluster/memory/pod/service/network"),
+                resource_target: str = Field(..., description="用于指定诊断对象的参数，JSON字符串格式"),
+        ) -> DiagnoseResourceOutput | Dict[str, Any]:
+            """发起一个ACK集群的资源的异步诊断任务"""
             if not self.allow_write:
-                return {"error": "Write operations are disabled"}
-
-            # Get CS client from lifespan context
-            try:
-                providers = ctx.request_context.lifespan_context.get("providers", {})
-                cs_client_info = providers.get("cs_client", {})
-                cs_client = cs_client_info.get("client")
-
-                if not cs_client:
-                    return {"error": "CS client not available in lifespan context"}
-            except Exception as e:
-                logger.error(f"Failed to get CS client from context: {e}")
-                return {"error": "Failed to access lifespan context"}
+                return {"error": ErrorModel(error_code="WriteDisabled", error_message="Write operations are disabled").model_json()}
 
             try:
+                # 解析 resource_target JSON
+                try:
+                    target_dict = json.loads(resource_target)
+                except json.JSONDecodeError as e:
+                    return {"error": ErrorModel(error_code="InvalidTarget", error_message=f"Invalid JSON in resource_target: {e}").model_json()}
+
+                # 获取 CS 客户端
+                cs_client = _get_cs_client(ctx, region_id)
+                
+                # 创建诊断请求
                 request = cs20151215_models.CreateClusterDiagnosisRequest(
-                    type=diagnosis_type,
-                    target=target
+                    type=resource_type,
+                    target=target_dict
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
@@ -88,23 +99,81 @@ class DiagnoseHandler:
                     cluster_id, request, headers, runtime
                 )
 
-                # 序列化SDK响应对象为可JSON序列化的数据
-                response_data = _serialize_sdk_object(response.body) if response.body else {}
+                # 提取诊断任务ID
+                diagnose_task_id = getattr(response.body, 'diagnosis_id', None) if response.body else None
+                if not diagnose_task_id:
+                    return {"error": ErrorModel(error_code="NoTaskId", error_message="Failed to get diagnosis task ID from response").model_json()}
 
-                return {
-                    "cluster_id": cluster_id,
-                    "diagnosis_id": getattr(response.body, 'diagnosis_id', None) if response.body else None,
-                    "status": "created",
-                    "type": diagnosis_type,
-                    "created_time": getattr(response.body, 'created_time', None) if response.body else None,
-                    "response": response_data,
-                    "request_id": getattr(response, 'request_id', None)
-                }
+                return DiagnoseResourceOutput(
+                    diagnose_task_id=diagnose_task_id,
+                    error=None
+                )
 
             except Exception as e:
                 logger.error(f"Failed to create cluster diagnosis: {e}")
-                return {
-                    "cluster_id": cluster_id,
-                    "error": str(e),
-                    "status": "failed"
-                }
+                error_code = "UnknownError"
+                if "RESOURCE_NOT_FOUND" in str(e):
+                    error_code = "RESOURCE_NOT_FOUND"
+                elif "CLUSTER_NOT_FOUND" in str(e):
+                    error_code = "CLUSTER_NOT_FOUND"
+                elif "NO_RAM_POLICY_AUTH" in str(e):
+                    error_code = "NO_RAM_POLICY_AUTH"
+                
+                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_json()}
+
+        @self.server.tool(
+            name="get_diagnose_resource_result",
+            description="获取集群资源诊断任务的结果"
+        )
+        async def get_diagnose_resource_result(
+                ctx: Context,
+                cluster_id: str = Field(..., description="需要查询的prometheus所在的集群clusterId"),
+                region_id: str = Field(..., description="集群所在的regionId"),
+                diagnose_task_id: str = Field(..., description="生成的异步诊断任务id"),
+        ) -> GetDiagnoseResourceResultOutput | Dict[str, Any]:
+            """获取集群资源诊断任务的结果"""
+            try:
+                # 获取 CS 客户端
+                cs_client = _get_cs_client(ctx, region_id)
+                
+                # 获取诊断结果请求
+                request = cs20151215_models.DescribeClusterDiagnosisRequest(
+                    diagnosis_id=diagnose_task_id
+                )
+                runtime = util_models.RuntimeOptions()
+                headers = {}
+
+                response = await cs_client.describe_cluster_diagnosis_with_options_async(
+                    cluster_id, request, headers, runtime
+                )
+
+                if not response.body:
+                    return {"error": ErrorModel(error_code="NoResponse", error_message="No response body from diagnosis result query").model_json()}
+
+                # 提取结果信息
+                result = getattr(response.body, 'result', None)
+                status = getattr(response.body, 'status', None)
+                finished_time = getattr(response.body, 'finished_time', None)
+                resource_type = getattr(response.body, 'type', None)
+                resource_target = getattr(response.body, 'target', None)
+
+                return GetDiagnoseResourceResultOutput(
+                    result=result,
+                    status=str(status) if status is not None else None,
+                    finished_time=finished_time,
+                    resource_type=resource_type,
+                    resource_target=json.dumps(resource_target) if resource_target else None,
+                    error=None
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to get cluster diagnosis result: {e}")
+                error_code = "UnknownError"
+                if "DIAGNOSE_TASK_FAILED" in str(e):
+                    error_code = "DIAGNOSE_TASK_FAILED"
+                elif "CLUSTER_NOT_FOUND" in str(e):
+                    error_code = "CLUSTER_NOT_FOUND"
+                elif "NO_RAM_POLICY_AUTH" in str(e):
+                    error_code = "NO_RAM_POLICY_AUTH"
+                
+                return {"error": ErrorModel(error_code=error_code, error_message=str(e)).model_json()}
