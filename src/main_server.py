@@ -29,6 +29,7 @@ from loguru import logger
 from fastmcp import FastMCP
 
 from ack_audit_log_handler import ACKAuditLogHandler
+from ack_controlplane_log_handler import ACKControlPlaneLogHandler
 
 # 尝试导入python-dotenv
 try:
@@ -166,6 +167,8 @@ def create_main_server(
     InspectHandler(main_mcp, settings)
     # Register audit log tools
     ACKAuditLogHandler(main_mcp, settings)
+    # Register control plane log tools
+    ACKControlPlaneLogHandler(main_mcp, settings)
 
     return main_mcp
 

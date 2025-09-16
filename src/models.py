@@ -240,3 +240,59 @@ class GetCurrentTimeOutput(BaseModel):
     error: Optional[ErrorModel] = None
 
 
+# ==================== 控制面日志相关模型 ====================
+
+class QueryControlPlaneLogsInput(BaseModel):
+    """查询控制面日志输入参数"""
+    cluster_id: str = Field(..., description="集群ID，例如 cxxxxx")
+    component_name: str = Field(..., description="控制面组件的名称，如 apiserver, kcm, scheduler, ccm")
+    filter_pattern: Optional[str] = Field(None, description="额外过滤条件")
+    start_time: Optional[str] = Field("24h", description="查询开始时间，支持ISO 8601格式或相对时间")
+    end_time: Optional[str] = Field(None, description="查询结束时间，支持ISO 8601格式或相对时间")
+    limit: Optional[int] = Field(10, description="结果限制，默认10，最大100")
+
+
+class ControlPlaneLogEntry(BaseModel):
+    """控制面日志条目"""
+    timestamp: Optional[str] = Field(None, description="日志时间戳")
+    level: Optional[str] = Field(None, description="日志级别")
+    component: Optional[str] = Field(None, description="组件名称")
+    message: Optional[str] = Field(None, description="日志消息")
+    source: Optional[str] = Field(None, description="日志来源")
+    raw_log: Optional[str] = Field(None, description="原始日志内容")
+
+
+class QueryControlPlaneLogsOutput(BaseModel):
+    """查询控制面日志输出结果"""
+    query: Optional[str] = Field(None, description="查询语句")
+    entries: List[ControlPlaneLogEntry] = Field(default_factory=list, description="返回的日志条目")
+    total: int = Field(0, description="总数")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+
+
+# 控制面日志错误码定义
+class ControlPlaneLogErrorCodes:
+    SLS_CLIENT_INIT_AK_ERROR = "SLS_CLIENT_INIT_AK_ERROR"
+    LOGSTORE_NOT_FOUND = "LOGSTORE_NOT_FOUND"
+    CLUSTER_NOT_FOUND = "CLUSTER_NOT_FOUND"
+    CONTROLPLANE_LOG_NOT_ENABLED = "CONTROLPLANE_LOG_NOT_ENABLED"
+    INVALID_COMPONENT = "INVALID_COMPONENT"
+
+
+# ==================== 控制面日志配置相关模型 ====================
+
+class ControlPlaneLogConfig(BaseModel):
+    """控制面日志配置信息"""
+    log_project: Optional[str] = Field(None, description="控制面组件日志对应存储的 SLS Project 名称")
+    log_ttl: Optional[str] = Field(None, description="日志在 SLS logstore 里的数据保存时间，单位：天")
+    aliuid: Optional[str] = Field(None, description="阿里云账号 ID")
+    components: List[str] = Field(default_factory=list, description="当前开启控制面日志的组件列表")
+
+
+class GetControlPlaneLogConfigOutput(BaseModel):
+    """获取控制面日志配置输出结果"""
+    cluster_id: str = Field(..., description="集群 ID")
+    config: Optional[ControlPlaneLogConfig] = Field(None, description="控制面日志配置信息")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+
+
