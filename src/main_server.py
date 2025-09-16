@@ -181,74 +181,11 @@ def create_main_server(
     main_mcp = FastMCP(
         name=MAIN_SERVER_NAME,
         instructions=MAIN_SERVER_INSTRUCTIONS,
+        lifespan=runtime_provider.init_runtime,
     )
     
-    # Store transport type and connection details for later use
-    main_mcp._transport_type = transport
-    main_mcp._host = host
-    main_mcp._port = port
-    
-    # Mount sub-MCP servers using proxy mount mechanism
-    mounted_servers = []
-    failed_mounts = []
-    
-    for server_name, config in SUB_SERVERS_CONFIG.items():
-        try:
-            # Import the sub-server module using importlib
-            module_name = config["module_name"]
-            
-            # For modules with hyphens in directory names, use spec_from_file_location
-            if '-' in server_name:
-                import importlib.util
-                import sys
-                import os
-                
-                # Add src directory to Python path if not already there
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                if current_dir not in sys.path:
-                    sys.path.insert(0, current_dir)
-                
-                module_path = f"{server_name}/__init__.py"
-                spec = importlib.util.spec_from_file_location(module_name, module_path)
-                module = importlib.util.module_from_spec(spec)
-                
-                # Add module to sys.modules to support relative imports
-                sys.modules[module_name] = module
-                
-                # Execute the module
-                spec.loader.exec_module(module)
-            else:
-                module = importlib.import_module(module_name)
-            
-            create_function = getattr(module, config["create_function"])
-            
-            # Create sub-server instance with shared settings
-            sub_server = create_function(settings_dict or {})
-            
-            # Mount sub-server with proxy
-            main_mcp.mount(
-                sub_server, 
-                prefix=config["prefix"], 
-                as_proxy=True
-            )
-            
-            mounted_servers.append(f"{server_name} -> /{config['prefix']}")
-            logger.info(f"Successfully mounted {server_name} at /{config['prefix']}")
-            
-        except Exception as e:
-            failed_mounts.append(f"{server_name}: {str(e)}")
-            logger.warning(f"Failed to mount {server_name}: {e}")
-    
-    # Log mount summary
-    if mounted_servers:
-        logger.info(f"Successfully mounted {len(mounted_servers)} sub-servers:")
-        for mount_info in mounted_servers:
-            logger.info(f"  - {mount_info}")
-    
-    if failed_mounts:
-        logger.warning(f"Failed to mount {len(failed_mounts)} sub-servers:")
-        for fail_info in failed_mounts:
-            logger.warning(f"  - {fail_info}")
+
+
     
     return main_mcp
 

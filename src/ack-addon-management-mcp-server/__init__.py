@@ -8,7 +8,7 @@ __description__ = "AlibabaCloud ACK Addon Management MCP Server"
 # Support both relative and absolute imports
 try:
     from .handler import ACKAddonManagementHandler
-    from .runtime_provider import ACKAddonManagementRuntimeProvider
+    from runtime_provider import ACKAddonManagementRuntimeProvider
     from .server import create_mcp_server, main
 except ImportError:
     # If relative import fails, try absolute import

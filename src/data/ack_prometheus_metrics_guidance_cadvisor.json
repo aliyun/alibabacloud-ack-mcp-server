@@ -1,0 +1,204 @@
+{
+    "cadvisor": {
+        "metrics": [
+            {
+                "description": "容器CPU使用时间总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_usage_seconds_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器内存工作集字节，此指标代表ack上容器使用的内存",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_working_set_bytes",
+                "type": "gauge"
+            },
+            {
+                "description": "容器CPU被限流时间总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_cpu_cfs_throttled_seconds_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器内存缓存字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_cache",
+                "type": "gauge"
+            },
+            {
+                "description": "容器内存RSS字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_rss",
+                "type": "gauge"
+            },
+            {
+                "description": "容器内存限制字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_memory_limit_bytes",
+                "type": "gauge"
+            },
+            {
+                "description": "容器网络接收字节总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_bytes_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络接收错误总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_errors_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络接收包总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_packets_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络接收丢包总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_receive_packets_dropped_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络发送字节总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_bytes_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络发送错误总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_errors_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络发送包总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_packets_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器网络发送丢包总计",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_network_transmit_packets_dropped_total",
+                "type": "counter"
+            },
+            {
+                "description": "容器文件系统限制字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_limit_bytes",
+                "type": "gauge"
+            },
+            {
+                "description": "容器文件系统使用字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_usage_bytes",
+                "type": "gauge"
+            },
+            {
+                "description": "容器文件系统已用字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_inodes_free",
+                "type": "gauge"
+            },
+            {
+                "description": "容器文件系统空闲字节",
+                "labels": [
+                    "namespace",
+                    "container",
+                    "pod",
+                    "node"
+                ],
+                "name": "container_fs_inodes_total",
+                "type": "gauge"
+            }
+        ]
+    }
+}

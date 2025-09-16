@@ -9,7 +9,7 @@ This server provides ACK addon management capabilities including:
 import argparse
 import os
 import sys
-from typing import Dict, Any, Optional, Literal
+from typing import Dict, Any, Optional
 
 from loguru import logger
 from fastmcp import FastMCP
@@ -25,7 +25,7 @@ except ImportError:
 # 使用更健壮的导入方式
 try:
     from .handler import ACKAddonManagementHandler
-    from .runtime_provider import ACKAddonManagementRuntimeProvider
+    from runtime_provider import ACKAddonManagementRuntimeProvider
 except ImportError:
     try:
         from handler import ACKAddonManagementHandler
@@ -130,7 +130,11 @@ def create_mcp_server(config: Optional[Dict[str, Any]] = None) -> FastMCP:
     
     # Initialize handler
     allow_write = config.get("allow_write", False)
-    ACKAddonManagementHandler(server, allow_write, config)
+
+    ACKClusterHandler(server, config)
+    KubectlHandler(server, config)
+
+
     
     logger.info(f"ACK Addon Management MCP Server created successfully on {host}:{port}")
     return server
