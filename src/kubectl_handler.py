@@ -1,73 +1,63 @@
+from typing import Dict, Any, Optional, List
+import subprocess
+import shlex
+from fastmcp import FastMCP, Context
+from loguru import logger
+from pydantic import Field
+
+
 class KubectlHandler:
-    """Handler for ACK addon management operations."""
+    """Handler for running kubectl commands via a FastMCP tool."""
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
-        """Initialize the ACK addon management handler.
+        """Initialize the kubectl handler.
 
         Args:
             server: FastMCP server instance
-            allow_write: Whether to allow write operations
             settings: Configuration settings
         """
         self.server = server
-        self.allow_write = settings.get("allow_write", True)
         self.settings = settings or {}
+        self.allow_write = self.settings.get("allow_write", True)
 
-        # Register tools
         self._register_tools()
+        logger.info("Kubectl Handler initialized")
 
-        logger.info("ACK Addon Management Handler initialized")
-
-    def run_command(self, cmd: List[str]) -> str:
-        """Run a kubectl command and return the output."""
+    def run_command(self, cmd: List[str]) -> Dict[str, Any]:
+        """Run a kubectl command and return structured result."""
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return result.stdout.strip()
+            return {
+                "exit_code": result.returncode,
+                "stdout": result.stdout.strip(),
+                "stderr": result.stderr.strip() if result.stderr else None,
+            }
         except subprocess.CalledProcessError as e:
-            logger.error(f"Command failed: {' '.join(cmd)}")
-            logger.error(f"Error output: {e.stderr}")
-            return f"Error: {e.stderr}"
+            logger.error(f"kubectl failed: {' '.join(cmd)}")
+            return {
+                "exit_code": e.returncode,
+                "stdout": e.stdout.strip() if e.stdout else None,
+                "stderr": e.stderr.strip() if e.stderr else str(e),
+            }
 
     def _register_tools(self):
-        """Register addon management related tools."""
+        """Register kubectl tool."""
 
         @self.server.tool(
             name="kubectl",
-            description="Kubectl tool for cluster."
+            description="Execute kubectl command. Pass the arguments after 'kubectl'."
         )
         async def kubectl(
                 ctx: Context,
                 command: str = Field(
-                    ..., description='kubectl full command, e.g. kubectl get pods, need input command: get pods'
+                    ..., description="Arguments after 'kubectl', e.g. 'get pods -A'"
                 ),
         ) -> Dict[str, Any]:
-            """ Kubectl command line tool.
-
-            Args:
-                ctx: FastMCP context containing lifespan providers
-                command: kubectl full command, e.g. kubectl get pods, need input command: get pods'
-
-            Returns:
-                Brief cluster list with fields: name, cluster_id, state, region_id, node_count, cluster_type
-            """
-            # Get base config for AK
             try:
-                cmd = ["kubectl", command]
-                result = self.run_command(cmd)
-
-                # Reload kubernetes config after switching context
-                config.load_kube_config()
-                self.core_v1 = client.CoreV1Api()
-                self.apps_v1 = client.AppsV1Api()
-                self.networking_v1 = client.NetworkingV1Api()
-
-                return {
-                    "status": "success",
-                    "message": f"Switched to context {context_name}",
-                    "details": result
-                }
+                args = ["kubectl"] + shlex.split(command)
+                result = self.run_command(args)
+                status = "success" if result.get("exit_code") == 0 else "error"
+                return {"status": status, **result}
             except Exception as e:
-                return {
-                    "status": "error",
-                    "error": f"Failed to switch context: {str(e)}"
-                }
+                logger.exception("kubectl tool execution error")
+                return {"status": "error", "error": str(e)}

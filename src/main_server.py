@@ -40,6 +40,7 @@ from config import Configs, get_settings
 from interfaces.runtime_provider import RuntimeProvider
 from runtime_provider import ACKClusterRuntimeProvider
 from ack_cluster_handler import ACKClusterHandler
+from kubectl_handler import KubectlHandler
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
@@ -115,56 +116,6 @@ MAIN_SERVER_DEPENDENCIES = [
     "pydantic-settings",
 ]
 
-# Sub-server configuration mapping
-SUB_SERVERS_CONFIG = {
-    "ack-cluster-management-mcp-server": {
-        "prefix": "ack-cluster",
-        "module_name": "ack-cluster-management-mcp-server",
-        "create_function": "create_mcp_server"
-    },
-    "ack-addon-management-mcp-server": {
-        "prefix": "ack-addon", 
-        "module_name": "ack-addon-management-mcp-server",
-        "create_function": "create_mcp_server"
-    },
-    "ack-nodepool-management-mcp-server": {
-        "prefix": "ack-nodepool",
-        "module_name": "ack-nodepool-management-mcp-server", 
-        "create_function": "create_mcp_server"
-    },
-    "kubernetes-client-mcp-server": {
-        "prefix": "kubernetes",
-        "module_name": "kubernetes_client_mcp_server",
-        "create_function": "create_mcp_server"
-    },
-    "ack-diagnose-mcp-server": {
-        "prefix": "ack-diagnose", 
-        "module_name": "ack_diagnose_mcp_server",
-        "create_function": "create_mcp_server"
-    },
-    "alibabacloud-o11y-prometheus-mcp-server": {
-        "prefix": "observability-prometheus",
-        "module_name": "alibabacloud_o11y_prometheus_mcp_server",
-        "create_function": "create_mcp_server"
-    },
-    "alibabacloud-o11y-sls-apiserver-log-mcp-server": {
-        "prefix": "observability-sls",
-        "module_name": "alibabacloud_o11y_sls_apiserver_log_mcp_server", 
-        "create_function": "create_mcp_server"
-    },
-    "alibabacloud-ack-cloudresource-monitor-mcp-server": {
-        "prefix": "observability-cloudmonitor",
-        "module_name": "alibabacloud_ack_cloudresource_monitor_mcp_server",
-        "create_function": "create_mcp_server"
-    },
-    "alibabacloud-o11y-sls-audit-log-analysis-mcp-server": {
-        "prefix": "audit-log",
-        "module_name": "alibabacloud_o11y_sls_audit_log_analysis_mcp_server",
-        "create_function": "create_mcp_server"
-    }
-}
-
-
 def create_main_server(
     settings_dict: Optional[Dict[str, Any]] = None,
     transport: Literal["stdio", "sse"] = "stdio",
@@ -200,6 +151,8 @@ def create_main_server(
 
     # Register ACK Cluster tools directly on main server
     ACKClusterHandler(main_mcp, settings)
+    # Register kubectl tool
+    KubectlHandler(main_mcp, settings)
 
     return main_mcp
 
