@@ -148,7 +148,7 @@ class PrometheusHandler:
         @self.server.tool(name="query_prometheus_metric_guidance", description="获取Prometheus指标定义和最佳实践")
         async def query_prometheus_metric_guidance(
                 ctx: Context,
-                resource_label: str = Field(..., description="资源维度label：node/pod/container 等"),
+                resource_label: str = Field(..., description="资源维度label：node/pod/container/deployment/daemonset/job/coredns/ingress/hpa/persistentvolume/mountpoint 等"),
                 metric_category: str = Field(..., description="指标分类：cpu/memory/network/disk/state"),
         ) -> QueryPrometheusMetricGuidanceOutput | Dict[str, Any]:
             # 从 runtime context 获取 Prometheus 指标指引数据
