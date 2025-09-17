@@ -1,0 +1,420 @@
+{
+    "job_name": "node_exporter",
+    "metrics": [
+        {
+            "description": "节点启动时间（秒）",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_boot_time_seconds",
+            "type": "gauge"
+        },
+        {
+            "description": "节点上下文切换总数",
+            "category": "cpu",
+            "labels": ["node"],
+            "name": "node_context_switches_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点CPU使用时间总计",
+            "category": "cpu",
+            "labels": ["node", "cpu"],
+            "name": "node_cpu_seconds_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘I/O当前量",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_io_now",
+            "type": "gauge"
+        },
+        {
+            "description": "节点磁盘I/O时间总计（秒）",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_io_time_seconds_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘I/O加权时间总计（秒）",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_io_time_weighted_seconds_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘读取字节总计",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_read_bytes_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘读取时间总计（秒）",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_read_time_seconds_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘读取完成总数",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_reads_completed_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘读取合并总数",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_reads_merged_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘写入时间总秒数",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_write_time_seconds_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘写入完成总数",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_writes_completed_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘写入合并总数",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_writes_merged_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点磁盘写入字节总数",
+            "category": "disk",
+            "labels": ["node", "device"],
+            "name": "node_disk_written_bytes_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点导出器构建信息",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_exporter_build_info",
+            "type": "gauge"
+        },
+        {
+            "description": "节点文件描述符已分配",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_filefd_allocated",
+            "type": "gauge"
+        },
+        {
+            "description": "节点文件描述符最大值",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_filefd_maximum",
+            "type": "gauge"
+        },
+        {
+            "description": "节点文件系统可用字节数",
+            "category": "disk",
+            "labels": ["node", "mountpoint", "fstype"],
+            "name": "node_filesystem_avail_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点文件系统空闲字节数",
+            "category": "disk",
+            "labels": ["node", "mountpoint", "fstype"],
+            "name": "node_filesystem_free_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点文件系统总大小字节数",
+            "category": "disk",
+            "labels": ["node", "mountpoint", "fstype"],
+            "name": "node_filesystem_size_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点中断总数",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_intr_total",
+            "type": "counter"
+        },
+        {
+            "description": "节点1分钟负载",
+            "category": "cpu",
+            "labels": ["node"],
+            "name": "node_load1",
+            "type": "gauge"
+        },
+        {
+            "description": "节点15分钟负载",
+            "category": "cpu",
+            "labels": ["node"],
+            "name": "node_load15",
+            "type": "gauge"
+        },
+        {
+            "description": "节点5分钟负载",
+            "category": "cpu",
+            "labels": ["node"],
+            "name": "node_load5",
+            "type": "gauge"
+        },
+        {
+            "description": "节点可用内存大小（字节）",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_memory_MemAvailable_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点空闲内存大小（字节）",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_memory_MemFree_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点总内存大小（字节）",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_memory_MemTotal_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点Slab内存大小（字节）",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_memory_Slab_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "节点SReclaimable内存大小（字节）",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_memory_SReclaimable_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "TCP接收错误数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_netstat_Tcp_InErrs",
+            "type": "counter"
+        },
+        {
+            "description": "TCP接收数据段数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_netstat_Tcp_InSegs",
+            "type": "counter"
+        },
+        {
+            "description": "TCP发送数据段数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_netstat_Tcp_OutSegs",
+            "type": "counter"
+        },
+        {
+            "description": "TCP被动打开连接数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_netstat_Tcp_PassiveOpens",
+            "type": "counter"
+        },
+        {
+            "description": "TCP重传数据段数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_netstat_Tcp_RetransSegs",
+            "type": "counter"
+        },
+        {
+            "description": "累计接收字节总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_receive_bytes_total",
+            "type": "counter"
+        },
+        {
+            "description": "接收丢包总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_receive_drop_total",
+            "type": "counter"
+        },
+        {
+            "description": "接收错误总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_receive_errs_total",
+            "type": "counter"
+        },
+        {
+            "description": "接收数据包总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_receive_packets_total",
+            "type": "counter"
+        },
+        {
+            "description": "累计发送字节总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_transmit_bytes_total",
+            "type": "counter"
+        },
+        {
+            "description": "发送丢包总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_transmit_drop_total",
+            "type": "counter"
+        },
+        {
+            "description": "发送错误总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_transmit_errs_total",
+            "type": "counter"
+        },
+        {
+            "description": "发送数据包总数",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_transmit_packets_total",
+            "type": "counter"
+        },
+        {
+            "description": "网络接口是否启用",
+            "category": "network",
+            "labels": ["node", "device"],
+            "name": "node_network_up",
+            "type": "gauge"
+        },
+        {
+            "description": "最大进程数",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_processes_max_processes",
+            "type": "gauge"
+        },
+        {
+            "description": "最大线程数",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_processes_max_threads",
+            "type": "gauge"
+        },
+        {
+            "description": "进程ID数",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_processes_pids",
+            "type": "gauge"
+        },
+        {
+            "description": "进程状态分布",
+            "category": "state",
+            "labels": ["node", "state"],
+            "name": "node_processes_state",
+            "type": "gauge"
+        },
+        {
+            "description": "线程数",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_processes_threads",
+            "type": "gauge"
+        },
+        {
+            "description": "调度统计-运行秒总数",
+            "category": "cpu",
+            "labels": ["node", "cpu"],
+            "name": "node_schedstat_running_seconds_total",
+            "type": "counter"
+        },
+        {
+            "description": "TCP套接字分配数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_sockstat_TCP_alloc",
+            "type": "gauge"
+        },
+        {
+            "description": "TCP套接字使用中",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_sockstat_TCP_inuse",
+            "type": "gauge"
+        },
+        {
+            "description": "TCP套接字内存使用量",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_sockstat_TCP_mem",
+            "type": "gauge"
+        },
+        {
+            "description": "TCP套接字内存使用字节数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_sockstat_TCP_mem_bytes",
+            "type": "gauge"
+        },
+        {
+            "description": "TCP TIME_WAIT套接字数",
+            "category": "network",
+            "labels": ["node"],
+            "name": "node_sockstat_TCP_tw",
+            "type": "gauge"
+        },
+        {
+            "description": "系统信息（uname）",
+            "category": "state",
+            "labels": ["node"],
+            "name": "node_uname_info",
+            "type": "gauge"
+        },
+        {
+            "description": "VM统计-页故障次数",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_vmstat_pgfault",
+            "type": "counter"
+        },
+        {
+            "description": "VM统计-重大页故障次数",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_vmstat_pgmajfault",
+            "type": "counter"
+        },
+        {
+            "description": "VM统计-页入次数",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_vmstat_pgpgin",
+            "type": "counter"
+        },
+        {
+            "description": "VM统计-页出次数",
+            "category": "memory",
+            "labels": ["node"],
+            "name": "node_vmstat_pgpgout",
+            "type": "counter"
+        }
+    ]
+}
+
+
