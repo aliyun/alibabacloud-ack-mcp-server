@@ -1,7 +1,6 @@
 {
   "resource": "disk",
   "rules": [
-
     {
       "rule_name": "Abnormal PersistentVolume status",
       "description": "An alert is triggered when the status of a persistent volume (PV) is abnormal.\n\nAt the operation entry, click Cluster Storage Abnormality Events Alert Rule Set and set the Abnormal PersistentVolume Status alert rule.",
@@ -13,7 +12,6 @@
         "persistentvolume"
       ]
     },
-
     {
       "rule_name": "Node disk space is less than 10%",
       "description": "An alert is triggered when the free space on a node's block device is less than 10%.\n\nAt the operation entry, click Cluster Resource Abnormalities Alert Rule Set and set the Cluster Node - Disk Usage >= 85% alert rule.",

@@ -1,0 +1,93 @@
+{
+  "resource": "node",
+  "rules": [
+    {
+      "rule_name": "Node's Host memory usage is higher than 85%",
+      "description": "An alert is triggered when the host memory usage of a node is higher than 85%.\n\nIn the console, click Cluster Resource Abnormalities Alert Rule Set and set the Cluster Node - Memory Usage >= 85% alert rule.",
+      "recommendation_sop": "Release resources.\n\nWe recommend that you use the cost analysis feature to check whether any pods are occupying schedulable resources and whether the memory requests of pods in the cluster are reasonable. For more information, see Enable the cost analysis feature. We also recommend that you use the resource profiling feature to configure pod memory requests. For more information, see Resource profiling.\n\nPlan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "(100 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) >= 85",
+      "severity": "Critical",
+      "category": "memory",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node's Host CPU usage is higher than 85%",
+      "description": "An alert is triggered when the host CPU usage of a node is higher than 85%.\n\nIn the Operations column, click Cluster Resource Abnormalities Alert Rule Set and set the Cluster Node - CPU Utilization >= 85% alert rule.",
+      "recommendation_sop": "Release resources.\n\nWe recommend that you use the cost analysis feature to check whether any pods are occupying schedulable resources and whether the CPU requests of pods in the cluster are reasonable. For more information, see Enable the cost analysis feature. We also recommend that you use the resource profiling feature to configure pod CPU requests. For more information, see Resource profiling.\n\nPlan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100) >= 85",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node's container CPU usage is higher than 85%",
+      "description": "An alert is triggered when the CPU usage of all containers in  cluster node is higher than 85%.\n\nThe formula is:\n\nNode Used Resources (Usage) / Node Total Allocatable Resources (Allocatable).",
+      "recommendation_sop": "Release resources.\n\nWe recommend that you use the cost analysis feature to check whether any pods are occupying schedulable resources and whether the CPU requests of pods in the cluster are reasonable. For more information, see Enable the cost analysis feature. We also recommend that you use the resource profiling feature to configure pod CPU requests. For more information, see Resource profiling.\n\nPlan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "sum(irate(container_cpu_usage_seconds_total{pod!=\"\",container!=\"\",container!=\"POD\"}[1m])) by (node) / sum(kube_node_status_allocatable{resource=\"cpu\"}) by (node) * 100 >= 85",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node CPU resource allocation rate is higher than 85%",
+      "description": "An alert is triggered when the allocated CPU resources of a cluster node are higher than 85%.\n\nThe formula is: Sum of Resource Requests of Scheduled Pods on the Node / Total Allocatable Resources of the Node.",
+      "recommendation_sop": "The node has insufficient resources for further scheduling. Pods that require more than the available capacity must be scheduled to other nodes.\n\nCheck for resource waste in pods on this node, where actual resource usage is much lower than the requested resources. Plan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "(sum(sum(kube_pod_container_resource_requests{resource=\"cpu\"}) by (pod, node) * on (pod) group_left max(kube_pod_status_ready) by (pod, node)) by (node)) / sum(kube_node_status_allocatable{resource=\"cpu\"}) by (node) * 100 >= 85",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node CPU overcommitment ratio is higher than 300%",
+      "description": "An alert is triggered when the CPU overcommitment ratio of a cluster node is higher than 300%.\n\nThe formula is: Sum of Resource Limits of Scheduled Pods on the Node / Total Allocatable Resources of the Node.\n\nThe default threshold of 300% is a recommended value. You can adjust it based on your business needs.",
+      "recommendation_sop": "The sum of the resource limits of scheduled pods on the node is much larger than the total allocatable resources. During business peaks, a surge in resource usage can lead to insufficient CPU time slice allocation. This causes contention and throttling, which slows down process responses.\n\nWe recommend that you configure more reasonable pod resource limits. ",
+      "expression": "(sum(sum(kube_pod_container_resource_limits{resource=\"cpu\"}) by (pod, node) * on (pod) group_left max(kube_pod_status_ready) by (pod, node)) by (node)) / sum(kube_node_status_allocatable{resource=\"cpu\"}) by (node) * 100 >= 300",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node memory usage is higher than 85%",
+      "description": "An alert is triggered when the memory usage of a cluster node is higher than 85%.\n\nThe formula is:\n\nNode Used Resources (Usage) / Node Total Allocatable Resources (Allocatable).",
+      "recommendation_sop": "Release resources.\n\nWe recommend that you use the cost analysis feature to check whether any pods are occupying schedulable resources and whether the memory requests of pods in the cluster are reasonable. For more information, see Enable the cost analysis feature. We also recommend that you use the resource profiling feature to configure pod memory requests to distribute pods across different nodes and balance resource usage. For more information, see Resource profiling.\n\nPlan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "sum(container_memory_working_set_bytes{pod!=\"\",container!=\"\",container!=\"POD\"}) by (node) / sum(kube_node_status_allocatable{resource=\"memory\"}) by (node) * 100 >= 85",
+      "severity": "Critical",
+      "category": "memory",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node memory resource allocation rate is higher than 85%",
+      "description": "An alert is triggered when the allocated memory resources of a cluster node are higher than 85%.\n\nThe formula is: Sum of Resource Requests of Scheduled Pods on the Node / Total Allocatable Resources of the Node.",
+      "recommendation_sop": "The node has insufficient resources for further scheduling. Pods that require more than the available capacity must be scheduled to other nodes.\n\nCheck for resource waste in pods on this node, where actual resource usage is much lower than the requested resources. ",
+      "expression": "(sum(sum(kube_pod_container_resource_requests{resource=\"memory\"}) by (pod, node) * on (pod) group_left max(kube_pod_status_ready) by (pod, node)) by (node)) / sum(kube_node_status_allocatable{resource=\"memory\"}) by (node) * 100 >= 85",
+      "severity": "Critical",
+      "category": "memory",
+      "labels": [
+        "node"
+      ]
+    },
+    {
+      "rule_name": "Node memory overcommitment ratio is higher than 300%",
+      "description": "An alert is triggered when the memory overcommitment ratio of a cluster node is higher than 300%.\n\nThe formula is: Sum of Resource Limits of Scheduled Pods on the Node / Total Allocatable Resources of the Node.\n\nThe default threshold of 300% is a recommended value. You can adjust it based on your business needs.",
+      "recommendation_sop": "The sum of the resource limits of scheduled pods on the node is much larger than the total allocatable resources. During business peaks, a surge in resource usage can cause memory to reach the node limit, which leads to a node out-of-memory (OOM) event. This may cause processes to be OOMKilled and affect normal business operations.\n\nWe recommend that you configure more reasonable pod resource limits.",
+      "expression": "(sum(sum(kube_pod_container_resource_limits{resource=\"memory\"}) by (pod, node) * on (pod) group_left max(kube_pod_status_ready) by (pod, node)) by (node)) / sum(kube_node_status_allocatable{resource=\"memory\"}) by (node) * 100 >= 300",
+      "severity": "Critical",
+      "category": "memory",
+      "labels": [
+        "node"
+      ]
+    }
+  ]
+}

@@ -13,7 +13,6 @@
         "namespace"
       ]
     },
-
     {
       "rule_name": "Abnormal status of DaemonSet replicas",
       "description": "An alert is triggered when the number of available DaemonSet replicas does not meet the expected number.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Abnormal Status Of Available Deployment Replicas alert rule.",
@@ -26,7 +25,6 @@
         "namespace"
       ]
     },
-
     {
       "rule_name": "Abnormal scheduling of DaemonSet replicas",
       "description": "An alert is triggered when DaemonSet replicas are not scheduled correctly.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Abnormal Scheduling Of Daemonset Replicas alert rule.",
@@ -39,7 +37,6 @@
         "namespace"
       ]
     },
-
     {
       "rule_name": "Job fails to run",
       "description": "An alert is triggered when a job fails to execute.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Job Fails To Run alert rule.",
