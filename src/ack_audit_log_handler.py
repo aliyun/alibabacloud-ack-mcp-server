@@ -303,7 +303,7 @@ class ACKAuditLogHandler:
 
         @self.server.tool(
             name="query_audit_logs",
-            description="查询ACK集群的审计日志"
+            description="查询ACK集群API Server的审计日志"
         )
         async def query_audit_logs(
                 ctx: Context,

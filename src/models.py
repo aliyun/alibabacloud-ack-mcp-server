@@ -144,6 +144,10 @@ class ClusterInfo(BaseModel):
     security_group_id: Optional[str] = Field(None, description="安全组id")
     network_mode: Optional[str] = Field(None, description="网络类型")
     proxy_mode: Optional[str] = Field(None, description="kube-proxy 代理模式")
+    tags: List[dict] = Field(default_factory=list, description="集群资源标签")
+    container_cidr: Optional[str] = Field(None, description="容器网络 CIDR，使用Flannel网络插件下配置")
+    service_cidr: Optional[str] = Field(None, description="服务网络 CIDR")
+    api_server_endpoints: dict[str, str] = Field(default_factory=list, description="集群API Server 访问地址")
 
 
 class ListClustersOutput(BaseModel):

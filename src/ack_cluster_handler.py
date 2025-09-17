@@ -8,6 +8,7 @@ from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 from pydantic import Field
+import json
 
 try:
     from .models import (
@@ -69,6 +70,38 @@ def _get_cs_client(ctx: Context, region: str):
         raise RuntimeError("cs_client_factory not available in runtime providers")
     return cs_client_factory(region)
 
+def parse_master_url(master_url: str) -> dict:
+    """
+    Parse the master_url string and extract API server endpoints.
+
+    Args:
+        master_url (str): The master URL string in format containing API endpoints
+
+    Returns:
+        dict: A dictionary containing the parsed endpoints
+    """
+    # Default response structure
+    endpoints = {"api_server_endpoint": None, "intranet_api_server_endpoint": None}
+
+    # If master_url is empty or None, return default
+    if not master_url:
+        return endpoints
+
+    # Try to parse as JSON first
+    try:
+        url_data = json.loads(master_url)
+        # Extract endpoints from the JSON structure
+        if isinstance(url_data, dict):
+            endpoints["api_server_endpoint"] = url_data.get("api_server_endpoint")
+            endpoints["intranet_api_server_endpoint"] = url_data.get(
+                "intranet_api_server_endpoint"
+            )
+    except json.JSONDecodeError as e:
+        # Log the error and return empty dict as requested
+        print(f"JSON decode error when parsing master_url: {e}")
+        return {}
+
+    return endpoints
 
 class ACKClusterHandler:
     """Handler for ACK addon management operations."""
@@ -86,103 +119,106 @@ class ACKClusterHandler:
         self.settings = settings or {}
 
         # Register tools
-        self._register_tools()
+        self.server.tool(
+            name="list_clusters",
+            description="获取所有region下所有ACK集群列表，默认返回最多10个集群"
+        )(self.list_clusters)
 
         logger.info("ACK Addon Management Handler initialized")
 
-    def _register_tools(self):
-        """Register addon management related tools."""
+    async def list_clusters(
+            self,
+            ctx: Context,
+            page_size: Optional[int] = Field(10, description="查询每个region集群列表的一页大小，默认10"),
+            page_num: Optional[int] = Field(1, description="查询每个region集群列表的分页页码，默认1"),
+    ) -> ListClustersOutput:
+        """获取一个region下所有ACK集群列表
 
-        @self.server.tool(
-            name="list_clusters",
-            description="获取所有region下所有ACK集群列表，默认返回最多500个集群"
-        )
-        async def list_clusters(
-                ctx: Context,
-                page_size: Optional[int] = Field(500, description="查询每个region集群列表的一页大小，默认500"),
-                page_num: Optional[int] = Field(1, description="查询每个region集群列表的分页页码，默认1"),
-        ) -> ListClustersOutput:
-            """获取一个region下所有ACK集群列表
+        Args:
+            ctx: FastMCP context containing lifespan providers
+            page_size: 查询每个region集群列表的一页大小，默认500
+            page_num: 查询每个region集群列表的分页页码，默认1
 
-            Args:
-                ctx: FastMCP context containing lifespan providers
-                page_size: 查询每个region集群列表的一页大小，默认500
-                page_num: 查询每个region集群列表的分页页码，默认1
+        Returns:
+           ListClustersOutput: 包含集群列表和错误信息的输出
+        """
 
-            Returns:
-                ListClustersOutput: 包含集群列表和错误信息的输出
-            """
+        try:
+            # 获取 CS 客户端
+            cs_client = _get_cs_client(ctx, "CENTER")
 
-            try:
-                # 获取 CS 客户端
-                cs_client = _get_cs_client(ctx, "CENTER")
-                
-                # 构建请求
-                request = cs20151215_models.DescribeClustersV1Request(
-                    page_size=min(page_size or 500, 500),
-                    page_number=page_num or 1,
-                )
-                runtime = util_models.RuntimeOptions()
-                headers = {}
-                
-                # 调用 API
-                response = await cs_client.describe_clusters_v1with_options_async(request, headers, runtime)
-                
-                # 处理响应
-                clusters_data = _serialize_sdk_object(response.body.clusters) if response.body and response.body.clusters else []
-                clusters = []
-                
-                for cluster_data in clusters_data:
-                    try:
-                        # 验证必填字段
-                        cluster_name = cluster_data.get("name") or cluster_data.get("cluster_name") or ""
-                        cluster_id = cluster_data.get("cluster_id") or cluster_data.get("clusterId") or ""
-                        state = cluster_data.get("state") or cluster_data.get("cluster_state") or cluster_data.get("status") or ""
-                        cluster_type = cluster_data.get("cluster_type") or cluster_data.get("clusterType") or ""
-                        
-                        # 如果必填字段为空，跳过这个集群
-                        if not cluster_name or not cluster_id or not state or not cluster_type:
-                            logger.warning(f"Skipping cluster with missing required fields: {cluster_data}")
-                            continue
-                        
-                        cluster_info = ClusterInfo(
-                            cluster_name=cluster_name,
-                            cluster_id=cluster_id,
-                            state=state,
-                            region_id=cluster_data.get("region_id") or region_id,
-                            cluster_type=cluster_type,
-                            current_version=cluster_data.get("current_version") or cluster_data.get("currentVersion"),
-                            vpc_id=cluster_data.get("vpc_id") or cluster_data.get("vpcId"),
-                            vswitch_ids=cluster_data.get("vswitch_ids") or cluster_data.get("vswitchIds") or [],
-                            resource_group_id=cluster_data.get("resource_group_id") or cluster_data.get("resourceGroupId"),
-                            security_group_id=cluster_data.get("security_group_id") or cluster_data.get("securityGroupId"),
-                            network_mode=cluster_data.get("network_mode") or cluster_data.get("networkMode"),
-                            proxy_mode=cluster_data.get("proxy_mode") or cluster_data.get("proxyMode")
-                        )
-                        clusters.append(cluster_info)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse cluster data: {e}")
+            # 构建请求
+            request = cs20151215_models.DescribeClustersV1Request(
+                page_size=min(page_size or 10, 500),
+                page_number=page_num or 1,
+            )
+            runtime = util_models.RuntimeOptions()
+            headers = {}
+
+            # 调用 API
+            response = await cs_client.describe_clusters_v1with_options_async(request, headers, runtime)
+
+            # 处理响应
+            clusters_data = _serialize_sdk_object(
+                response.body.clusters) if response.body and response.body.clusters else []
+            clusters = []
+
+            for cluster_data in clusters_data:
+                try:
+                    # 验证必填字段
+                    cluster_name = cluster_data.get("name") or cluster_data.get("cluster_name") or ""
+                    cluster_id = cluster_data.get("cluster_id") or cluster_data.get("clusterId") or ""
+                    state = cluster_data.get("state") or cluster_data.get("cluster_state") or cluster_data.get(
+                        "status") or ""
+                    cluster_type = cluster_data.get("cluster_type") or cluster_data.get("clusterType") or ""
+
+                    # 如果必填字段为空，跳过这个集群
+                    if not cluster_name or not cluster_id or not state or not cluster_type:
+                        logger.warning(f"Skipping cluster with missing required fields: {cluster_data}")
                         continue
-                
-                return ListClustersOutput(
-                    count=len(clusters),
-                    clusters=clusters
-                )
-                
-            except Exception as e:
-                logger.error(f"Failed to list clusters for region {region_id}: {e}")
-                error_message = str(e)
-                error_code = ClusterErrorCodes.NO_RAM_POLICY_AUTH
-                
-                # 根据错误信息判断具体的错误码
-                if "region" in error_message.lower() or "region_id" in error_message.lower():
-                    error_code = ClusterErrorCodes.MISS_REGION_ID
-                
-                return ListClustersOutput(
-                    count=0,
-                    error=ErrorModel(
-                        error_code=error_code,
-                        error_message=error_message
-                    ),
-                    clusters=[]
-                )
+
+                    cluster_info = ClusterInfo(
+                        cluster_name=cluster_name,
+                        cluster_id=cluster_id,
+                        state=state,
+                        region_id=cluster_data.get("region_id"),
+                        cluster_type=cluster_type,
+                        current_version=cluster_data.get("current_version"),
+                        vpc_id=cluster_data.get("vpc_id"),
+                        vswitch_ids=cluster_data.get("vswitch_ids"),
+                        resource_group_id=cluster_data.get("resource_group_id"),
+                        security_group_id=cluster_data.get("security_group_id"),
+                        network_mode=cluster_data.get("network_mode"),
+                        proxy_mode=cluster_data.get("proxy_mode"),
+                        tags=cluster_data.get("tags"),
+                        container_cidr=cluster_data.get("container_cidr"),
+                        service_cidr=cluster_data.get("service_cidr"),
+                        api_server_endpoints=parse_master_url(cluster_data.get("master_url", "")),
+                    )
+                    clusters.append(cluster_info)
+                except Exception as e:
+                    logger.warning(f"Failed to parse cluster data: {e}")
+                    continue
+
+            return ListClustersOutput(
+                count=len(clusters),
+                clusters=clusters
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to list clusters: {e}")
+            error_message = str(e)
+            error_code = ClusterErrorCodes.NO_RAM_POLICY_AUTH
+
+            # 根据错误信息判断具体的错误码
+            if "region" in error_message.lower() or "region_id" in error_message.lower():
+                error_code = ClusterErrorCodes.MISS_REGION_ID
+
+            return ListClustersOutput(
+                count=0,
+                error=ErrorModel(
+                    error_code=error_code,
+                    error_message=error_message
+                ),
+                clusters=[]
+            )
