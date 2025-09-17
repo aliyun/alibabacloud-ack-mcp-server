@@ -1,0 +1,30 @@
+{
+  "resource": "node",
+  "rules": [
+    {
+      "rule_name": "Node's Host memory usage is higher than 85%",
+      "description": "An alert is triggered when the host memory usage of a node is higher than 85%.\n\nIn the console, click Cluster Resource Abnormalities Alert Rule Set and set the Cluster Node - Memory Usage >= 85% alert rule.",
+      "recommendation_sop": "Release resources.\n\nWe recommend that you use the cost analysis feature to check whether any pods are occupying schedulable resources and whether the memory requests of pods in the cluster are reasonable. For more information, see Enable the cost analysis feature. We also recommend that you use the resource profiling feature to configure pod memory requests. For more information, see Resource profiling.\n\nPlan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "(100 - node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100) >= 85",
+      "severity": "Critical",
+      "category": "memory",
+      "labels": [
+        "node"
+      ]
+    },
+
+    {
+      "rule_name": "Node's Host CPU usage is higher than 85%",
+      "description": "An alert is triggered when the host CPU usage of a node is higher than 85%.\n\nIn the Operations column, click Cluster Resource Abnormalities Alert Rule Set and set the Cluster Node - CPU Utilization >= 85% alert rule.",
+      "recommendation_sop": "Release resources.\n\nWe recommend that you use the cost analysis feature to check whether any pods are occupying schedulable resources and whether the CPU requests of pods in the cluster are reasonable. For more information, see Enable the cost analysis feature. We also recommend that you use the resource profiling feature to configure pod CPU requests. For more information, see Resource profiling.\n\nPlan capacity and scale out nodes. For more information, see Scale ACK cluster nodes.",
+      "expression": "100 - (avg by(instance) (rate(node_cpu_seconds_total{mode=\"idle\"}[2m])) * 100) >= 85",
+      "severity": "Critical",
+      "category": "cpu",
+      "labels": [
+        "node"
+      ]
+    },
+
+
+  ]
+}

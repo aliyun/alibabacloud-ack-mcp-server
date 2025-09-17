@@ -8,7 +8,7 @@
       "recommendation_sop": "For information about how to handle abnormal PersistentVolume statuses, see the disk mounting section in Disk volume FAQ. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/user-guide/faq-about-disk-volumes#task-2100599",
       "expression": "kube_persistentvolume_status_phase{phase=~\"Failed|Pending\"} > 0",
       "severity": "Critical",
-      "category": "state",
+      "category": "disk",
       "labels": [
         "persistentvolume"
       ]
@@ -20,7 +20,7 @@
       "recommendation_sop": "We recommend scaling out the node and its disk. For more information, see the disk mounting section in Disk volume FAQ. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/user-guide/faq-about-disk-volumes#task-2100599",
       "expression": "((node_filesystem_avail_bytes * 100) / node_filesystem_size_bytes) < 10",
       "severity": "Critical",
-      "category": "state",
+      "category": "disk",
       "labels": [
         "namespace",
         "node",
