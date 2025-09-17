@@ -1130,7 +1130,7 @@
       "type": "gauge"
     },
     {
-      "description": "资源关系",
+      "description": "k8s资源见关系，此指标是ACK增强提供，社区原生没有",
       "category": "state",
       "labels": [
         "namespace"
