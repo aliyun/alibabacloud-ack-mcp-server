@@ -1,0 +1,10 @@
+task_name: "fix-pod-oom"
+scripts:
+  - prompt: "我在case1-fix-pod-oom namespace下的容器出现异常，请帮我修复。"
+setup:
+  - setup_script_file: "setup.sh"
+cleanup:
+  - cleanup_script_file: "cleanup.sh"
+verify:
+  - verify_script_file: "verify.sh"
+
