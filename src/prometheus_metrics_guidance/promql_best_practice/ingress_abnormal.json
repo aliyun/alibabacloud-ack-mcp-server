@@ -1,0 +1,16 @@
+{
+  "resource": "ingress",
+  "rules": [
+    {
+      "rule_name": "Cluster Ingress Controller certificate is about to expire",
+      "description": "You need to install and deploy the ACK Ingress Controller component and enable the Ingress feature.",
+      "recommendation_sop": "Reissue the Ingress Controller certificate. and need restart ingress controller pod.",
+      "expression": "((nginx_ingress_controller_ssl_expire_time_seconds - time()) / 24 / 3600) < 14",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "ingress"
+      ]
+    }
+  ]
+}

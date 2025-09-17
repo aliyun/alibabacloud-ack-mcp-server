@@ -1,0 +1,1275 @@
+{
+  "job_name": "kube-state-metrics",
+  "metrics": [
+    {
+      "description": "Kubernetes ConfigMap信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "configmap"
+      ],
+      "name": "kube_configmap_info",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob注解",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_annotations",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_created",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_info",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob标签",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob元数据资源版本",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_metadata_resource_version",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob下次调度时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_next_schedule_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob失败作业历史保留限制",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_spec_failed_job_history_limit",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob启动期限秒数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_spec_starting_deadline_seconds",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob成功作业历史保留限制",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_spec_successful_job_history_limit",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob暂停状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_spec_suspend",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob活跃作业数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_status_active",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob上一次调度时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_status_last_schedule_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes CronJob上一次成功执行时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "cronjob"
+      ],
+      "name": "kube_cronjob_status_last_successful_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_created",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet当前计划的节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_current_number_scheduled",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet期望计划的节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_desired_number_scheduled",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet可用节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_number_available",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet错过的调度节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_number_misscheduled",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet就绪节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_number_ready",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet不可用节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_number_unavailable",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet已更新的计划节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_status_updated_number_scheduled",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes DaemonSet已更新的计划节点数量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "daemonset"
+      ],
+      "name": "kube_daemonset_updated_number_scheduled",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_created",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment标签",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment元数据生成代数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_metadata_generation",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment规格副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_spec_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment滚动更新最大不可用数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_spec_strategy_rollingupdate_max_unavailable",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment观察到的生成代数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_status_observed_generation",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment副本总数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_status_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment可用副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_status_replicas_available",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment就绪副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_status_replicas_ready",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment不可用副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_status_replicas_unavailable",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes Deployment已更新副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "deployment"
+      ],
+      "name": "kube_deployment_status_replicas_updated",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_info",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler标签",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler元数据生成代数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_metadata_generation",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler规格最大副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_spec_max_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler规格最小副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_spec_min_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler目标指标",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_spec_target_metric",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler状态条件",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_status_condition",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler当前副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_status_current_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler期望副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_horizontalpodautoscaler_status_desired_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "kube_hpa标签",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler元数据生成代数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_metadata_generation",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler最大副本数规格",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_spec_max_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler最小副本数规格",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_spec_min_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler目标指标",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_spec_target_metric",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler状态条件",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_status_condition",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler当前副本数状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_status_current_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Kubernetes HorizontalPodAutoscaler期望副本数状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "hpa"
+      ],
+      "name": "kube_hpa_status_desired_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "Ingress信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "ingress"
+      ],
+      "name": "kube_ingress_info",
+      "type": "gauge"
+    },
+    {
+      "description": "job创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_created",
+      "type": "gauge"
+    },
+    {
+      "description": "job失败总数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_failed",
+      "type": "counter"
+    },
+    {
+      "description": "job信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_info",
+      "type": "gauge"
+    },
+    {
+      "description": "job完成次数规格",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_spec_completions",
+      "type": "gauge"
+    },
+    {
+      "description": "job活跃状态数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_status_active",
+      "type": "gauge"
+    },
+    {
+      "description": "job失败状态数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_status_failed",
+      "type": "gauge"
+    },
+    {
+      "description": "job成功状态数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "job"
+      ],
+      "name": "kube_job_status_succeeded",
+      "type": "gauge"
+    },
+    {
+      "description": "命名空间创建时间",
+      "category": "state",
+      "labels": [
+        "namespace"
+      ],
+      "name": "kube_namespace_created",
+      "type": "gauge"
+    },
+    {
+      "description": "命名空间标签",
+      "category": "state",
+      "labels": [
+        "namespace"
+      ],
+      "name": "kube_namespace_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "命名空间状态阶段",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "phase"
+      ],
+      "name": "kube_namespace_status_phase",
+      "type": "gauge"
+    },
+    {
+      "description": "节点信息",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_info",
+      "type": "gauge"
+    },
+    {
+      "description": "节点标签",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "节点污点配置",
+      "category": "state",
+      "labels": [
+        "node",
+        "taint_key",
+        "taint_effect"
+      ],
+      "name": "kube_node_spec_taint",
+      "type": "gauge"
+    },
+    {
+      "description": "节点是否可调度标志",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_spec_unschedulable",
+      "type": "gauge"
+    },
+    {
+      "description": "节点可分配资源量",
+      "category": "state",
+      "labels": [
+        "node",
+        "resource"
+      ],
+      "name": "kube_node_status_allocatable",
+      "type": "gauge"
+    },
+    {
+      "description": "节点可分配CPU核心数",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_status_allocatable_cpu_cores",
+      "type": "gauge"
+    },
+    {
+      "description": "节点可分配内存字节数",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_status_allocatable_memory_bytes",
+      "type": "gauge"
+    },
+    {
+      "description": "节点可分配Pod数量",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_status_allocatable_pods",
+      "type": "gauge"
+    },
+    {
+      "description": "节点容量",
+      "category": "state",
+      "labels": [
+        "node",
+        "resource"
+      ],
+      "name": "kube_node_status_capacity",
+      "type": "gauge"
+    },
+    {
+      "description": "节点容量CPU核心数",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_status_capacity_cpu_cores",
+      "type": "gauge"
+    },
+    {
+      "description": "节点容量内存字节数",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_status_capacity_memory_bytes",
+      "type": "gauge"
+    },
+    {
+      "description": "节点容量Pod数量",
+      "category": "state",
+      "labels": [
+        "node"
+      ],
+      "name": "kube_node_status_capacity_pods",
+      "type": "gauge"
+    },
+    {
+      "description": "节点状态条件",
+      "category": "state",
+      "labels": [
+        "node",
+        "condition"
+      ],
+      "name": "kube_node_status_condition",
+      "type": "gauge"
+    },
+    {
+      "description": "持久卷状态阶段",
+      "category": "state",
+      "labels": [
+        "persistentvolume",
+        "phase"
+      ],
+      "name": "kube_persistentvolume_status_phase",
+      "type": "gauge"
+    },
+    {
+      "description": "持久卷声明信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "persistentvolumeclaim"
+      ],
+      "name": "kube_persistentvolumeclaim_info",
+      "type": "gauge"
+    },
+    {
+      "description": "持久卷声明存储资源请求量",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "persistentvolumeclaim"
+      ],
+      "name": "kube_persistentvolumeclaim_resource_requests_storage_bytes",
+      "type": "gauge"
+    },
+    {
+      "description": "持久卷声明状态阶段",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "persistentvolumeclaim",
+        "phase"
+      ],
+      "name": "kube_persistentvolumeclaim_status_phase",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod完成时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_completion_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_info",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器资源限制",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container",
+        "resource"
+      ],
+      "name": "kube_pod_container_resource_limits",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器资源限制CPU核心数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_resource_limits_cpu_cores",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器资源限制内存字节数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_resource_limits_memory_bytes",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器资源请求",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container",
+        "resource"
+      ],
+      "name": "kube_pod_container_resource_requests",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器资源请求CPU核心数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_resource_requests_cpu_cores",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器资源请求内存字节数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_resource_requests_memory_bytes",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器最后终止原因",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container",
+        "reason"
+      ],
+      "name": "kube_pod_container_status_last_terminated_reason",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器就绪状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_status_ready",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器重启总数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_status_restarts_total",
+      "type": "counter"
+    },
+    {
+      "description": "Pod容器运行状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_status_running",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器终止状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_status_terminated",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器终止原因",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container",
+        "reason"
+      ],
+      "name": "kube_pod_container_status_terminated_reason",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器等待状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_container_status_waiting",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod容器等待原因",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container",
+        "reason"
+      ],
+      "name": "kube_pod_container_status_waiting_reason",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_created",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod删除时间戳",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_deletion_timestamp",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_info",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod标签",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_labels",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod所属对象",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "owner_kind",
+        "owner_name"
+      ],
+      "name": "kube_pod_owner",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod启动时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_start_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod状态容器就绪时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "container"
+      ],
+      "name": "kube_pod_status_container_ready_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod状态初始化完成时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_status_initialized_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod状态阶段",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "phase"
+      ],
+      "name": "kube_pod_status_phase",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod就绪状态",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_status_ready",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod就绪时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_status_ready_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod状态原因",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod",
+        "reason"
+      ],
+      "name": "kube_pod_status_reason",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod调度时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_status_scheduled_time",
+      "type": "gauge"
+    },
+    {
+      "description": "Pod未调度标志",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "pod"
+      ],
+      "name": "kube_pod_status_unschedulable",
+      "type": "gauge"
+    },
+    {
+      "description": "副本集所属对象",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "replicaset",
+        "owner_kind",
+        "owner_name"
+      ],
+      "name": "kube_replicaset_owner",
+      "type": "gauge"
+    },
+    {
+      "description": "副本集就绪副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "replicaset"
+      ],
+      "name": "kube_replicaset_status_ready_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "k8s资源见关系，此指标是ACK增强提供，社区原生没有",
+      "category": "state",
+      "labels": [
+        "namespace"
+      ],
+      "name": "kube_resource_relationship",
+      "type": "gauge"
+    },
+    {
+      "description": "资源配额",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "resourcequota"
+      ],
+      "name": "kube_resourcequota",
+      "type": "gauge"
+    },
+    {
+      "description": "资源配额创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "resourcequota"
+      ],
+      "name": "kube_resourcequota_created",
+      "type": "gauge"
+    },
+    {
+      "description": "secret信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "secret"
+      ],
+      "name": "kube_secret_info",
+      "type": "gauge"
+    },
+    {
+      "description": "服务信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "service"
+      ],
+      "name": "kube_service_info",
+      "type": "gauge"
+    },
+    {
+      "description": "服务类型规格",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "service",
+        "type"
+      ],
+      "name": "kube_service_spec_type",
+      "type": "gauge"
+    },
+    {
+      "description": "服务状态负载均衡入口信息",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "service"
+      ],
+      "name": "kube_service_status_load_balancer_ingress",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集创建时间",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_created",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集元数据生成代数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_metadata_generation",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集状态副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_status_replicas",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集状态可用副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_status_replicas_available",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集状态就绪副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_status_replicas_ready",
+      "type": "gauge"
+    },
+    {
+      "description": "有状态副本集状态更新副本数",
+      "category": "state",
+      "labels": [
+        "namespace",
+        "statefulset"
+      ],
+      "name": "kube_statefulset_status_replicas_updated",
+      "type": "gauge"
+    }
+  ]
+}
+
+

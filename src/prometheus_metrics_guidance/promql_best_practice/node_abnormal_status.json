@@ -1,0 +1,16 @@
+{
+  "resource": "node",
+  "rules": [
+    {
+      "rule_name": "Node remains in NotReady state for 3 minutes",
+      "description": "An alert is triggered when a cluster node remains in the NotReady state for 3 minutes.\n\nAt the operation entry, click Cluster Node Abnormalities Alert Rule Set and set the Cluster Node Offline alert rule.",
+      "recommendation_sop": "Determine if the NotReady state is expected. For example, you can ignore this alert if you are replacing the node, taking it offline, or manually setting it to an unavailable state.\n\nIf the state is not expected, assess whether the application pods on this node are affected and evict them if necessary.\n\nA node can become unavailable for various reasons. Check the node's condition to identify common issues, such as excessive memory pressure or a full disk.",
+      "expression": "(sum(max_over_time(kube_node_status_condition{condition=\"Ready\",status=\"true\"}[3m]) <= 0) by (node)) or (absent(kube_node_status_condition{condition=\"Ready\",status=\"true\"})) > 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "node"
+      ]
+    }
+  ]
+}

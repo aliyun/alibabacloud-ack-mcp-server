@@ -1,0 +1,53 @@
+{
+  "resource": "workload",
+  "rules": [
+    {
+      "rule_name": "Abnormal status of available deployment replicas",
+      "description": "An alert is triggered when the number of available deployment replicas does not meet the expected number.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Abnormal Status Of Available Deployment Replicas alert rule.",
+      "recommendation_sop": "If a pod fails to start or has an abnormal status, see Troubleshoot pod abnormalities. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/support/pod-troubleshooting#task-2187029",
+      "expression": "kube_deployment_spec_replicas{} != kube_deployment_status_replicas_available{}",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "deployment",
+        "namespace"
+      ]
+    },
+    {
+      "rule_name": "Abnormal status of DaemonSet replicas",
+      "description": "An alert is triggered when the number of available DaemonSet replicas does not meet the expected number.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Abnormal Status Of Available Deployment Replicas alert rule.",
+      "recommendation_sop": "If a pod fails to start or has an abnormal status, see Troubleshoot pod abnormalities. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/support/pod-troubleshooting#task-2187029",
+      "expression": "((100 - kube_daemonset_status_number_ready{} / kube_daemonset_status_desired_number_scheduled{} * 100) or (kube_daemonset_status_desired_number_scheduled{} - kube_daemonset_status_current_number_scheduled{})) > 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "daemonset",
+        "namespace"
+      ]
+    },
+    {
+      "rule_name": "Abnormal scheduling of DaemonSet replicas",
+      "description": "An alert is triggered when DaemonSet replicas are not scheduled correctly.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Abnormal Scheduling Of Daemonset Replicas alert rule.",
+      "recommendation_sop": "If a pod fails to start or has an abnormal status, see Troubleshoot pod abnormalities. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/support/pod-troubleshooting#task-2187029",
+      "expression": "kube_daemonset_status_number_misscheduled{job} > 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "daemonset",
+        "namespace"
+      ]
+    },
+    {
+      "rule_name": "Job fails to run",
+      "description": "An alert is triggered when a job fails to execute.\n\nAt the operation entry, click Cluster Application Workload Abnormalities Alert Rule Set and set the Job Fails To Run alert rule.",
+      "recommendation_sop": "Check the logs of the pod under the corresponding job for detailed failure information. If a pod fails to start or has an abnormal status, see Troubleshoot pod abnormalities. https://www.alibabacloud.com/help/en/ack/ack-managed-and-ack-dedicated/support/pod-troubleshooting#task-2187029",
+      "expression": "kube_job_status_failed{} > 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "job",
+        "namespace"
+      ]
+    }
+  ]
+}

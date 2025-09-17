@@ -1,0 +1,27 @@
+{
+  "resource": "coredns",
+  "rules": [
+    {
+      "rule_name": "Cluster CoreDNS availability is abnormal - requests drop to zero",
+      "description": "Only ACK managed clusters (Pro and Basic editions) support detection of this abnormality.",
+      "recommendation_sop": "Check if the CoreDNS pods in the cluster are normal.",
+      "expression": "(sum(rate(coredns_dns_request_count_total{}[1m]))by(server,zone)<=0) or (sum(rate(coredns_dns_requests_total{}[1m]))by(server,zone)<=0)",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "coredns"
+      ]
+    },
+    {
+      "rule_name": "Cluster CoreDNS availability is abnormal - panic error",
+      "description": "Only ACK managed clusters (Pro and Basic editions) support detection of this abnormality.",
+      "recommendation_sop": "Check if the CoreDNS pods in the cluster are normal.",
+      "expression": "sum(rate(coredns_panic_count_total{}[3m])) > 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "coredns"
+      ]
+    }
+  ]
+}
