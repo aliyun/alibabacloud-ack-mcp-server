@@ -73,16 +73,16 @@ class DiagnoseHandler:
     def _register_tools(self):
         @self.server.tool(
             name="diagnose_resource",
-            description="发起一个ACK集群的资源的异步诊断任务，大概3分钟后需要按返回的diagnose_task_id查询诊断结果"
+            description="发起一个ACK集群的资源的异步诊断任务，获取diagnose_task_id，然后需要通过轮训调用tool get_diagnose_resource_result 获取诊断报告结果，完整生成大概3分钟后"
         )
         async def diagnose_resource(
                 ctx: Context,
-                cluster_id: str = Field(..., description="需要查询的prometheus所在的集群clusterId"),
+                cluster_id: str = Field(..., description="需要诊断的ACK集群clusterId"),
                 region_id: str = Field(..., description="集群所在的regionId"),
                 resource_type: str = Field(..., description="诊断的目标资源类型：node/ingress/cluster/memory/pod/service/network"),
                 resource_target: str = Field(..., description="用于指定诊断对象的参数，JSON字符串格式"),
         ) -> DiagnoseResourceOutput | Dict[str, Any]:
-            """发起一个ACK集群的资源的异步诊断任务"""
+            """发起ACK集群资源诊断任务"""
             if not self.allow_write:
                 return {"error": ErrorModel(error_code="WriteDisabled", error_message="Write operations are disabled").model_dump()}
 
@@ -145,15 +145,13 @@ class DiagnoseHandler:
                 # 获取 CS 客户端
                 cs_client = _get_cs_client(ctx, region_id)
                 
-                # 获取诊断结果请求
-                request = cs20151215_models.DescribeClusterDiagnosisRequest(
-                    diagnosis_id=diagnose_task_id
-                )
+                # 获取诊断结果请求（新版SDK使用 GetClusterDiagnosisResultRequest）
+                request = cs20151215_models.GetClusterDiagnosisResultRequest()
                 runtime = util_models.RuntimeOptions()
                 headers = {}
 
-                response = await cs_client.describe_cluster_diagnosis_with_options_async(
-                    cluster_id, request, headers, runtime
+                response = await cs_client.get_cluster_diagnosis_result_with_options_async(
+                    cluster_id, diagnose_task_id, request, headers, runtime
                 )
 
                 if not response.body:

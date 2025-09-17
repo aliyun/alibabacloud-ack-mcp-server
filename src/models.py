@@ -65,6 +65,11 @@ class DiagnoseResourceInput(BaseModel):
 
 class DiagnoseResourceOutput(BaseModel):
     diagnose_task_id: Optional[str] = None
+    result: Optional[str] = None
+    status: Optional[str] = None
+    finished_time: Optional[str] = None
+    resource_type: Optional[str] = None
+    resource_target: Optional[str] = None
     error: Optional[ErrorModel] = None
 
 

@@ -94,7 +94,7 @@ class PrometheusHandler:
         @self.server.tool(name="query_prometheus", description="查询一个ACK集群的阿里云Prometheus数据")
         async def query_prometheus(
                 ctx: Context,
-                cluster_id: str = Field(..., description="需要查询的prometheus所在的集群clusterId"),
+                cluster_id: str = Field(..., description="需要查询的阿里云prometheus所在的ACK集群的clusterId"),
                 promql: str = Field(..., description="PromQL表达式"),
                 start_time: Optional[str] = Field(None, description="RFC3339或unix时间；与end_time同时提供为range查询"),
                 end_time: Optional[str] = Field(None, description="RFC3339或unix时间；与start_time同时提供为range查询"),

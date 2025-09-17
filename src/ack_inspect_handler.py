@@ -71,7 +71,7 @@ class InspectHandler:
     def _register_tools(self):
         @self.server.tool(
             name="query_inspect_report",
-            description="查询一个ACK集群最近的巡检报告"
+            description="查询一个ACK集群最近的健康巡检报告"
         )
         async def query_inspect_report(
                 ctx: Context,
