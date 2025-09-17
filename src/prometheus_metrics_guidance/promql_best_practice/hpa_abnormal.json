@@ -1,0 +1,16 @@
+{
+  "resource": "hpa",
+  "rules": [
+    {
+      "rule_name": "HPA current replica count has reached the maximum replica setting",
+      "description": "HPA current replica count has reached the maximum replica setting",
+      "recommendation_sop": "Check if hpa's mapping app need more resource and replica, or refine hpa's config.",
+      "expression": "max(kube_horizontalpodautoscaler_spec_max_replicas) by (namespace, horizontalpodautoscaler) - max(kube_horizontalpodautoscaler_status_current_replicas) by (namespace, horizontalpodautoscaler) <= 0",
+      "severity": "Critical",
+      "category": "state",
+      "labels": [
+        "hpa"
+      ]
+    }
+  ]
+}
