@@ -63,8 +63,13 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
                     cs_config.access_key_id = config.get("access_key_id")
                 if config.get("access_key_secret"):
                     cs_config.access_key_secret = config.get("access_key_secret")
-                cs_config.region_id = target_region or config.get("region_id")
-                cs_config.endpoint = f"cs.{cs_config.region_id}.aliyuncs.com"
+
+                # 如果传入的 target_region = "CENTER"，则使用中心化endpoint
+                if target_region == "CENTER":
+                    cs_config.endpoint = f"cs.aliyuncs.com"
+                else:
+                    cs_config.region_id = target_region or config.get("region_id")
+                    cs_config.endpoint = f"cs.{cs_config.region_id}.aliyuncs.com"
                 client = CS20151215Client(cs_config)
                 logger.debug(f"Created new CS client for region: {target_region}")
                 return client

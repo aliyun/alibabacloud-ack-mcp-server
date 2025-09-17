@@ -64,18 +64,10 @@ def _serialize_sdk_object(obj):
 def _get_cs_client(ctx: Context, region: str):
     """从 lifespan providers 中获取指定区域的 CS 客户端。"""
     providers = getattr(ctx.request_context, "lifespan_context", {}).get("providers", {})
-    factory = providers.get("cs_client_factory") if isinstance(providers, dict) else None
-    if not factory:
+    cs_client_factory = providers.get("cs_client_factory") if isinstance(providers, dict) else None
+    if not cs_client_factory:
         raise RuntimeError("cs_client_factory not available in runtime providers")
-    return factory(region)
-
-
-# 默认区域列表
-DEFAULT_REGIONS = [
-    "cn-hangzhou", "cn-shanghai", "cn-beijing", "cn-shenzhen", "cn-zhangjiakou", "cn-huhehaote",
-    "cn-chengdu", "cn-hongkong", "ap-southeast-1", "ap-southeast-3", "ap-southeast-5",
-    "ap-south-1", "ap-northeast-1", "eu-central-1", "eu-west-1", "us-west-1", "us-east-1",
-]
+    return cs_client_factory(region)
 
 
 class ACKClusterHandler:
@@ -103,11 +95,10 @@ class ACKClusterHandler:
 
         @self.server.tool(
             name="list_clusters",
-            description="获取一个region下所有ACK集群列表"
+            description="获取所有region下所有ACK集群列表，默认返回最多500个集群"
         )
         async def list_clusters(
                 ctx: Context,
-                region_id: str = Field(..., description="区域ID，例如 cn-hangzhou"),
                 page_size: Optional[int] = Field(500, description="查询每个region集群列表的一页大小，默认500"),
                 page_num: Optional[int] = Field(1, description="查询每个region集群列表的分页页码，默认1"),
         ) -> ListClustersOutput:
@@ -115,33 +106,21 @@ class ACKClusterHandler:
 
             Args:
                 ctx: FastMCP context containing lifespan providers
-                region_id: 区域ID，例如 cn-hangzhou
                 page_size: 查询每个region集群列表的一页大小，默认500
                 page_num: 查询每个region集群列表的分页页码，默认1
 
             Returns:
                 ListClustersOutput: 包含集群列表和错误信息的输出
             """
-            # 验证必填参数
-            if not region_id:
-                return ListClustersOutput(
-                    count=0,
-                    error=ErrorModel(
-                        error_code=ClusterErrorCodes.MISS_REGION_ID,
-                        error_message="缺少region_id参数, 参考 https://help.aliyun.com/zh/ack/product-overview/supported-regions"
-                    ),
-                    clusters=[]
-                )
 
             try:
                 # 获取 CS 客户端
-                cs_client = _get_cs_client(ctx, region_id)
+                cs_client = _get_cs_client(ctx, "CENTER")
                 
                 # 构建请求
                 request = cs20151215_models.DescribeClustersV1Request(
                     page_size=min(page_size or 500, 500),
                     page_number=page_num or 1,
-                    region_id=region_id,
                 )
                 runtime = util_models.RuntimeOptions()
                 headers = {}
