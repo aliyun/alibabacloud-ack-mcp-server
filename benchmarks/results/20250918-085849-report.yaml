@@ -1,0 +1,63 @@
+report_metadata:
+  creationTimestamp: '2025-09-18T08:57:35+00:00'
+  finishedTimestamp: '2025-09-18T08:58:49+00:00'
+  ai_agent:
+    name: qwen code
+  llm_model:
+    name: qwen3-32b
+  mcp-server:
+  - name: ack-mcp-server
+    version: 380b22e
+  tools:
+  - ack_kubectl
+  - diagnose_resource
+  - get_current_time
+  - get_diagnose_resource_result
+  - list_clusters
+  - query_audit_logs
+  - query_controlplane_logs
+  - query_inspect_report
+  - query_prometheus
+  - query_prometheus_metric_guidance
+  external_configs:
+  - debug: false
+  - debug_log_path: ''
+results:
+  tasks:
+  - task_name: 1-fix-pod-oom
+    is_success: false
+    error: '''api_key'''
+    startTimestamp: '2025-09-18T08:57:36+00:00'
+    finishedTimestamp: '2025-09-18T08:58:49+00:00'
+    result_content: '
+
+      [setup:setup.sh] rc=0
+
+      namespace/case1-fix-pod-oom created
+
+      deployment.apps/case1-app created
+
+      Waiting for deployment "case1-app" rollout to finish: 0 of 2 updated replicas
+      are available...
+
+      Waiting for deployment "case1-app" rollout to finish: 1 of 2 updated replicas
+      are available...
+
+      Waiting for deployment "case1-app" rollout to finish: 0 of 2 updated replicas
+      are available...
+
+      Waiting for OOMKilled status to occur in pod...
+
+      OOMKilled status detected in pod: case1-app-8657cf66b5-nnpsn
+
+
+      error: timed out waiting for the condition
+
+
+      [cleanup:cleanup.sh] rc=0
+
+      namespace "case1-fix-pod-oom" deleted
+
+
+      '
+    verify_content: null
