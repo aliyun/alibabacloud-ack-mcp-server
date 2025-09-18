@@ -118,10 +118,10 @@ class KubectlHandler:
         """Register kubectl tool."""
 
         @self.server.tool(
-            name="kubectl",
+            name="ack_kubectl",
             description="Execute kubectl command. Pass the arguments after 'kubectl'. Optionally specify cluster_id to use ACK API kubeconfig."
         )
-        async def kubectl(
+        async def ack_kubectl(
                 ctx: Context,
                 command: str = Field(
                     ..., description="Arguments after 'kubectl', e.g. 'get pods -A'"

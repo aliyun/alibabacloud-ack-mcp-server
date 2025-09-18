@@ -13,9 +13,29 @@
 
 ### 2. LLM
 
+#### QWen
+- qwen-coder-plus
+- qwen-plus
+
+#### Claude
+Later
+
+#### Gemini
+Later
+
+#### Deepseek
+Later
+
+
 ### 3. Aliyun Account AccessKey
 
 ### 4. Existing Alibaba Container Service Cluster with intranet kubeconfig 
 
 ### 5. local bash and kubectl cli
+
+## How to use
+
+1. need prepare env
+2. LLM provider
+
 

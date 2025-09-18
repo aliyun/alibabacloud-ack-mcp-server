@@ -30,9 +30,9 @@ spec:
             - --timeout
             - 3600s
           ## progrium/stress:latest
-          image: registry.cn-hangzhou.aliyuncs.com/acs/stress:20230616
+          image: registry-cn-beijing.ack.aliyuncs.com/acs/docker-stress:v1.0.1-f69a43e-aliyun
           imagePullPolicy: Always
-          name: main_container
+          name: main-container
           resources:
             limits:
               memory: 64Mi
