@@ -250,12 +250,10 @@ class KubectlInput(BaseModel):
 
 class KubectlOutput(BaseModel):
     """Kubectl 命令输出结果"""
-    status: str = Field(..., description="执行状态：success 或 error")
-    exit_code: int = Field(..., description="命令退出码")
-    stdout: Optional[str] = Field(None, description="标准输出")
-    stderr: Optional[str] = Field(None, description="标准错误输出")
-    error: Optional[str] = Field(None, description="错误信息")
-    kubeconfig_source: Optional[str] = Field(None, description="kubeconfig 来源：local 或 ack_api")
+    command: str = Field(..., description="kubectl 命令参数，例如 'get pods -A'")
+    stdout: str = Field("", description="kubectl 命令执行结果")
+    stderr: str = Field("", description="kubectl 命令执行失败的结果")
+    exit_code: int = Field(0, description="kubectl 命令执行结果码")
 
 
 class GetClusterKubeConfigOutput(BaseModel):
