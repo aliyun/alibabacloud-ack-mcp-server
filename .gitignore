@@ -40,4 +40,4 @@ config.prod.yaml
 # Temporary files
 *.tmp
 *.temp
-*.bak
+*.bak!/benchmarks/results/

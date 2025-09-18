@@ -133,9 +133,9 @@ def run_task(task_dir: Path, agent_cmd_template: Optional[str], skip_setup: bool
                 result_content += f"\n[setup:{script_file}] rc={rc}\n{out}\n{err}"
                 print(f"[setup:{script_file}] rc={rc}")
                 if out:
-                    print(out)
+                    print(f"[setup:{script_file}], stdout: {out}")
                 if err:
-                    print(err)
+                    print(f"[setup:{script_file}], stderr: {err}")
                 if rc != 0:
                     raise RuntimeError(f"setup failed: {script_file} rc={rc}")
 
@@ -166,9 +166,9 @@ def run_task(task_dir: Path, agent_cmd_template: Optional[str], skip_setup: bool
             verify_content += f"\n[verify:{script_file}] rc={rc}\n{out}\n{err}"
             print(f"[verify:{script_file}] rc={rc}")
             if out:
-                print(out)
+                print(f"[verify:{script_file}], stdout: {out}")
             if err:
-                print(err)
+                print(f"[verify:{script_file}], stderr: {err}")
             verify_rc_aggregate = rc or verify_rc_aggregate
 
         is_success = verify_rc_aggregate == 0
@@ -185,9 +185,9 @@ def run_task(task_dir: Path, agent_cmd_template: Optional[str], skip_setup: bool
                 result_content += f"\n[cleanup:{script_file}] rc={rc}\n{out}\n{err}"
                 print(f"[cleanup:{script_file}] rc={rc}")
                 if out:
-                    print(out)
+                    print(f"[cleanup:{script_file}], stdout: {out}")
                 if err:
-                    print(err)
+                    print(f"[cleanup:{script_file}], stderr: {err}")
 
     finished_ts = iso_now()
 
@@ -296,6 +296,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             agent_cmd_template = (
                 "kubectl-ai --llm-provider=openai --model={model} --mcp-client \"{prompt}\""
             )
+    agent_cmd_template = (agent_cmd_template or "").replace("{api_key}", args.openai_api_key)
+    agent_cmd_template = (agent_cmd_template or "").replace("{base_url}", args.openai_base_url)
     agent_cmd_template = (agent_cmd_template or "").replace("{model}", args.llm_model)
 
     # Build agent environment (unified for both agents)
