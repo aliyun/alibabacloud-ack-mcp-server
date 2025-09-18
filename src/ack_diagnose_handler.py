@@ -73,7 +73,7 @@ class DiagnoseHandler:
 
         self.server.tool(
             name="diagnose_resource",
-            description="对ACK集群的Kubernetes资源进行诊断，包括node/ingress/cluster/memory/pod/service/network等。发起一个ACK集群的资源的异步诊断任务，获取diagnose_task_id，然后需要通过轮训调用tool get_diagnose_resource_result 获取诊断报告结果，完成诊断大概需要3分钟左右。"
+            description="对ACK集群的Kubernetes资源进行诊断，包括node/ingress/memory/pod/service/network。发起一个ACK集群的资源的异步诊断任务，获取diagnose_task_id，然后需要通过轮训调用tool get_diagnose_resource_result 获取诊断报告结果，完成诊断大概需要3分钟左右。"
         )(self.diagnose_resource)
 
         self.server.tool(
@@ -179,7 +179,7 @@ class DiagnoseHandler:
             result = getattr(response.body, 'result', None)
             status = getattr(response.body, 'status', None)
             code = getattr(response.body, 'code', None)
-            finished_time = getattr(response.body, 'finished_time', None)
+            finished_time = getattr(response.body, 'finished', None)
             resource_type = getattr(response.body, 'type', None)
             resource_target = getattr(response.body, 'target', None)
 

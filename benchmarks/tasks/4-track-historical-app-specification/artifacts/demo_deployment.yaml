@@ -26,7 +26,7 @@ spec:
             - --vm
             - "1"
             - --vm-bytes
-            - 1000M
+            - 15M
             - --timeout
             - 3600s
           ## progrium/stress:latest
@@ -35,9 +35,9 @@ spec:
           name: main-container
           resources:
             limits:
-              memory: 1024Mi
+              memory: 666Mi
             requests:
-              memory: 1024Mi
+              memory: 66Mi
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
       dnsPolicy: ClusterFirst

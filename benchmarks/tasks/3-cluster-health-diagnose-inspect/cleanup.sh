@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-kubectl delete namespace case2-history-top-resource-usage-app-analysis --ignore-not-found=true
+
+NAMESPACE="case3-cluster-health-diagnose-inspect"
+DEPLOYMENT="case3-app"
+
+kubectl delete namespace $NAMESPACE --ignore-not-found=true

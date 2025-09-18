@@ -1,6 +1,6 @@
 task_name: "history-top-resource-usage-app-analysis"
 scripts:
-  - prompt: "我的benchmark测试集群是否健康，如果有异常帮我发起诊断"
+  - prompt: "我的benchmark测试集群，最近15分钟被删除的应用当时的规格是什么？"
 setup:
   - setup_script_file: "setup.sh"
 cleanup:

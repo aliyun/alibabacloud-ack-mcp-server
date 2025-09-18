@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-kubectl delete namespace case1-fix-pod-oom --ignore-not-found=true
+
+NAMESPACE="case1-fix-pod-oom"
+DEPLOYMENT="case1-app"
+
+kubectl delete namespace $NAMESPACE --ignore-not-found=true

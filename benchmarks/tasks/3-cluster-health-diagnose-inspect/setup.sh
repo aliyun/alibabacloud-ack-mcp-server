@@ -1,12 +1,34 @@
 #!/usr/bin/env bash
-kubectl delete namespace case2-history-top-resource-usage-app-analysis --ignore-not-found
+
+NAMESPACE="case3-cluster-health-diagnose-inspect"
+DEPLOYMENT="case3-app"
+ARTIFACT_FILE=artifacts/ugly_deployment.yaml
+
+kubectl delete namespace $NAMESPACE --ignore-not-found
 
 # Create namespace
-kubectl create namespace case2-history-top-resource-usage-app-analysis
+kubectl create namespace $NAMESPACE
 
 # Apply the deployment from artifacts
-kubectl apply -f artifacts/oom_demo_deployment.yaml -n case2-history-top-resource-usage-app-analysis
+kubectl apply -f $ARTIFACT_FILE -n $NAMESPACE
 
 # Wait for the deployment to be created
-kubectl rollout status deployment/case1-app -n case2-history-top-resource-usage-app-analysis --timeout=30s || true
+kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=30s || true
+
+# Get all nodes and mark one as unschedulable for cluster health diagnosis
+echo "Getting node list..."
+NODES=$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')
+if [ -n "$NODES" ]; then
+    # Convert to array and select first node
+    NODE_ARRAY=($NODES)
+    SELECTED_NODE=${NODE_ARRAY[0]}
+    echo "Selected node for unschedulable test: $SELECTED_NODE"
+    
+    # Mark the node as unschedulable
+    kubectl patch node "$SELECTED_NODE" -p '{"spec":{"unschedulable":true}}'
+    echo "Node $SELECTED_NODE marked as unschedulable"
+else
+    echo "No nodes found in cluster"
+    exit 1
+fi
 

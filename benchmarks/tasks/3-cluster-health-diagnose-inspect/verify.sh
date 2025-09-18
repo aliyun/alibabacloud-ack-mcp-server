@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-NAMESPACE="case2-history-top-resource-usage-app-analysis"
-DEPLOYMENT="case2-app"
+NAMESPACE="case3-cluster-health-diagnose-inspect"
+DEPLOYMENT="case3-app"
 
 # Check if the deployment is ready
 if ! kubectl wait --for=condition=Available deployment/$DEPLOYMENT -n $NAMESPACE --timeout=60s; then

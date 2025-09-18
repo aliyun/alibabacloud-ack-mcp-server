@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-kubectl delete namespace case2-history-top-resource-usage-app-analysis --ignore-not-found
+
+NAMESPACE="case2-history-top-resource-usage-app-analysis"
+DEPLOYMENT="case2-app"
+ARTIFACT_FILE=artifacts/eat_memory_deployment.yaml
+
+
+kubectl delete namespace $NAMESPACE --ignore-not-found
 
 # Create namespace
-kubectl create namespace case2-history-top-resource-usage-app-analysis
+kubectl create namespace $NAMESPACE
 
 # Apply the deployment from artifacts
-kubectl apply -f artifacts/eat_memory_deployment.yaml -n case2-history-top-resource-usage-app-analysis
+kubectl apply -f $ARTIFACT_FILE -n $NAMESPACE
 
 # Wait for the deployment to be created
-kubectl rollout status deployment/case2-app -n case2-history-top-resource-usage-app-analysis --timeout=30s || true
-
+kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=30s || true
