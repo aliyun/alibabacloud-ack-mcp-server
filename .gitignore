@@ -1,3 +1,7 @@
+
+# Benchmark Result and Reports
+benchmarks/results/.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
