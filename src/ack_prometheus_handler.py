@@ -6,6 +6,7 @@ import httpx
 import os
 import json
 from datetime import datetime
+
 try:
     from .models import (
         ErrorModel,
@@ -37,7 +38,12 @@ class PrometheusHandler:
         self.server = server
         self.settings = settings or {}
         self.allow_write = self.settings.get("allow_write", True)
-        self._register_tools()
+
+        self.server.tool(name="query_prometheus", description="查询一个ACK集群的阿里云Prometheus数据")(
+            self.query_prometheus)
+
+        self.server.tool(name="query_prometheus_metric_guidance", description="获取Prometheus指标定义和最佳实践")(
+            self.query_prometheus_metric_guidance)
         logger.info("Prometheus Handler initialized")
 
     def _resolve_prometheus_endpoint(self, ctx: Context, cluster_id: str) -> Optional[str]:
@@ -90,147 +96,150 @@ class PrometheusHandler:
             # 直接传回（由后端 Prometheus 判定）
             return value
 
-    def _register_tools(self):
-        @self.server.tool(name="query_prometheus", description="查询一个ACK集群的阿里云Prometheus数据")
-        async def query_prometheus(
-                ctx: Context,
-                cluster_id: str = Field(..., description="需要查询的阿里云prometheus所在的ACK集群的clusterId"),
-                promql: str = Field(..., description="PromQL表达式"),
-                start_time: Optional[str] = Field(None, description="RFC3339或unix时间；与end_time同时提供为range查询"),
-                end_time: Optional[str] = Field(None, description="RFC3339或unix时间；与start_time同时提供为range查询"),
-                step: Optional[str] = Field(None, description="range查询步长，如30s"),
-        ) -> QueryPrometheusOutput | Dict[str, Any]:
-            endpoint = self._resolve_prometheus_endpoint(ctx, cluster_id)
-            if not endpoint:
-                return {"error": ErrorModel(error_code="MissingEndpoint", error_message="无法获取 Prometheus HTTP API，请确定此集群是否已经正常部署阿里云Prometheus 或 环境变量 PROMETHEUS_HTTP_API[_<cluster_id>]").model_dump()}
+    async def query_prometheus(
+            self,
+            ctx: Context,
+            cluster_id: str = Field(..., description="需要查询的阿里云prometheus所在的ACK集群的clusterId"),
+            promql: str = Field(..., description="PromQL表达式"),
+            start_time: Optional[str] = Field(None, description="RFC3339或unix时间；与end_time同时提供为range查询"),
+            end_time: Optional[str] = Field(None, description="RFC3339或unix时间；与start_time同时提供为range查询"),
+            step: Optional[str] = Field(None, description="range查询步长，如30s"),
+    ) -> QueryPrometheusOutput | Dict[str, Any]:
+        endpoint = self._resolve_prometheus_endpoint(ctx, cluster_id)
+        if not endpoint:
+            return {"error": ErrorModel(error_code="MissingEndpoint",
+                                        error_message="无法获取 Prometheus HTTP API，请确定此集群是否已经正常部署阿里云Prometheus 或 环境变量 PROMETHEUS_HTTP_API[_<cluster_id>]").model_dump()}
 
-            has_range = bool(start_time and end_time)
-            params: Dict[str, Any] = {"query": promql}
-            url = endpoint + ("/api/v1/query_range" if has_range else "/api/v1/query")
-            if has_range:
-                params["start"] = self._parse_time(start_time)
-                params["end"] = self._parse_time(end_time)
-                if step:
-                    params["step"] = step
+        has_range = bool(start_time and end_time)
+        params: Dict[str, Any] = {"query": promql}
+        url = endpoint + ("/api/v1/query_range" if has_range else "/api/v1/query")
+        if has_range:
+            params["start"] = self._parse_time(start_time)
+            params["end"] = self._parse_time(end_time)
+            if step:
+                params["step"] = step
 
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.get(url, params=params)
-                resp.raise_for_status()
-                data = resp.json()
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(url, params=params)
+            resp.raise_for_status()
+            data = resp.json()
 
-            # 直接透传 Prometheus 的 status/data，但补充兼容所需的 resultType/result 展示
-            result = data.get("data", {}) if isinstance(data, dict) else {}
-            result_type = result.get("resultType")
-            raw_result = result.get("result", [])
+        # 直接透传 Prometheus 的 status/data，但补充兼容所需的 resultType/result 展示
+        result = data.get("data", {}) if isinstance(data, dict) else {}
+        result_type = result.get("resultType")
+        raw_result = result.get("result", [])
 
-            # 兼容输出：resultType + result 列表；对 instant query 将 value 适配为 values 列表
-            normalized = []
-            if isinstance(raw_result, list):
-                for item in raw_result:
-                    if not isinstance(item, dict):
+        # 兼容输出：resultType + result 列表；对 instant query 将 value 适配为 values 列表
+        normalized = []
+        if isinstance(raw_result, list):
+            for item in raw_result:
+                if not isinstance(item, dict):
+                    continue
+                metric = item.get("metric", {})
+                if has_range:
+                    values = item.get("values", [])
+                else:
+                    v = item.get("value")
+                    values = [v] if v else []
+                normalized.append({
+                    "metric": metric,
+                    "values": values,
+                })
+
+        return QueryPrometheusOutput(
+            resultType=result_type or ("matrix" if has_range else "vector"),
+            result=[QueryPrometheusSeriesPoint(**item) for item in normalized],
+        )
+
+    async def query_prometheus_metric_guidance(
+            self,
+            ctx: Context,
+            resource_label: str = Field(...,
+                                        description="资源维度label：node/pod/container/deployment/daemonset/job/coredns/ingress/hpa/persistentvolume/mountpoint 等"),
+            metric_category: str = Field(..., description="指标分类：cpu/memory/network/disk/state"),
+    ) -> QueryPrometheusMetricGuidanceOutput | Dict[str, Any]:
+        # 从 runtime context 获取 Prometheus 指标指引数据
+        lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
+        providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
+        prometheus_guidance = providers.get("prometheus_guidance", {}) if isinstance(providers, dict) else {}
+
+        if not prometheus_guidance or not prometheus_guidance.get("initialized"):
+            return {"error": ErrorModel(error_code="GuidanceNotInitialized",
+                                        error_message="Prometheus guidance not initialized").model_dump()}
+
+        metrics: List[MetricDefinition] = []
+        promql_samples: List[PromQLSample] = []
+
+        try:
+            # 查询指标定义
+            metrics_dict = prometheus_guidance.get("metrics_dictionary", {})
+            for file_key, file_data in metrics_dict.items():
+                if not isinstance(file_data, dict):
+                    continue
+
+                # 处理不同的文件结构
+                metrics_list = []
+                if "metrics" in file_data:
+                    metrics_list = file_data["metrics"]
+                elif isinstance(file_data.get("metrics"), list):
+                    metrics_list = file_data["metrics"]
+                elif isinstance(file_data, list):
+                    metrics_list = file_data
+
+                # 过滤指标
+                for m in metrics_list:
+                    if not isinstance(m, dict):
                         continue
-                    metric = item.get("metric", {})
-                    if has_range:
-                        values = item.get("values", [])
-                    else:
-                        v = item.get("value")
-                        values = [v] if v else []
-                    normalized.append({
-                        "metric": metric,
-                        "values": values,
-                    })
+                    labels = m.get("labels", []) or []
+                    category = str(m.get("category", "")).lower()
+                    if (resource_label in labels) and (category == metric_category.lower()):
+                        metrics.append(MetricDefinition(
+                            description=m.get("description"),
+                            category=m.get("category"),
+                            labels=m.get("labels") or [],
+                            name=m.get("name"),
+                            type=m.get("type"),
+                        ))
 
-            return QueryPrometheusOutput(
-                resultType=result_type or ("matrix" if has_range else "vector"),
-                result=[QueryPrometheusSeriesPoint(**item) for item in normalized],
-            )
+            # 查询 PromQL 最佳实践
+            practice_dict = prometheus_guidance.get("promql_best_practice", {})
+            for file_key, file_data in practice_dict.items():
+                if not isinstance(file_data, dict):
+                    continue
 
-        @self.server.tool(name="query_prometheus_metric_guidance", description="获取Prometheus指标定义和最佳实践")
-        async def query_prometheus_metric_guidance(
-                ctx: Context,
-                resource_label: str = Field(..., description="资源维度label：node/pod/container/deployment/daemonset/job/coredns/ingress/hpa/persistentvolume/mountpoint 等"),
-                metric_category: str = Field(..., description="指标分类：cpu/memory/network/disk/state"),
-        ) -> QueryPrometheusMetricGuidanceOutput | Dict[str, Any]:
-            # 从 runtime context 获取 Prometheus 指标指引数据
-            lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
-            providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
-            prometheus_guidance = providers.get("prometheus_guidance", {}) if isinstance(providers, dict) else {}
-            
-            if not prometheus_guidance or not prometheus_guidance.get("initialized"):
-                return {"error": ErrorModel(error_code="GuidanceNotInitialized", error_message="Prometheus guidance not initialized").model_dump()}
+                # 处理不同的文件结构
+                rules_list = []
+                if "rules" in file_data:
+                    rules_list = file_data["rules"]
+                elif isinstance(file_data.get("rules"), list):
+                    rules_list = file_data["rules"]
+                elif isinstance(file_data, list):
+                    rules_list = file_data
 
-            metrics: List[MetricDefinition] = []
-            promql_samples: List[PromQLSample] = []
-            
-            try:
-                # 查询指标定义
-                metrics_dict = prometheus_guidance.get("metrics_dictionary", {})
-                for file_key, file_data in metrics_dict.items():
-                    if not isinstance(file_data, dict):
+                # 过滤规则
+                for rule in rules_list:
+                    if not isinstance(rule, dict):
                         continue
-                        
-                    # 处理不同的文件结构
-                    metrics_list = []
-                    if "metrics" in file_data:
-                        metrics_list = file_data["metrics"]
-                    elif isinstance(file_data.get("metrics"), list):
-                        metrics_list = file_data["metrics"]
-                    elif isinstance(file_data, list):
-                        metrics_list = file_data
-                        
-                    # 过滤指标
-                    for m in metrics_list:
-                        if not isinstance(m, dict):
-                            continue
-                        labels = m.get("labels", []) or []
-                        category = str(m.get("category", "")).lower()
-                        if (resource_label in labels) and (category == metric_category.lower()):
-                            metrics.append(MetricDefinition(
-                                description=m.get("description"),
-                                category=m.get("category"),
-                                labels=m.get("labels") or [],
-                                name=m.get("name"),
-                                type=m.get("type"),
-                            ))
+                    rule_category = str(rule.get("category", "")).lower()
+                    rule_labels = rule.get("labels", []) or []
+                    if (rule_category == metric_category.lower()) and (resource_label in rule_labels):
+                        promql_samples.append(PromQLSample(
+                            rule_name=rule.get("rule_name", ""),
+                            description=rule.get("description"),
+                            recommendation_sop=rule.get("recommendation_sop"),
+                            expression=rule.get("expression", ""),
+                            severity=rule.get("severity", ""),
+                            category=rule.get("category", ""),
+                            labels=rule.get("labels", [])
+                        ))
 
-                # 查询 PromQL 最佳实践
-                practice_dict = prometheus_guidance.get("promql_best_practice", {})
-                for file_key, file_data in practice_dict.items():
-                    if not isinstance(file_data, dict):
-                        continue
-                        
-                    # 处理不同的文件结构
-                    rules_list = []
-                    if "rules" in file_data:
-                        rules_list = file_data["rules"]
-                    elif isinstance(file_data.get("rules"), list):
-                        rules_list = file_data["rules"]
-                    elif isinstance(file_data, list):
-                        rules_list = file_data
-                        
-                    # 过滤规则
-                    for rule in rules_list:
-                        if not isinstance(rule, dict):
-                            continue
-                        rule_category = str(rule.get("category", "")).lower()
-                        rule_labels = rule.get("labels", []) or []
-                        if (rule_category == metric_category.lower()) and (resource_label in rule_labels):
-                            promql_samples.append(PromQLSample(
-                                rule_name=rule.get("rule_name", ""),
-                                description=rule.get("description"),
-                                recommendation_sop=rule.get("recommendation_sop"),
-                                expression=rule.get("expression", ""),
-                                severity=rule.get("severity", ""),
-                                category=rule.get("category", ""),
-                                labels=rule.get("labels", [])
-                            ))
-                            
-            except Exception as e:
-                return {"error": ErrorModel(error_code="GuidanceQueryError", error_message=f"Error querying guidance data: {str(e)}").model_dump()}
+        except Exception as e:
+            return {"error": ErrorModel(error_code="GuidanceQueryError",
+                                        error_message=f"Error querying guidance data: {str(e)}").model_dump()}
 
-            # 构建返回结果，包含指标定义和 PromQL 最佳实践
-            return QueryPrometheusMetricGuidanceOutput(
-                metrics=metrics,
-                promql_samples=promql_samples,
-                error=None
-            )
+        # 构建返回结果，包含指标定义和 PromQL 最佳实践
+        return QueryPrometheusMetricGuidanceOutput(
+            metrics=metrics,
+            promql_samples=promql_samples,
+            error=None
+        )

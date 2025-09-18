@@ -1,5 +1,3 @@
-
-
 """ACK Cluster Handler - Alibaba Cloud Container Service Cluster Management."""
 
 from typing import Dict, Any, Optional, List
@@ -12,18 +10,18 @@ import json
 
 try:
     from .models import (
-        ListClustersInput, 
-        ListClustersOutput, 
-        ClusterInfo, 
-        ErrorModel, 
+        ListClustersInput,
+        ListClustersOutput,
+        ClusterInfo,
+        ErrorModel,
         ClusterErrorCodes
     )
 except ImportError:
     from models import (
-        ListClustersInput, 
-        ListClustersOutput, 
-        ClusterInfo, 
-        ErrorModel, 
+        ListClustersInput,
+        ListClustersOutput,
+        ClusterInfo,
+        ErrorModel,
         ClusterErrorCodes
     )
 
@@ -32,29 +30,29 @@ def _serialize_sdk_object(obj):
     """序列化阿里云SDK对象为可JSON序列化的字典."""
     if obj is None:
         return None
-    
+
     # 如果是基本数据类型，直接返回
     if isinstance(obj, (str, int, float, bool)):
         return obj
-    
+
     # 如果是列表或元组，递归处理每个元素
     if isinstance(obj, (list, tuple)):
         return [_serialize_sdk_object(item) for item in obj]
-    
+
     # 如果是字典，递归处理每个值
     if isinstance(obj, dict):
         return {key: _serialize_sdk_object(value) for key, value in obj.items()}
-    
+
     # 尝试获取对象的属性字典
     try:
         # 对于阿里云SDK对象，通常有to_map()方法
         if hasattr(obj, 'to_map'):
             return obj.to_map()
-        
+
         # 对于其他对象，尝试获取其__dict__属性
         if hasattr(obj, '__dict__'):
             return _serialize_sdk_object(obj.__dict__)
-        
+
         # 尝试转换为字符串
         return str(obj)
     except Exception:
@@ -69,6 +67,7 @@ def _get_cs_client(ctx: Context, region: str):
     if not cs_client_factory:
         raise RuntimeError("cs_client_factory not available in runtime providers")
     return cs_client_factory(region)
+
 
 def parse_master_url(master_url: str) -> dict:
     """
@@ -102,6 +101,7 @@ def parse_master_url(master_url: str) -> dict:
         return {}
 
     return endpoints
+
 
 class ACKClusterHandler:
     """Handler for ACK addon management operations."""
@@ -188,7 +188,7 @@ class ACKClusterHandler:
                         vswitch_ids=cluster_data.get("vswitch_ids"),
                         resource_group_id=cluster_data.get("resource_group_id"),
                         security_group_id=cluster_data.get("security_group_id"),
-                        network_mode=cluster_data.get("network_mode"),
+                        # network_mode=cluster_data.get("network_mode"),
                         proxy_mode=cluster_data.get("proxy_mode"),
                         tags=cluster_data.get("tags"),
                         container_cidr=cluster_data.get("container_cidr"),

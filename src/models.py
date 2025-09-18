@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+from enum import Enum
 
 
 class ErrorModel(BaseModel):
@@ -79,9 +80,21 @@ class GetDiagnoseResourceResultInput(BaseModel):
     diagnose_task_id: str = Field(..., description="生成的异步诊断任务id")
 
 
+class DiagnosisStatusEnum(Enum):
+    CREATED = 0
+    RUNNING = 1
+    COMPLETED = 2
+
+
+class DiagnosisCodeEnum(Enum):
+    COMPLETED = 0
+    FAILED = 1
+
+
 class GetDiagnoseResourceResultOutput(BaseModel):
     result: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[str] = Field(..., description="诊断状态：诊断已创建, 诊断运行中, 诊断已完成")
+    code: Optional[str] = Field(..., description="诊断结果：诊断完成, 诊断失败")
     finished_time: Optional[str] = None
     resource_type: Optional[str] = None
     resource_target: Optional[str] = None
@@ -142,8 +155,8 @@ class ClusterInfo(BaseModel):
     vswitch_ids: List[str] = Field(default_factory=list, description="控制面虚拟交换机")
     resource_group_id: Optional[str] = Field(None, description="资源组id")
     security_group_id: Optional[str] = Field(None, description="安全组id")
-    network_mode: Optional[str] = Field(None, description="网络类型")
-    proxy_mode: Optional[str] = Field(None, description="kube-proxy 代理模式")
+    # network_mode: Optional[str] = Field(None, description="网络类型")
+    proxy_mode: Optional[str] = Field(None, description="kube-proxy 代理模式(ipvs, iptables)")
     tags: List[dict] = Field(default_factory=list, description="集群资源标签")
     container_cidr: Optional[str] = Field(None, description="容器网络 CIDR，使用Flannel网络插件下配置")
     service_cidr: Optional[str] = Field(None, description="服务网络 CIDR")
@@ -245,6 +258,12 @@ class KubectlOutput(BaseModel):
     kubeconfig_source: Optional[str] = Field(None, description="kubeconfig 来源：local 或 ack_api")
 
 
+class GetClusterKubeConfigOutput(BaseModel):
+    """get_cluster_kubeconfig 命令输出结果"""
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+    kubeconfig: Optional[str] = Field(None, description="KUBECONFIG file path for an ACK cluster")
+
+
 # Kubectl 错误码定义
 class KubectlErrorCodes:
     KUBECONFIG_FETCH_FAILED = "KUBECONFIG_FETCH_FAILED"
@@ -315,5 +334,3 @@ class GetControlPlaneLogConfigOutput(BaseModel):
     cluster_id: str = Field(..., description="集群 ID")
     config: Optional[ControlPlaneLogConfig] = Field(None, description="控制面日志配置信息")
     error: Optional[ErrorModel] = Field(None, description="错误信息")
-
-

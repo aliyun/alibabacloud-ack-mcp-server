@@ -9,9 +9,9 @@ from pydantic import Field
 
 # 导入模型
 try:
-    from .models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel
+    from .models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel, GetClusterKubeConfigOutput
 except ImportError:
-    from models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel
+    from models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel, GetClusterKubeConfigOutput
 
 
 class KubectlHandler:
@@ -28,7 +28,27 @@ class KubectlHandler:
         self.settings = settings or {}
         self.allow_write = self.settings.get("allow_write", True)
 
-        self._register_tools()
+        self.server.tool(
+            name="ack_kubectl",
+            description="""Executes a kubectl command against the ACK Kubernetes cluster. Use this tool only when you need to query or modify the state of the ACK Kubernetes cluster.
+            
+IMPORTANT: Interactive commands are not supported in this environment. This includes:
+- kubectl exec with -it flag (use non-interactive exec instead)
+- kubectl edit (use kubectl get -o yaml, kubectl patch, or kubectl apply instead)
+- kubectl port-forward (use alternative methods like NodePort or LoadBalancer)
+
+For interactive operations, please use these non-interactive alternatives:
+- Instead of 'kubectl edit', use 'kubectl get -o yaml' to view, 'kubectl patch' for targeted changes, or 'kubectl apply' to apply full changes
+- Instead of 'kubectl exec -it', use 'kubectl exec' with a specific command
+- Instead of 'kubectl port-forward', use service types like NodePort or LoadBalancer
+            """
+        )(self.ack_kubectl)
+
+        # self.server.tool(
+        #     name="get_cluster_kubeconfig",
+        #     description="Get the KUBECONFIG file path for an ACK cluster. Set it via the KUBECONFIG environment variable or the --kubeconfig flag, then run kubectl commands."
+        # )(self.get_cluster_kubeconfig)
+
         logger.info("Kubectl Handler initialized")
 
     def _get_sls_client(self, ctx: Context):
@@ -39,7 +59,7 @@ class KubectlHandler:
                 providers = lifespan_context.get("providers", {})
             else:
                 providers = getattr(lifespan_context, "providers", {})
-            
+
             sls_client_factory = providers.get("sls_client_factory")
             if not sls_client_factory:
                 raise ValueError("sls_client_factory not available")
@@ -56,7 +76,7 @@ class KubectlHandler:
                 providers = lifespan_context.get("providers", {})
             else:
                 providers = getattr(lifespan_context, "providers", {})
-            
+
             cs_client_factory = providers.get("cs_client_factory")
             if not cs_client_factory:
                 raise ValueError("cs_client_factory not available")
@@ -70,23 +90,23 @@ class KubectlHandler:
         try:
             # 获取 CS 客户端
             cs_client = self._get_cs_client(ctx, region_id)
-            
+
             # 调用 DescribeClusterUserKubeconfig API
             from alibabacloud_cs20151215 import models as cs_models
-            
+
             request = cs_models.DescribeClusterUserKubeconfigRequest(
                 private_ip_address=False  # 获取公网连接配置
             )
-            
+
             response = cs_client.describe_cluster_user_kubeconfig(cluster_id, request)
-            
+
             if response and response.body and response.body.config:
                 logger.info(f"Successfully fetched kubeconfig for cluster {cluster_id}")
                 return response.body.config
             else:
                 logger.warning(f"No kubeconfig found for cluster {cluster_id}")
                 return None
-                
+
         except Exception as e:
             logger.error(f"Failed to fetch kubeconfig for cluster {cluster_id}: {e}")
             return None
@@ -99,7 +119,7 @@ class KubectlHandler:
             if kubeconfig_path:
                 env["KUBECONFIG"] = kubeconfig_path
                 logger.debug(f"Using kubeconfig: {kubeconfig_path}")
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
             return {
                 "exit_code": result.returncode,
@@ -114,83 +134,153 @@ class KubectlHandler:
                 "stderr": e.stderr.strip() if e.stderr else str(e),
             }
 
-    def _register_tools(self):
-        """Register kubectl tool."""
+    async def ack_kubectl(
+            self,
+            ctx: Context,
+            command: str = Field(
+                ..., description="""
+The complete kubectl command to execute. Prefer to use heredoc syntax for multi-line commands. Please include the kubectl prefix as well.
 
-        @self.server.tool(
-            name="ack_kubectl",
-            description="Execute kubectl command. Pass the arguments after 'kubectl'. Optionally specify cluster_id to use ACK API kubeconfig."
-        )
-        async def ack_kubectl(
-                ctx: Context,
-                command: str = Field(
-                    ..., description="Arguments after 'kubectl', e.g. 'get pods -A'"
-                ),
-                cluster_id: Optional[str] = Field(
-                    None, description="Optional cluster ID to fetch kubeconfig from ACK API"
-                ),
-        ) -> KubectlOutput:
-            kubeconfig_source = "local"
-            kubeconfig_path = None
-            
-            try:
-                # 如果提供了 cluster_id，尝试从 ACK API 获取 kubeconfig
-                if cluster_id:
-                    # 获取 region_id
-                    lifespan_context = ctx.request_context.lifespan_context
-                    if isinstance(lifespan_context, dict):
-                        region_id = lifespan_context.get("config", {}).get("region_id", "cn-hangzhou")
-                    else:
-                        region_id = getattr(lifespan_context, "config", {}).get("region_id", "cn-hangzhou")
-                    
-                    # 获取 kubeconfig
-                    kubeconfig_content = self._get_kubeconfig_from_ack(ctx, cluster_id, region_id)
-                    
-                    if kubeconfig_content:
-                        # 创建临时文件存储 kubeconfig
-                        with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-                            f.write(kubeconfig_content)
-                            kubeconfig_path = f.name
-                        kubeconfig_source = "ack_api"
-                        logger.info(f"Using ACK API kubeconfig for cluster {cluster_id}")
-                    else:
-                        # 如果获取不到 kubeconfig，返回错误
-                        error_msg = f"Failed to fetch kubeconfig for cluster {cluster_id}"
-                        logger.error(error_msg)
-                        return KubectlOutput(
-                            status="error",
-                            exit_code=1,
-                            error=error_msg,
-                            kubeconfig_source="ack_api"
+IMPORTANT: Do not use interactive commands. Instead:
+- Use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply' instead of 'kubectl edit'
+- Use 'kubectl exec' with specific commands instead of 'kubectl exec -it'
+- Use service types like NodePort or LoadBalancer instead of 'kubectl port-forward'
+
+Examples:
+user: what pods are running in the cluster?
+assistant: kubectl get pods
+
+user: what is the status of the pod my-pod?
+assistant: kubectl get pod my-pod -o jsonpath='{.status.phase}'
+
+user: I need to edit the pod configuration
+assistant: # Option 1: Using patch for targeted changes
+kubectl patch pod my-pod --patch '{"spec":{"containers":[{"name":"main","image":"new-image"}]}}'
+
+# Option 2: Using get and apply for full changes
+kubectl get pod my-pod -o yaml > pod.yaml
+# Edit pod.yaml locally
+kubectl apply -f pod.yaml
+
+user: I need to execute a command in the pod
+assistant: kubectl exec my-pod -- /bin/sh -c "your command here"
+                """
+            ),
+            cluster_id: Optional[str] = Field(
+                None, description="Optional cluster ID to fetch kubeconfig from ACK API"
+            ),
+    ) -> KubectlOutput:
+        kubeconfig_source = "local"
+        kubeconfig_path = None
+
+        try:
+            # 如果提供了 cluster_id，尝试从 ACK API 获取 kubeconfig
+            if cluster_id:
+                # 获取 region_id
+                lifespan_context = ctx.request_context.lifespan_context
+                if isinstance(lifespan_context, dict):
+                    region_id = lifespan_context.get("config", {}).get("region_id", "cn-hangzhou")
+                else:
+                    region_id = getattr(lifespan_context, "config", {}).get("region_id", "cn-hangzhou")
+
+                # 获取 kubeconfig
+                kubeconfig_content = self._get_kubeconfig_from_ack(ctx, cluster_id, region_id)
+
+                if kubeconfig_content:
+                    # 创建临时文件存储 kubeconfig
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                        f.write(kubeconfig_content)
+                        kubeconfig_path = f.name
+                    kubeconfig_source = "ack_api"
+                    logger.info(f"Using ACK API kubeconfig for cluster {cluster_id}")
+                else:
+                    # 如果获取不到 kubeconfig，返回错误
+                    error_msg = f"Failed to fetch kubeconfig for cluster {cluster_id}"
+                    logger.error(error_msg)
+                    return KubectlOutput(
+                        status="error",
+                        exit_code=1,
+                        error=error_msg,
+                        kubeconfig_source="ack_api"
+                    )
+
+            # 执行 kubectl 命令
+            args = shlex.split(command)
+            result = self.run_command(args, kubeconfig_path)
+
+            status = "success" if result.get("exit_code") == 0 else "error"
+
+            return KubectlOutput(
+                status=status,
+                exit_code=result.get("exit_code", 1),
+                stdout=result.get("stdout"),
+                stderr=result.get("stderr"),
+                kubeconfig_source=kubeconfig_source
+            )
+
+        except Exception as e:
+            logger.exception("kubectl tool execution error")
+            return KubectlOutput(
+                status="error",
+                exit_code=1,
+                error=str(e),
+                kubeconfig_source=kubeconfig_source
+            )
+        finally:
+            # 清理临时 kubeconfig 文件
+            if kubeconfig_path and os.path.exists(kubeconfig_path):
+                try:
+                    os.unlink(kubeconfig_path)
+                    logger.debug(f"Cleaned up temporary kubeconfig file: {kubeconfig_path}")
+                except Exception as e:
+                    logger.warning(f"Failed to clean up temporary kubeconfig file: {e}")
+
+    async def get_cluster_kubeconfig(
+            self,
+            ctx: Context,
+            cluster_id: Optional[str] = Field(
+                None, description="cluster ID of an ACK cluster to fetch kubeconfig "
+            ),
+    ) -> GetClusterKubeConfigOutput:
+        kubeconfig_path = None
+        try:
+            # 如果提供了 cluster_id，尝试从 ACK API 获取 kubeconfig
+            if cluster_id:
+                # 获取 region_id
+                lifespan_context = ctx.request_context.lifespan_context
+                if isinstance(lifespan_context, dict):
+                    region_id = lifespan_context.get("config", {}).get("region_id", "cn-hangzhou")
+                else:
+                    region_id = getattr(lifespan_context, "config", {}).get("region_id", "cn-hangzhou")
+
+                # 获取 kubeconfig
+                kubeconfig_content = self._get_kubeconfig_from_ack(ctx, cluster_id, region_id)
+
+                if kubeconfig_content:
+                    # 创建临时文件存储 kubeconfig
+                    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                        f.write(kubeconfig_content)
+                        kubeconfig_path = f.name
+                    logger.info(f"Using ACK API kubeconfig for cluster {cluster_id}")
+                else:
+                    # 如果获取不到 kubeconfig，返回错误
+                    error_msg = f"Failed to fetch kubeconfig for cluster {cluster_id}"
+                    logger.error(error_msg)
+                    return GetClusterKubeConfigOutput(
+                        error=ErrorModel(
+                            error_code="FETCH_KUBECONFIG_FAILED",
+                            error_message=error_msg
                         )
-                
-                # 执行 kubectl 命令
-                args = ["kubectl"] + shlex.split(command)
-                result = self.run_command(args, kubeconfig_path)
-                
-                status = "success" if result.get("exit_code") == 0 else "error"
-                
-                return KubectlOutput(
-                    status=status,
-                    exit_code=result.get("exit_code", 1),
-                    stdout=result.get("stdout"),
-                    stderr=result.get("stderr"),
-                    kubeconfig_source=kubeconfig_source
+                    )
+
+            return GetClusterKubeConfigOutput(
+                kubeconfig=kubeconfig_path
+            )
+        except Exception as e:
+            logger.exception("get_cluster_kubeconfig toll execution error")
+            return GetClusterKubeConfigOutput(
+                error=ErrorModel(
+                    error_code="FETCH_KUBECONFIG_FAILED",
+                    error_message=error_msg
                 )
-                
-            except Exception as e:
-                logger.exception("kubectl tool execution error")
-                return KubectlOutput(
-                    status="error",
-                    exit_code=1,
-                    error=str(e),
-                    kubeconfig_source=kubeconfig_source
-                )
-            finally:
-                # 清理临时 kubeconfig 文件
-                if kubeconfig_path and os.path.exists(kubeconfig_path):
-                    try:
-                        os.unlink(kubeconfig_path)
-                        logger.debug(f"Cleaned up temporary kubeconfig file: {kubeconfig_path}")
-                    except Exception as e:
-                        logger.warning(f"Failed to clean up temporary kubeconfig file: {e}")
+            )
