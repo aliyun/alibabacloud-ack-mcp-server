@@ -87,7 +87,7 @@ Deepseek (Later)
 ### 3. Config Aliyun Account AccessKey and Run ack-mcp-server
 
 
-### 4. Needc Existing Alibaba Container Service Cluster with intranet kubeconfig 
+### 4. Need Existing Alibaba Container Service Cluster with intranet kubeconfig 
 
 
 
@@ -102,9 +102,9 @@ Deepseek (Later)
 ### kubectl-ai config
 export env
 ```
-export OPENAI_API_KEY=xxx
+export OPENAI_API_KEY={{your-api-key-here}}
 export OPENAI_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1/
-export XDG_CONFIG_HOME={{xxx}}
+export XDG_CONFIG_HOME={{kubectl-ai mcp server config dir path}}
 # kubectl-ai will create a config file in $XDG_CONFIG_HOME/kubectl-ai/mcp.yaml
 ```
 
@@ -123,4 +123,23 @@ kubectl-ai --llm-provider=openai --model=qwen3-coder-plus --mcp-client
 
 ### qwen code
 
+1. install qwen code cli
 
+2. set env
+```angular2html
+export OPENAI_API_KEY="{{your-api-key-here}}"
+export OPENAI_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1/"
+export OPENAI_MODEL="qwen3-32b"
+```
+
+3. add ack-mcp-server to qwen code
+```angular2html
+qwen mcp add --transport http ack-mcp-server http://localhost:8000/mcp --trust
+```
+
+4. run qwen code
+
+```angular2html
+qwen --openai-api-key "{{your-api-key-here}}" --openai-base-url "https://dashscope.aliyuncs.com/compatible-mode/v1/" --model "qwen3-32b" -p "帮我查询我有哪些集群，并看下行疾的集群里是否有异常的应用"
+```
+   
