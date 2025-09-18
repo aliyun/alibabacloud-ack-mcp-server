@@ -5,6 +5,7 @@ import sys
 import subprocess
 import yaml
 import datetime
+from loguru import logger
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -19,21 +20,28 @@ def read_yaml(file_path: Path) -> Dict[str, Any]:
 
 
 def run_script(script_path: Path, env: Optional[Dict[str, str]] = None, timeout: Optional[int] = None) -> Tuple[int, str, str]:
-    proc = subprocess.Popen(
-        ["bash", str(script_path)],
-        cwd=str(script_path.parent),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        env={**os.environ, **(env or {})},
-    )
     try:
-        out, err = proc.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        out, err = proc.communicate()
-        return 124, out, err or "timeout"
-    return proc.returncode, out, err
+        proc = subprocess.Popen(
+            ["bash", str(script_path)],
+            cwd=str(script_path.parent),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            env={**os.environ, **(env or {})},
+        )
+        try:
+            # 实时读取输出
+            for line in proc.stdout:
+                print(line.rstrip())
+            out, err = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            out, err = proc.communicate()
+            return 124, out, err or "timeout"
+        return proc.returncode, out, err
+    except Exception as e:
+        logger.error(f"run_script failed: {e}")
+        return 127, "", str(e)
 
 
 def run_agent(prompt: str, agent_cmd_template: Optional[str], extra_env: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
@@ -45,28 +53,39 @@ def run_agent(prompt: str, agent_cmd_template: Optional[str], extra_env: Optiona
     # If the template contains {prompt}, substitute; otherwise send via stdin
     if "{prompt}" in agent_cmd_template:
         cmd = agent_cmd_template.format(prompt=prompt)
-        proc = subprocess.Popen(
-            cmd,
-            shell=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env={**os.environ, **(extra_env or {})},
-        )
-        out, err = proc.communicate()
-        return proc.returncode, out, err
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                env={**os.environ, **(extra_env or {})},
+            )
+            # 实时读取输出
+            for line in proc.stdout:
+                print(line.rstrip())
+            out, err = proc.communicate()
+            return proc.returncode, out, err
+        except Exception as e:
+            logger.error(f"Agent command failed: {e}")
+            return 127, "", str(e)
     else:
-        proc = subprocess.Popen(
-            agent_cmd_template,
-            shell=True,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            env={**os.environ, **(extra_env or {})},
-        )
-        out, err = proc.communicate(input=prompt)
-        return proc.returncode, out, err
+        try:
+            proc = subprocess.Popen(
+                agent_cmd_template,
+                shell=True,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env={**os.environ, **(extra_env or {})},
+            )
+            out, err = proc.communicate(input=prompt)
+            return proc.returncode, out, err
+        except Exception as e:
+            logger.error(f"Agent command failed: {e}")
+            return 127, "", str(e)
 
 
 def collect_tools_static() -> List[str]:
@@ -104,6 +123,9 @@ def get_git_commit_id(repo_root: Path) -> str:
             stderr=subprocess.PIPE,
             text=True,
         )
+        # 实时读取输出
+        for line in proc.stdout:
+            print(line.rstrip())
         out, _ = proc.communicate(timeout=5)
         if proc.returncode == 0:
             return out.strip()
@@ -132,8 +154,8 @@ def run_task(task_dir: Path, agent_cmd_template: Optional[str], skip_setup: bool
                 rc, out, err = run_script(task_dir / script_file)
                 result_content += f"\n[setup:{script_file}] rc={rc}\n{out}\n{err}"
                 print(f"[setup:{script_file}] rc={rc}")
-                if out:
-                    print(f"[setup:{script_file}], stdout: {out}")
+                # if out:
+                #     print(f"[setup:{script_file}], stdout: {out}")
                 if err:
                     print(f"[setup:{script_file}], stderr: {err}")
                 if rc != 0:
@@ -165,8 +187,8 @@ def run_task(task_dir: Path, agent_cmd_template: Optional[str], skip_setup: bool
             rc, out, err = run_script(task_dir / script_file, timeout=verify_timeout)
             verify_content += f"\n[verify:{script_file}] rc={rc}\n{out}\n{err}"
             print(f"[verify:{script_file}] rc={rc}")
-            if out:
-                print(f"[verify:{script_file}], stdout: {out}")
+            # if out:
+            #     print(f"[verify:{script_file}], stdout: {out}")
             if err:
                 print(f"[verify:{script_file}], stderr: {err}")
             verify_rc_aggregate = rc or verify_rc_aggregate
@@ -184,8 +206,8 @@ def run_task(task_dir: Path, agent_cmd_template: Optional[str], skip_setup: bool
                 rc, out, err = run_script(task_dir / script_file)
                 result_content += f"\n[cleanup:{script_file}] rc={rc}\n{out}\n{err}"
                 print(f"[cleanup:{script_file}] rc={rc}")
-                if out:
-                    print(f"[cleanup:{script_file}], stdout: {out}")
+                # if out:
+                #     print(f"[cleanup:{script_file}], stdout: {out}")
                 if err:
                     print(f"[cleanup:{script_file}], stderr: {err}")
 
@@ -289,7 +311,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         agent_lower = (args.agent or "").lower().strip()
         if agent_lower == "qwen_code":
             agent_cmd_template = (
-                "qwen --openai-api-key \"{api_key}\" --openai-base-url \"{base_url}\" --model \"{model}\" -p \"{prompt}\""
+                "qwen --debug=true --openai-api-key \"{api_key}\" --openai-base-url \"{base_url}\" --model \"{model}\" -p \"{prompt}\""
             )
         else:
             # kubectl-ai: pass prompt as positional after --mcp-client

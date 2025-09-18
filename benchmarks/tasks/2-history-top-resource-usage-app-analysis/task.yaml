@@ -1,0 +1,10 @@
+task_name: "history-top-resource-usage-app-analysis"
+scripts:
+  - prompt: "最近15分钟，我的benchmark测试集群，有哪些应用是最消耗资源的？"
+setup:
+  - setup_script_file: "setup.sh"
+cleanup:
+  - cleanup_script_file: "cleanup.sh"
+verify:
+  - verify_script_file: "verify.sh"
+

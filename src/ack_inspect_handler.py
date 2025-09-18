@@ -132,7 +132,7 @@ class InspectHandler:
 
             # 构建 checkItemResults
             check_items = []
-            check_item_results = getattr(body, 'checkItemResults', []) or []
+            check_item_results = getattr(body, 'check_item_results', []) or []
             for item in check_item_results:
                 check_items.append(CheckItemResult(
                     category=getattr(item, 'category', ''),

@@ -1,0 +1,51 @@
+report_metadata:
+  creationTimestamp: '2025-09-18T11:30:36+00:00'
+  finishedTimestamp: '2025-09-18T11:30:36+00:00'
+  ai_agent:
+    name: qwen_code
+  llm_model:
+    name: qwen3-32b
+  mcp-server:
+  - name: ack-mcp-server
+    version: ''
+  tools:
+  - ack_kubectl
+  - diagnose_resource
+  - get_current_time
+  - get_diagnose_resource_result
+  - list_clusters
+  - query_audit_logs
+  - query_controlplane_logs
+  - query_inspect_report
+  - query_prometheus
+  - query_prometheus_metric_guidance
+  external_configs:
+  - debug: false
+  - debug_log_path: ''
+results:
+  tasks:
+  - task_name: 1-fix-pod-oom
+    is_success: false
+    error: ; agent rc=127
+    startTimestamp: '2025-09-18T11:30:36+00:00'
+    finishedTimestamp: '2025-09-18T11:30:36+00:00'
+    result_content: '
+
+      [agent] rc=127
+
+      >>> prompt:
+
+      我在case1-fix-pod-oom namespace下的容器出现异常，请帮我修复。
+
+      <<< output:
+
+
+      <<< stderr:
+
+      STDOUT can only be used for stderr'
+    verify_content: '
+
+      [verify:verify.sh] rc=127
+
+
+      STDOUT can only be used for stderr'

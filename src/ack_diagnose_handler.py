@@ -89,7 +89,15 @@ class DiagnoseHandler:
             region_id: str = Field(..., description="集群所在的regionId"),
             resource_type: str = Field(...,
                                        description="诊断的目标资源类型：node/ingress/cluster/memory/pod/service/network"),
-            resource_target: str = Field(..., description="用于指定诊断对象的参数，JSON字符串格式"),
+            resource_target: str = Field(..., description="""用于指定诊断对象的参数，JSON字符串格式, 
+            用于指定诊断对象的参数。不同诊断类型的参数示例：
+                node: {"name": "cn-shanghai.10.10.10.107"}
+                pod: {"namespace": "kube-system", "name": "csi-plugin-2cg9f"}
+                network: {"src": "10.10.10.108", "dst": "10.11.247.16", "dport": "80"}
+                ingress: {"url": "https://example.com"}
+                memory: {"node":"cn-hangzhou.172.16.9.240"}
+                service: {"namespace": "kube-system", "name": "nginx-ingress-lb"}
+            """),
     ) -> DiagnoseResourceOutput | Dict[str, Any]:
         """发起ACK集群资源诊断任务"""
         if not self.allow_write:

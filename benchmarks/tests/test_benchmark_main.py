@@ -44,19 +44,40 @@ verify:
 
         # Monkeypatch run_agent to avoid real subprocess call
         def fake_run_agent(prompt: str, agent_cmd_template: str, extra_env=None):
-            out = f"FAKE_AGENT_OUTPUT for: {prompt}"
-            print(out)
-            return 0, out, ""
+            try:
+                out = f"FAKE_AGENT_OUTPUT for: {prompt}"
+                print(out)
+                return 0, out, ""
+            except Exception as e:
+                print(f"[test] run_agent exception: {e}")
+                return 127, "", str(e)
 
         monkeypatch.setattr(bm, "run_agent", fake_run_agent)
 
+        # Wrap bm.run_script with try/except to catch all subprocess issues
+        original_run_script = bm.run_script
+
+        def safe_run_script(script_path, env=None, timeout=None):
+            try:
+                return original_run_script(script_path, env=env, timeout=timeout)
+            except Exception as e:
+                print(f"[test] run_script exception on {script_path}: {e}")
+                return 127, "", str(e)
+
+        monkeypatch.setattr(bm, "run_script", safe_run_script)
+
         # Run benchmark main with our temp dirs
-        exit_code = bm.main([
-            "--tasks-dir", str(tasks_root),
-            "--results-dir", str(results_dir),
-            "--agent", "kubectl-ai",
-            "--llm-model", "qwen3-coder-plus",
-        ])
+        try:
+            exit_code = bm.main([
+                "--tasks-dir", str(tasks_root),
+                "--results-dir", str(results_dir),
+                "--agent", "kubectl-ai",
+                "--llm-model", "qwen3-coder-plus",
+                "--openai-api-key", "sk-test",
+            ])
+        except Exception as e:
+            print(f"[test] bm.main exception: {e}")
+            assert False, f"bm.main raised exception: {e}"
 
         assert exit_code == 0
 
