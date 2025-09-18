@@ -6,16 +6,36 @@ import os
 from fastmcp import FastMCP, Context
 from loguru import logger
 from pydantic import Field
+from cachetools import LRUCache
 
 # 导入模型
 try:
     from .models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel, GetClusterKubeConfigOutput
 except ImportError:
-    from models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel, GetClusterKubeConfigOutput
+    from models import KubectlOutput, KubectlErrorCodes, ErrorModel, GetClusterKubeConfigOutput
+
+
+class KubeconfigCache(LRUCache):
+    """自定义 LRUCache，用于清理 kubeconfig 临时文件"""
+
+    def popitem(self):
+        """重写 popitem 方法，在驱逐缓存项时清理临时文件"""
+        key, path = super().popitem()
+        # 删除临时文件
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+                logger.debug(f"Removed cached kubeconfig file: {path}")
+            except Exception as e:
+                logger.warning(f"Failed to remove cached kubeconfig file {path}: {e}")
+        return key, path
 
 
 class KubectlHandler:
     """Handler for running kubectl commands via a FastMCP tool."""
+
+    # kubeconfig 缓存最大大小
+    _KUBECONFIG_CACHE_MAX_SIZE = 5
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
         """Initialize the kubectl handler.
@@ -27,6 +47,8 @@ class KubectlHandler:
         self.server = server
         self.settings = settings or {}
         self.allow_write = self.settings.get("allow_write", True)
+        # 使用自定义的 KubeconfigCache 作为 kubeconfig 缓存
+        self._kubeconfig_cache = KubeconfigCache(maxsize=self._KUBECONFIG_CACHE_MAX_SIZE)
 
         self.server.tool(
             name="ack_kubectl",
@@ -111,6 +133,39 @@ For interactive operations, please use these non-interactive alternatives:
             logger.error(f"Failed to fetch kubeconfig for cluster {cluster_id}: {e}")
             return None
 
+    def _get_kubeconfig_path(self, ctx: Context, cluster_id: str ) -> Optional[str]:
+        # 从上下文中获取 region_id
+        lifespan_context = ctx.request_context.lifespan_context
+        if isinstance(lifespan_context, dict):
+            region_id = lifespan_context.get("config", {}).get("region_id", "cn-hangzhou")
+        else:
+            region_id = getattr(lifespan_context, "config", {}).get("region_id", "cn-hangzhou")
+
+        # 检查缓存中是否已有 kubeconfig 路径
+        cache_key = f"{cluster_id}:{region_id}"
+        cached_path = self._kubeconfig_cache.get(cache_key)
+        # 检查文件是否存在
+        if cached_path and os.path.exists(cached_path):
+            logger.debug(f"Using cached kubeconfig for cluster {cluster_id}")
+            return cached_path
+        else:
+            # 文件不存在，从缓存中移除
+            self._kubeconfig_cache.pop(cache_key, None)
+
+        # 获取 kubeconfig
+        kubeconfig_content = self._get_kubeconfig_from_ack(ctx, cluster_id, region_id)
+
+        if kubeconfig_content:
+            # 创建临时文件存储 kubeconfig
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+                f.write(kubeconfig_content)
+                kubeconfig_path = f.name
+                # 缓存 kubeconfig 路径
+                self._kubeconfig_cache[cache_key] = kubeconfig_path
+                logger.debug(f"Cached kubeconfig for cluster {cluster_id}")
+                return kubeconfig_path
+        return None
+
     def run_command(self, cmd: List[str], kubeconfig_path: Optional[str] = None) -> Dict[str, Any]:
         """Run a kubectl command and return structured result."""
         try:
@@ -176,21 +231,9 @@ assistant: kubectl exec my-pod -- /bin/sh -c "your command here"
         try:
             # 如果提供了 cluster_id，尝试从 ACK API 获取 kubeconfig
             if cluster_id:
-                # 获取 region_id
-                lifespan_context = ctx.request_context.lifespan_context
-                if isinstance(lifespan_context, dict):
-                    region_id = lifespan_context.get("config", {}).get("region_id", "cn-hangzhou")
-                else:
-                    region_id = getattr(lifespan_context, "config", {}).get("region_id", "cn-hangzhou")
+                kubeconfig_path = self._get_kubeconfig_path(ctx, cluster_id)
 
-                # 获取 kubeconfig
-                kubeconfig_content = self._get_kubeconfig_from_ack(ctx, cluster_id, region_id)
-
-                if kubeconfig_content:
-                    # 创建临时文件存储 kubeconfig
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-                        f.write(kubeconfig_content)
-                        kubeconfig_path = f.name
+                if kubeconfig_path:
                     kubeconfig_source = "ack_api"
                     logger.info(f"Using ACK API kubeconfig for cluster {cluster_id}")
                 else:
@@ -226,14 +269,6 @@ assistant: kubectl exec my-pod -- /bin/sh -c "your command here"
                 error=str(e),
                 kubeconfig_source=kubeconfig_source
             )
-        finally:
-            # 清理临时 kubeconfig 文件
-            if kubeconfig_path and os.path.exists(kubeconfig_path):
-                try:
-                    os.unlink(kubeconfig_path)
-                    logger.debug(f"Cleaned up temporary kubeconfig file: {kubeconfig_path}")
-                except Exception as e:
-                    logger.warning(f"Failed to clean up temporary kubeconfig file: {e}")
 
     async def get_cluster_kubeconfig(
             self,
@@ -246,21 +281,9 @@ assistant: kubectl exec my-pod -- /bin/sh -c "your command here"
         try:
             # 如果提供了 cluster_id，尝试从 ACK API 获取 kubeconfig
             if cluster_id:
-                # 获取 region_id
-                lifespan_context = ctx.request_context.lifespan_context
-                if isinstance(lifespan_context, dict):
-                    region_id = lifespan_context.get("config", {}).get("region_id", "cn-hangzhou")
-                else:
-                    region_id = getattr(lifespan_context, "config", {}).get("region_id", "cn-hangzhou")
+                kubeconfig_path = self._get_kubeconfig_path(ctx, cluster_id)
 
-                # 获取 kubeconfig
-                kubeconfig_content = self._get_kubeconfig_from_ack(ctx, cluster_id, region_id)
-
-                if kubeconfig_content:
-                    # 创建临时文件存储 kubeconfig
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
-                        f.write(kubeconfig_content)
-                        kubeconfig_path = f.name
+                if kubeconfig_path:
                     logger.info(f"Using ACK API kubeconfig for cluster {cluster_id}")
                 else:
                     # 如果获取不到 kubeconfig，返回错误
