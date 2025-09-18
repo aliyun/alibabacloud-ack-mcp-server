@@ -15,12 +15,12 @@ if ! kubectl wait --for=condition=Ready pod -l app=backend-api -n $NAMESPACE --t
     exit 1
 fi
 
-# Check that there are no recent OOMKilled events
-OOMKILLED_COUNT=$(kubectl get events -n $NAMESPACE --field-selector reason=OOMKilling --sort-by='.lastTimestamp' -o json | jq '.items | length')
+# Check that there are no recent PodOOMKilling events
+OOMKILLED_COUNT=$(kubectl get events -n $NAMESPACE --field-selector reason=PodOOMKilling --sort-by='.lastTimestamp' -o json | jq '.items | length')
 
 if [ "$OOMKILLED_COUNT" -gt 0 ]; then
-    # Check if the most recent OOMKilled event is from the last 2 minutes (indicating ongoing issues)
-    RECENT_OOMKILLED=$(kubectl get events -n $NAMESPACE --field-selector reason=OOMKilling --sort-by='.lastTimestamp' -o jsonpath='{.items[-1].lastTimestamp}' 2>/dev/null)
+    # Check if the most recent PodOOMKilling event is from the last 2 minutes (indicating ongoing issues)
+    RECENT_OOMKILLED=$(kubectl get events -n $NAMESPACE --field-selector reason=PodOOMKilling --sort-by='.lastTimestamp' -o jsonpath='{.items[-1].lastTimestamp}' 2>/dev/null)
     if [ -n "$RECENT_OOMKILLED" ]; then
         RECENT_TIME=$(date -d "$RECENT_OOMKILLED" +%s 2>/dev/null)
         CURRENT_TIME=$(date +%s)
