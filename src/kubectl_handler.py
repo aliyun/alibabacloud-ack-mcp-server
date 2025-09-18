@@ -1,81 +1,140 @@
-from typing import Dict, Any, Optional, List
-import subprocess
-import shlex
-import os
-import threading
-import time
+from typing import Any
 from fastmcp import FastMCP, Context
-from loguru import logger
 from pydantic import Field
 import os
-import time
-import threading
-import tempfile
 import subprocess
-from typing import Dict, Optional, List
+from typing import Dict, Optional
+from cachetools import TTLCache
 from loguru import logger
-
-# 导入模型
-try:
-    from .models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel
-except ImportError:
-    from models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel
-
-"""Kubeconfig Context Manager - 基于原生kubectl context的上下文管理模块
-"""
+from ack_cluster_handler import parse_master_url
+from models import KubectlInput, KubectlOutput, KubectlErrorCodes, ErrorModel
 
 
-class KubectlContextManager:
-    """基于原生kubectl的上下文管理器
+class KubectlContextManager(TTLCache):
+    """基于 TTL+LRU 缓存的 kubeconfig 文件管理器"""
 
-    负责管理kubectl上下文，包括：
-    - 上下文创建和删除
-    - 上下文切换
-    - 过期时间管理
-    """
-
-    def __init__(self, mcp_kubeconfig_path: Optional[str] = None, default_ttl: int = 60):
+    def __init__(self, ttl_minutes: int = 60):
         """初始化上下文管理器
-
+        
         Args:
-            mcp_kubeconfig_path: MCP专用的kubeconfig文件路径
-            default_ttl: 默认过期时间（分钟）
+            ttl_minutes: kubeconfig有效期（分钟），默认60分钟
         """
-        self.default_ttl = default_ttl
-        self._context_cache: Dict[str, float] = {}  # 上下文名称 -> 过期时间
-        self._lock = threading.RLock()
+        # 初始化 TTL+LRU 缓存
+        super().__init__(maxsize=50, ttl=ttl_minutes * 60)  # TTL 以秒为单位，提前5min
+
         self._cs_client = None  # CS客户端实例
 
-        # 设置 MCP kubeconfig 文件路径
-        self._mcp_kubeconfig_path = mcp_kubeconfig_path
-        self._ensure_mcp_kubeconfig_exists()
+        # 使用 .kube 目录存储 kubeconfig 文件
+        self._kube_dir = os.path.expanduser("~/.kube")
+        os.makedirs(self._kube_dir, exist_ok=True)
 
-        logger.info(f"KubectlContextManager initialized with MCP kubeconfig: {self._mcp_kubeconfig_path}")
+        self._setup_cleanup_handlers()
 
-    def _ensure_mcp_kubeconfig_exists(self):
-        """确保 MCP kubeconfig 文件存在"""
-        import os
-        import yaml
+    def _setup_cleanup_handlers(self):
+        """设置清理处理器"""
+        import atexit
+        import signal
 
-        if not os.path.exists(self._mcp_kubeconfig_path):
-            # 创建基本的 kubeconfig 结构
-            mcp_kubeconfig = {
-                'apiVersion': 'v1',
-                'kind': 'Config',
-                'clusters': [],
-                'contexts': [],
-                'users': [],
-                'preferences': {}
-            }
+        def cleanup_contexts():
+            """清理所有上下文"""
+            try:
+                context_manager = get_context_manager()
+                if context_manager:
+                    context_manager.cleanup()
+                else:
+                    self.cleanup_all_mcp_files()
+            except Exception as e:
+                logger.error(f"Cleanup failed: {e}")
+                raise e
 
-            # 确保目录存在
-            os.makedirs(os.path.dirname(self._mcp_kubeconfig_path), exist_ok=True)
+        def signal_handler(signum, frame):
+            """信号处理器"""
+            cleanup_contexts()
+            exit(0)
 
-            # 写入文件
-            with open(self._mcp_kubeconfig_path, 'w') as f:
-                yaml.dump(mcp_kubeconfig, f, default_flow_style=False)
+        atexit.register(cleanup_contexts)
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
-            logger.info(f"Created MCP kubeconfig file: {self._mcp_kubeconfig_path}")
+    def cleanup_all_mcp_files(self):
+        """类方法：清理所有MCP创建的kubeconfig文件（安全清理）"""
+        try:
+            kube_dir = os.path.expanduser("~/.kube")
+            if not os.path.exists(kube_dir):
+                return
+
+            removed_count = 0
+            for filename in os.listdir(kube_dir):
+                if filename.startswith("mcp-kubeconfig-") and filename.endswith(".yaml"):
+                    file_path = os.path.join(kube_dir, filename)
+                    try:
+                        os.remove(file_path)
+                        removed_count += 1
+                    except Exception:
+                        pass
+
+            if removed_count > 0:
+                logger.info(f"Cleaned up {removed_count} MCP kubeconfig files")
+        except Exception:
+            pass
+
+    def _get_or_create_kubeconfig_file(self, cluster_id: str) -> str:
+        """获取或创建集群的 kubeconfig 文件
+        
+        Args:
+            cluster_id: 集群ID
+            
+        Returns:
+            kubeconfig 文件路径
+        """
+        # 检查缓存中是否已存在
+        if cluster_id in self:
+            logger.debug(f"Found cached kubeconfig for cluster {cluster_id}")
+            return self[cluster_id]
+
+        # 创建新的 kubeconfig 文件
+        kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id, int(self.ttl / 60))  # 转换为分钟
+        if not kubeconfig_content:
+            raise ValueError(f"Failed to get kubeconfig for cluster {cluster_id}")
+
+        # 创建 kubeconfig 文件
+        kubeconfig_path = os.path.join(self._kube_dir, f"mcp-kubeconfig-{cluster_id}.yaml")
+
+        # 确保目录存在
+        os.makedirs(os.path.dirname(kubeconfig_path), exist_ok=True)
+
+        with open(kubeconfig_path, 'w') as f:
+            f.write(kubeconfig_content)
+
+        # 添加到缓存
+        self[cluster_id] = kubeconfig_path
+        return kubeconfig_path
+
+    def popitem(self):
+        """重写 popitem 方法，在驱逐缓存项时清理 kubeconfig 文件"""
+        key, path = super().popitem()
+        # 删除 kubeconfig 文件
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+                logger.debug(f"Removed cached kubeconfig file: {path}")
+            except Exception as e:
+                logger.warning(f"Failed to remove cached kubeconfig file {path}: {e}")
+
+        return key, path
+
+    def cleanup(self):
+        """清理资源，删除所有 MCP 创建的 kubeconfig 文件和缓存"""
+        removed_count = 0
+        for key, path in list(self.items()):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                    removed_count += 1
+                except Exception:
+                    pass
+        self.clear()
+        logger.info(f"Cleaned up {removed_count} kubeconfig files")
 
     def set_cs_client(self, cs_client):
         """设置CS客户端
@@ -91,24 +150,42 @@ class KubectlContextManager:
             raise ValueError("CS client not set")
         return self._cs_client
 
-    def _get_kubeconfig_from_ack(self, cluster_id: str) -> Optional[str]:
-        """通过ACK API获取kubeconfig配置"""
+    def _get_kubeconfig_from_ack(self, cluster_id: str, ttl_minutes: int = 60) -> Optional[str]:
+        """通过ACK API获取kubeconfig配置
+        
+        Args:
+            cluster_id: 集群ID
+            ttl_minutes: kubeconfig有效期（分钟），默认60分钟
+        """
         try:
             # 获取CS客户端
             cs_client = self._get_cs_client()
-
-            # 调用DescribeClusterUserKubeconfig API
             from alibabacloud_cs20151215 import models as cs_models
 
+            # 先检查集群详情，确认是否有公网端点
+            detail_response = cs_client.describe_cluster_detail(cluster_id)
+
+            if not detail_response or not detail_response.body:
+                raise ValueError(f"Failed to get cluster details for {cluster_id}")
+
+            cluster_info = detail_response.body
+            # 检查是否有公网API Server端点
+            master_url_str = getattr(cluster_info, 'master_url', '')
+            master_url = parse_master_url(master_url_str)
+            if not master_url["api_server_endpoint"]:
+                raise ValueError(f"Cluster {cluster_id} does not have public endpoint access, "
+                                 f"Please enable public endpoint access setting first.")
+
+            # 调用DescribeClusterUserKubeconfig API
             request = cs_models.DescribeClusterUserKubeconfigRequest(
                 private_ip_address=False,  # 获取公网连接配置
-                temporary_duration_minutes=self.default_ttl,
+                temporary_duration_minutes=ttl_minutes,  # 使用传入的TTL
             )
 
             response = cs_client.describe_cluster_user_kubeconfig(cluster_id, request)
 
             if response and response.body and response.body.config:
-                logger.info(f"Successfully fetched kubeconfig for cluster {cluster_id}")
+                logger.info(f"Successfully fetched kubeconfig for cluster {cluster_id} (TTL: {ttl_minutes} minutes)")
                 return response.body.config
             else:
                 logger.warning(f"No kubeconfig found for cluster {cluster_id}")
@@ -118,443 +195,32 @@ class KubectlContextManager:
             logger.error(f"Failed to fetch kubeconfig for cluster {cluster_id}: {e}")
             raise e
 
-    def _run_kubectl_command(self, args: List[str]) -> Dict[str, str]:
-        """执行kubectl命令
-
-        Args:
-            args: kubectl命令参数
-
-        Returns:
-            简化的结果字典，包含stdout和stderr
-        """
-        try:
-            cmd = ["kubectl"] + args
-            # 使用 MCP kubeconfig 文件
-            cmd.extend(["--kubeconfig", self._mcp_kubeconfig_path])
-
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=30
-            )
-
-            return {
-                "stdout": result.stdout.strip(),
-                "stderr": result.stderr.strip()
-            }
-        except subprocess.CalledProcessError as e:
-            return {
-                "stdout": e.stdout.strip() if e.stdout else "",
-                "stderr": e.stderr.strip() if e.stderr else str(e)
-            }
-        except subprocess.TimeoutExpired:
-            return {
-                "stdout": "",
-                "stderr": "Command timed out"
-            }
-        except Exception as e:
-            return {
-                "stdout": "",
-                "stderr": str(e)
-            }
-
-    def _find_context_by_cluster_id(self, cluster_id: str) -> Optional[str]:
-        """根据cluster_id查找对应的上下文名称
-
+    def get_kubeconfig_path(self, cluster_id: str) -> str:
+        """获取集群的 kubeconfig 文件路径
+        
         Args:
             cluster_id: 集群ID
-
+            
         Returns:
-            包含cluster_id的上下文名称，如果不存在则返回None
+            kubeconfig 文件路径
         """
-        result = self._run_kubectl_command(["config", "get-contexts"])
-        if result["stderr"]:
-            return None
-
-        try:
-            lines = result["stdout"].strip().split('\n')
-            # 跳过标题行
-            for line in lines[1:]:
-                if not line.strip():
-                    continue
-
-                parts = line.split()
-                if len(parts) >= 2:
-                    context_name = parts[1]
-                    if cluster_id in context_name:
-                        return context_name
-            return None
-        except Exception as e:
-            logger.error(f"Failed to parse contexts output: {e}")
-            raise e
-
-    def _is_context_expired(self, context_name: str) -> bool:
-        """检查上下文是否过期（提前5分钟认为过期）
-
-        Args:
-            context_name: 上下文名称
-
-        Returns:
-            是否过期
-        """
-        if context_name not in self._context_cache:
-            return False
-        # 提前5分钟认为过期
-        return time.time() > (self._context_cache[context_name] - 300)
-
-    def _cleanup_expired_contexts(self):
-        """清理过期的上下文"""
-        with self._lock:
-            expired_contexts = []
-            for context_name, expires_at in self._context_cache.items():
-                if time.time() > expires_at:
-                    expired_contexts.append(context_name)
-
-            for context_name in expired_contexts:
-                self._remove_context_internal(context_name)
-                logger.debug(f"Cleaned up expired context: {context_name}")
-
-    def _remove_context_internal(self, context_name: str):
-        """内部方法：移除上下文（不加锁）"""
-        try:
-            # 从kubectl中删除上下文
-            result = self._run_kubectl_command(["config", "delete-context", context_name])
-            if not result["stderr"]:
-                logger.debug(f"Removed context from kubectl: {context_name}")
-            else:
-                logger.warning(f"Failed to remove context from kubectl: {result['stderr']}")
-
-            # 从缓存中移除
-            if context_name in self._context_cache:
-                del self._context_cache[context_name]
-
-        except Exception as e:
-            logger.warning(f"Failed to remove context {context_name}: {e}")
-            raise e
-
-    def switch_context(self, context_name: str) -> None:
-        """切换上下文
-
-        Args:
-            context_name: 上下文名称
-
-        Raises:
-            ValueError: 当上下文不存在或已过期时
-            RuntimeError: 当切换上下文失败时
-        """
-        with self._lock:
-            # 检查上下文是否存在
-            if not self._context_exists(context_name):
-                error_msg = f"Context '{context_name}' does not exist"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            # 检查是否过期
-            if self._is_context_expired(context_name):
-                error_msg = f"Context '{context_name}' has expired"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            # 切换上下文
-            result = self._run_kubectl_command(["config", "use-context", context_name])
-            if not result["stderr"]:
-                logger.info(f"Successfully switched to context: {context_name}")
-            else:
-                error_msg = f"Failed to switch to context '{context_name}': {result['stderr']}"
-                logger.error(error_msg)
-                raise RuntimeError(error_msg)
-
-    def switch_context_for_cluster(self, cluster_id: str) -> None:
-        """为指定集群智能切换上下文
-
-        Args:
-            cluster_id: 集群ID
-
-        Raises:
-            ValueError: 当集群ID无效或上下文操作失败时
-            RuntimeError: 当无法获取kubeconfig或创建上下文失败时
-        """
-        try:
-            # 1. 首先检查是否已存在包含cluster_id的上下文
-            existing_context_name = self._find_context_by_cluster_id(cluster_id)
-
-            if existing_context_name:
-                # 检查上下文是否过期
-                if self._is_context_expired(existing_context_name):
-                    logger.info(
-                        f"Context '{existing_context_name}' for cluster {cluster_id} has expired, recreating...")
-                    # 移除过期上下文
-                    self._remove_context_internal(existing_context_name)
-                    existing_context_name = None
-                else:
-                    # 上下文有效，直接切换
-                    try:
-                        self.switch_context(existing_context_name)
-                        logger.info(f"Switched to existing context '{existing_context_name}' for cluster {cluster_id}")
-                        return
-                    except (ValueError, RuntimeError) as e:
-                        logger.warning(
-                            f"Failed to switch to existing context '{existing_context_name}': {e}, will recreate...")
-                        existing_context_name = None
-
-            # 2. 如果不存在有效上下文，从ACK API获取并创建新上下文
-            if not existing_context_name:
-                logger.info(f"Creating new kubeconfig context for cluster {cluster_id}")
-                kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id)
-
-                if not kubeconfig_content:
-                    error_msg = f"Failed to fetch kubeconfig from ACK API for cluster {cluster_id}"
-                    logger.error(error_msg)
-                    raise RuntimeError(error_msg)
-
-                # 创建新上下文
-                created_context_name = self._create_context_from_kubeconfig(
-                    kubeconfig_content=kubeconfig_content,
-                    ttl=self.default_ttl
-                )
-
-                if not created_context_name:
-                    error_msg = f"Failed to create context from kubeconfig for cluster {cluster_id}"
-                    logger.error(error_msg)
-                    raise RuntimeError(error_msg)
-
-                # 切换到新创建的上下文
-                try:
-                    self.switch_context(created_context_name)
-                    logger.info(
-                        f"Created and switched to new context '{created_context_name}' for cluster {cluster_id}")
-                except Exception as e:
-                    error_msg = f"Failed to switch to newly created context '{created_context_name}' for cluster {cluster_id}: {e}"
-                    logger.error(error_msg)
-                    raise RuntimeError(error_msg)
-
-        except Exception as e:
-            error_msg = f"Unexpected error handling context for cluster {cluster_id}: {e}"
-            logger.error(error_msg)
-            raise e
-
-    def _context_exists(self, context_name: str) -> bool:
-        """检查上下文是否存在"""
-        result = self._run_kubectl_command(["config", "get-contexts"])
-        if result["stderr"]:
-            return False
-        return context_name in result["stdout"]
-
-    def _is_auto_created_context(self, context_name: str) -> bool:
-        """检查是否为自动创建的上下文
-
-        Args:
-            context_name: 上下文名称
-
-        Returns:
-            是否为自动创建的上下文
-        """
-        return context_name.startswith("mcp-auto-")
-
-    def _create_context_from_kubeconfig(self, kubeconfig_content: str, ttl: Optional[int] = None) -> Optional[str]:
-        """从kubeconfig内容创建上下文（避免覆盖现有context）"""
-        with self._lock:
-            self._cleanup_expired_contexts()
-
-            try:
-                # 直接解析kubeconfig内容，不需要临时文件
-                import yaml
-                kubeconfig_data = yaml.safe_load(kubeconfig_content)
-
-                if not kubeconfig_data:
-                    logger.error("Invalid kubeconfig content")
-                    return None
-
-                current_context = kubeconfig_data.get('current-context', '')
-                if not current_context:
-                    logger.error("No current context found in kubeconfig")
-                    return None
-
-                # 获取上下文信息
-                contexts = kubeconfig_data.get('contexts', [])
-                clusters = kubeconfig_data.get('clusters', [])
-                users = kubeconfig_data.get('users', [])
-
-                # 找到当前上下文对应的配置
-                current_ctx_config = None
-                for ctx in contexts:
-                    if ctx.get('name') == current_context:
-                        current_ctx_config = ctx.get('context', {})
-                        break
-
-                if not current_ctx_config:
-                    logger.error(f"Context configuration not found for '{current_context}'")
-                    return None
-
-                # 找到对应的集群和用户配置
-                cluster_name = current_ctx_config.get('cluster', '')
-                user_name = current_ctx_config.get('user', '')
-
-                cluster_config = None
-                user_config = None
-
-                for cluster in clusters:
-                    if cluster.get('name') == cluster_name:
-                        cluster_config = cluster.get('cluster', {})
-                        break
-
-                for user in users:
-                    if user.get('name') == user_name:
-                        user_config = user.get('user', {})
-                        break
-
-                if not cluster_config or not user_config:
-                    logger.error(f"Cluster or user configuration not found for context '{current_context}'")
-                    return None
-
-                # 创建集群配置（使用唯一名称避免冲突）
-                unique_cluster_name = f"{cluster_name}-{int(time.time())}"
-                cluster_cmd = ["config", "set-cluster", unique_cluster_name]
-                if cluster_config.get('server'):
-                    cluster_cmd.extend(["--server", cluster_config['server']])
-
-                # 处理证书授权数据
-                ca_data = cluster_config.get('certificate-authority-data')
-                ca_file = cluster_config.get('certificate-authority')
-                if ca_data:
-                    # 将证书数据写入临时文件
-                    import base64
-                    import tempfile
-                    ca_content = base64.b64decode(ca_data).decode('utf-8')
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.crt', delete=False) as f:
-                        f.write(ca_content)
-                        ca_file = f.name
-                    cluster_cmd.extend(["--certificate-authority", ca_file])
-                elif ca_file:
-                    cluster_cmd.extend(["--certificate-authority", ca_file])
-
-                result = self._run_kubectl_command(cluster_cmd)
-                if result["stderr"]:
-                    logger.error(f"Failed to set cluster {unique_cluster_name}: {result['stderr']}")
-                    return None
-
-                # 创建用户配置（使用唯一名称避免冲突）
-                unique_user_name = f"{user_name}-{int(time.time())}"
-                user_cmd = ["config", "set-credentials", unique_user_name]
-                if user_config.get('token'):
-                    user_cmd.extend(["--token", user_config['token']])
-
-                # 处理客户端证书数据
-                cert_data = user_config.get('client-certificate-data')
-                cert_file = user_config.get('client-certificate')
-                if cert_data:
-                    # 将证书数据写入临时文件
-                    import base64
-                    import tempfile
-                    cert_content = base64.b64decode(cert_data).decode('utf-8')
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.crt', delete=False) as f:
-                        f.write(cert_content)
-                        cert_file = f.name
-                    user_cmd.extend(["--client-certificate", cert_file])
-                elif cert_file:
-                    user_cmd.extend(["--client-certificate", cert_file])
-
-                # 处理客户端密钥数据
-                key_data = user_config.get('client-key-data')
-                key_file = user_config.get('client-key')
-                if key_data:
-                    # 将密钥数据写入临时文件
-                    import base64
-                    import tempfile
-                    key_content = base64.b64decode(key_data).decode('utf-8')
-                    with tempfile.NamedTemporaryFile(mode='w', suffix='.key', delete=False) as f:
-                        f.write(key_content)
-                        key_file = f.name
-                    user_cmd.extend(["--client-key", key_file])
-                elif key_file:
-                    user_cmd.extend(["--client-key", key_file])
-
-                result = self._run_kubectl_command(user_cmd)
-                if result["stderr"]:
-                    logger.error(f"Failed to set credentials {unique_user_name}: {result['stderr']}")
-                    return None
-
-                # 创建上下文配置（使用特定格式命名自动创建的context）
-                unique_context_name = f"mcp-auto-{current_context}-{int(time.time())}"
-                context_cmd = [
-                    "config", "set-context", unique_context_name,
-                    "--cluster", unique_cluster_name,
-                    "--user", unique_user_name
-                ]
-
-                if current_ctx_config.get('namespace'):
-                    context_cmd.extend(["--namespace", current_ctx_config['namespace']])
-
-                result = self._run_kubectl_command(context_cmd)
-                if not result["stderr"]:
-                    # 设置过期时间
-                    expires_at = time.time() + (ttl or self.default_ttl) * 60
-                    self._context_cache[unique_context_name] = expires_at
-                    logger.info(
-                        f"Created context '{unique_context_name}' (from '{current_context}'), expires at {expires_at}")
-                    return unique_context_name
-                else:
-                    logger.error(f"Failed to create context {unique_context_name}: {result['stderr']}")
-                    return None
-
-            except Exception as e:
-                logger.error(f"Failed to create context: {e}")
-                raise e
-
-    def cleanup_all(self):
-        """清理所有自动创建的上下文（删除整个 MCP kubeconfig 文件）"""
-        with self._lock:
-            try:
-                import os
-
-                # 删除 MCP kubeconfig 文件
-                if os.path.exists(self._mcp_kubeconfig_path):
-                    os.remove(self._mcp_kubeconfig_path)
-                    logger.info(f"Deleted MCP kubeconfig file: {self._mcp_kubeconfig_path}")
-                else:
-                    logger.info("MCP kubeconfig file does not exist, nothing to clean up")
-
-                # 清空缓存
-                self._context_cache.clear()
-                logger.info("Cleaned up all auto-created contexts by removing MCP kubeconfig")
-
-            except Exception as e:
-                logger.error(f"Failed to cleanup auto-created contexts: {e}")
-                raise e
+        return self._get_or_create_kubeconfig_file(cluster_id)
 
 
 # 全局上下文管理器实例
 _context_manager: Optional[KubectlContextManager] = None
 
 
-def get_context_manager(mcp_kubeconfig_path: Optional[str] = None) -> KubectlContextManager:
+def get_context_manager(ttl_minutes: int = 60) -> KubectlContextManager:
     """获取全局上下文管理器实例
-
+    
     Args:
-        mcp_kubeconfig_path: MCP专用的kubeconfig文件路径
-
-    Returns:
-        上下文管理器实例
+        ttl_minutes: kubeconfig有效期（分钟），默认60分钟
     """
     global _context_manager
     if _context_manager is None:
-        _context_manager = KubectlContextManager(mcp_kubeconfig_path)
+        _context_manager = KubectlContextManager(ttl_minutes=ttl_minutes)
     return _context_manager
-
-
-def switch_context_for_cluster(cluster_id: str) -> None:
-    """便捷函数：为指定集群智能切换上下文
-
-    Args:
-        cluster_id: 集群ID
-
-    Raises:
-        ValueError: 当集群ID无效或上下文操作失败时
-        RuntimeError: 当无法获取kubeconfig或创建上下文失败时
-    """
-    return get_context_manager().switch_context_for_cluster(cluster_id)
 
 
 class KubectlHandler:
@@ -565,53 +231,17 @@ class KubectlHandler:
 
         Args:
             server: FastMCP server instance
-            settings: Configuration settings
+            settings: Optional settings dictionary
         """
         self.server = server
         self.settings = settings or {}
-        self.allow_write = self.settings.get("allow_write", True)
-
-        # 设置 MCP kubeconfig 路径
-        self.mcp_kubeconfig_path = os.path.expanduser("~/.kube/mcp-kubeconfig")
-
-        # 初始化上下文管理器，传递 MCP kubeconfig 路径
-        self.context_manager = get_context_manager(self.mcp_kubeconfig_path)
-
         self._register_tools()
-        self._setup_cleanup_handlers()
-        logger.info("Kubectl Handler initialized with context manager")
-
-    def _setup_cleanup_handlers(self):
-        """设置清理处理器"""
-        import atexit
-        import signal
-
-        def cleanup_contexts():
-            """清理所有上下文"""
-            try:
-                logger.info("Cleaning up kubectl contexts on exit...")
-                self.context_manager.cleanup_all()
-            except Exception as e:
-                logger.warning(f"Failed to cleanup contexts on exit: {e}")
-
-        def signal_handler(signum, frame):
-            """信号处理器"""
-            logger.info(f"Received signal {signum}, cleaning up contexts...")
-            cleanup_contexts()
-            exit(0)
-
-        # 注册退出清理
-        atexit.register(cleanup_contexts)
-
-        # 注册信号处理器
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
 
     def _setup_cs_client(self, ctx: Context):
         """设置CS客户端（仅在需要时）"""
         try:
             # 检查是否已经设置过
-            if hasattr(self.context_manager, '_cs_client') and self.context_manager._cs_client:
+            if hasattr(get_context_manager(), '_cs_client') and get_context_manager()._cs_client:
                 return
 
             lifespan_context = ctx.request_context.lifespan_context
@@ -622,7 +252,7 @@ class KubectlHandler:
 
             cs_client_factory = providers.get("cs_client_factory")
             if cs_client_factory:
-                self.context_manager.set_cs_client(cs_client_factory("CENTER"))
+                get_context_manager().set_cs_client(cs_client_factory("CENTER"))
                 logger.debug("CS client factory set successfully")
             else:
                 logger.warning("cs_client not available in lifespan context")
@@ -636,9 +266,8 @@ class KubectlHandler:
             command: kubectl 命令字符串
 
         Returns:
-            tuple: (是否为交互式命令, 错误信息)
+            (是否为交互式命令, 错误信息)
         """
-        # 检查是否包含交互式命令模式
         is_interactive = " -it" in command
         is_port_forward = "port-forward " in command
         is_edit = "edit " in command
@@ -652,19 +281,6 @@ class KubectlHandler:
 
         return False, None
 
-    def build_kubectl_command(self, command: str) -> List[str]:
-        """构建完整的 kubectl 命令列表
-
-        Args:
-            command: kubectl 命令参数（不包含 kubectl 前缀）
-
-        Returns:
-            List[str]: 完整的命令列表，包含 --kubeconfig 参数
-        """
-        # 直接拼接命令字符串，然后解析
-        full_command = f"kubectl --kubeconfig {self.mcp_kubeconfig_path} {command}"
-        return shlex.split(full_command)
-
     def is_streaming_command(self, command: str) -> tuple[bool, Optional[str]]:
         """检查是否为流式命令
 
@@ -672,11 +288,11 @@ class KubectlHandler:
             command: kubectl 命令字符串
 
         Returns:
-            tuple: (是否为流式命令, 流式命令类型)
+            (是否为流式命令, 流式类型)
         """
-        is_watch = "get " in command and " -w" in command
-        is_logs = "logs " in command and " -f" in command
-        is_attach = "attach " in command
+        is_watch = " get " in command and " -w" in command
+        is_logs = " logs " in command and " -f" in command
+        is_attach = " attach " in command
 
         if is_watch:
             return True, "watch"
@@ -687,21 +303,10 @@ class KubectlHandler:
 
         return False, None
 
-    def run_streaming_command(self, command: str, timeout: int = 7) -> Dict[str, Any]:
-        """运行流式命令，支持超时控制
-
-        Args:
-            command: kubectl 命令字符串
-            timeout: 超时时间（秒）
-
-        Returns:
-            Dict: 包含执行结果的字典
-        """
+    def run_streaming_command(self, command: str, kubeconfig_path: str, timeout: int = 10) -> Dict[str, Any]:
+        """运行流式命令，支持超时控制"""
         try:
-            # 直接拼接命令字符串，使用 shell=True
-            full_command = f"kubectl --kubeconfig {self.mcp_kubeconfig_path} {command}"
-
-            # 创建进程
+            full_command = f"kubectl --kubeconfig {kubeconfig_path} {command}"
             process = subprocess.Popen(
                 full_command,
                 shell=True,
@@ -714,82 +319,86 @@ class KubectlHandler:
 
             stdout_lines = []
             stderr_lines = []
-            is_timeout = False
+            process_terminated = False
 
             def read_stdout():
-                """读取 stdout"""
                 try:
                     for line in iter(process.stdout.readline, ''):
-                        if is_timeout:
-                            break
-                        stdout_lines.append(line)
-                        logger.info(f"STDOUT: {line.strip()}")
-                except Exception as e:
-                    logger.error(f"Error reading stdout: {e}")
+                        if line and not process_terminated:
+                            stdout_lines.append(line)
+                except Exception:
+                    pass
 
             def read_stderr():
-                """读取 stderr"""
                 try:
                     for line in iter(process.stderr.readline, ''):
-                        if is_timeout:
-                            break
-                        stderr_lines.append(line)
-                        logger.error(f"STDERR: {line.strip()}")
-                except Exception as e:
-                    logger.error(f"Error reading stderr: {e}")
+                        if line and not process_terminated:
+                            stderr_lines.append(line)
+                except Exception:
+                    pass
 
-            # 启动读取线程
-            stdout_thread = threading.Thread(target=read_stdout)
-            stderr_thread = threading.Thread(target=read_stderr)
+            import threading
+            stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+            stderr_thread = threading.Thread(target=read_stderr, daemon=True)
 
             stdout_thread.start()
             stderr_thread.start()
 
-            # 等待超时或进程结束
             try:
                 process.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
-                is_timeout = True
-                process.kill()
-                process.wait()
+                process_terminated = True
+                process.terminate()
+                try:
+                    process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=1)
 
-                return {
-                    "exit_code": 124,  # 超时退出码
-                    "stdout": "".join(stdout_lines),
-                    "stderr": f"Timeout reached after {timeout} seconds\n" + "".join(stderr_lines)
-                }
-
-            # 等待读取线程完成
             stdout_thread.join(timeout=1)
             stderr_thread.join(timeout=1)
 
+            exit_code = process.returncode
+            if process_terminated and exit_code is None:
+                exit_code = 124
+
             return {
-                "exit_code": process.returncode,
+                "exit_code": exit_code or 0,
                 "stdout": "".join(stdout_lines),
                 "stderr": "".join(stderr_lines)
             }
 
         except Exception as e:
-            logger.error(f"Streaming command failed: {e}")
             return {
                 "exit_code": 1,
                 "stdout": "",
                 "stderr": str(e)
             }
 
-    def run_command(self, command: str) -> Dict[str, Any]:
+    def run_command(self, command: str, kubeconfig_path: str, timeout: int = 10) -> Dict[str, Any]:
         """Run a kubectl command and return structured result."""
         try:
-            # 直接拼接命令字符串，使用 shell=True
-            full_command = f"kubectl --kubeconfig {self.mcp_kubeconfig_path} {command}"
-            result = subprocess.run(full_command, shell=True, capture_output=True, text=True, check=True)
+            full_command = f"kubectl --kubeconfig {kubeconfig_path} {command}"
+            result = subprocess.run(
+                full_command,
+                shell=True,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=timeout
+            )
             return {
                 "exit_code": result.returncode,
                 "stdout": result.stdout.strip() if result.stdout else "",
                 "stderr": result.stderr.strip() if result.stderr else "",
             }
+        except subprocess.TimeoutExpired:
+            return {
+                "exit_code": 124,
+                "stdout": "",
+                "stderr": f"Command timed out after {timeout} seconds",
+            }
         except subprocess.CalledProcessError as e:
-            logger.error(f"kubectl command failed: {command}")
             return {
                 "exit_code": e.returncode,
                 "stdout": e.stdout.strip() if e.stdout else "",
@@ -807,8 +416,7 @@ class KubectlHandler:
         async def kubectl(
                 ctx: Context,
                 command: str = Field(
-                    ..., description=""
-                                     """Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix.
+                    ..., description="""Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix.
 
 IMPORTANT: Do not use interactive commands. Instead:
 - Use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply' instead of 'kubectl edit'
@@ -847,43 +455,45 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                                      "please use the list_clusters tool to get it first."
                 ),
         ) -> KubectlOutput:
-            if not cluster_id:
-                raise ValueError("cluster_id is required")
-
-            # 检查是否为交互式命令
-            is_interactive, error_msg = self.is_interactive_command(command)
-            if is_interactive:
-                return KubectlOutput(
-                    command=command,
-                    stdout="",
-                    stderr=error_msg,
-                    exit_code=1
-                )
 
             try:
+                # 设置CS客户端
                 self._setup_cs_client(ctx)
-                switch_context_for_cluster(cluster_id)
+
+                # 检查是否为交互式命令
+                is_interactive, interactive_error = self.is_interactive_command(command)
+                if is_interactive:
+                    return KubectlOutput(
+                        command=command,
+                        stdout="",
+                        stderr=interactive_error,
+                        exit_code=1
+                    )
+
+                # 获取 kubeconfig 文件路径
+                context_manager = get_context_manager()
+                kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id)
 
                 # 检查是否为流式命令
-                is_streaming, _ = self.is_streaming_command(command)
-                if is_streaming:
-                    result = self.run_streaming_command(command)
-                else:
-                    result = self.run_command(command)
+                is_streaming, stream_type = self.is_streaming_command(command)
 
-                # 构建返回结果
+                if is_streaming:
+                    result = self.run_streaming_command(command, kubeconfig_path)
+                else:
+                    result = self.run_command(command, kubeconfig_path)
+
                 return KubectlOutput(
                     command=command,
-                    stdout=result.get("stdout", ""),
-                    stderr=result.get("stderr", ""),
-                    exit_code=result.get("exit_code", 0)
+                    stdout=result["stdout"],
+                    stderr=result["stderr"],
+                    exit_code=result["exit_code"]
                 )
 
             except Exception as e:
-                logger.exception("kubectl tool execution error")
+                logger.error(f"kubectl tool execution error: {e}")
                 return KubectlOutput(
                     command=command,
                     stdout="",
-                    stderr=f"Error: {str(e)}",
+                    stderr=str(e),
                     exit_code=1
                 )
