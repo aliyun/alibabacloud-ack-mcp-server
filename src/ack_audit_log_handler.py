@@ -311,7 +311,7 @@ class ACKAuditLogHandler:
             self,
             ctx: Context,
             cluster_id: str = Field(..., description="集群ID，例如 cxxxxx"),
-            namespace: Optional[str] = Field(None, description="命名空间，支持精确匹配和后缀通配符"),
+            namespace: Optional[str] = Field(None, description="命名空间，支持精确匹配和后缀通配符，默认为*"),
             verbs: Optional[str] = Field(None, description="操作动词，多个值用逗号分隔，如 get,list,create"),
             resource_types: Optional[str] = Field(None, description="K8s资源类型，多个值用逗号分隔，如 pods,services"),
             resource_name: Optional[str] = Field(None, description="资源名称，支持精确匹配和后缀通配符"),
@@ -445,7 +445,7 @@ class ACKAuditLogHandler:
 
             # 构建查询语句 - 直接使用参数而不是创建 Pydantic 模型
             # 设置默认值
-            namespace = namespace or "default"
+            namespace = namespace or "*"
             # 默认查询过去24小时的数据，使用ISO 8601格式
             if not start_time:
                 from datetime import datetime, timedelta
