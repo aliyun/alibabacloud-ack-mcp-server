@@ -1,13 +1,10 @@
 """ACK Audit Log Handler - Alibaba Cloud Container Service Audit Log Management."""
-
 from typing import Dict, Any, Optional, List
 from fastmcp import FastMCP, Context
 from loguru import logger
 from pydantic import Field
 import json
-import re
 from datetime import datetime, timedelta
-from unittest.mock import Mock
 
 try:
     from .models import (
@@ -52,234 +49,6 @@ def _get_cs_client(ctx: Context, region_id: str):
     return cs_client_factory(region_id)
 
 
-def _parse_time(time_str: str) -> int:
-    """解析时间字符串为 Unix 时间戳（秒级）。
-    
-    支持格式：
-    - ISO 8601: "2025-09-16T08:09:44Z" 或 "2025-09-16T08:09:44+08:00"
-    - Unix 时间戳: "1758037055" (秒级) 或 "1758037055000" (毫秒级，自动转换为秒级)
-    """
-    if not time_str:
-        return int(datetime.now().timestamp())
-
-    # 检查是否是纯数字（Unix 时间戳）
-    if time_str.isdigit():
-        timestamp = int(time_str)
-        # 如果是毫秒级时间戳（13位数字），转换为秒级
-        if timestamp > 1e12:  # 大于 2001-09-09 的时间戳，可能是毫秒级
-            return timestamp // 1000
-        else:
-            return timestamp
-
-    # ISO 8601 格式
-    try:
-        # 检查是否包含时区信息
-        if not ('Z' in time_str or '+' in time_str or time_str.count('-') > 2):
-            raise ValueError(f"ISO 8601 format must include timezone information (Z, +HH:MM, or -HH:MM)")
-
-        # 处理 Z 后缀（UTC时间）
-        if time_str.endswith('Z'):
-            time_str = time_str[:-1] + '+00:00'
-
-        dt = datetime.fromisoformat(time_str)
-        return int(dt.timestamp())
-    except ValueError as e:
-        if "timezone information" in str(e):
-            raise e
-        raise ValueError(
-            f"Invalid time format: {time_str}. Expected ISO 8601 format (e.g., 2025-09-16T08:09:44Z) or Unix timestamp.")
-
-
-def _build_sls_query_direct(
-        cluster_id: str,
-        namespace: str,
-        verbs: Optional[str],
-        resource_types: Optional[str],
-        resource_name: Optional[str],
-        user: Optional[str],
-        start_time: str,
-        end_time: Optional[str],
-        limit: int
-) -> str:
-    """直接构建 SLS 查询语句，不使用 Pydantic 模型。"""
-    conditions = []
-
-    # 基础条件：审计日志类型
-    # conditions.append('__tag__:__receive_time__: *')
-
-    # 过滤掉 FieldInfo 对象，只处理字符串
-    def is_valid_string(value):
-        return isinstance(value, str) and not hasattr(value, 'annotation')
-
-    # 命名空间过滤
-    if is_valid_string(namespace):
-        if '*' in namespace:
-            # 后缀通配符
-            prefix = namespace.rstrip('*')
-            conditions.append(f'objectRef.namespace: {prefix}*')
-        else:
-            # 精确匹配
-            conditions.append(f'objectRef.namespace: {namespace}')
-
-    # 操作动词过滤
-    if is_valid_string(verbs):
-        verb_list = [v.strip() for v in verbs.split(',')]
-        if len(verb_list) == 1:
-            conditions.append(f'verb: {verb_list[0]}')
-        else:
-            verb_conditions = ' OR '.join([f'verb: {v}' for v in verb_list])
-            conditions.append(f'({verb_conditions})')
-
-    # 资源类型过滤
-    if is_valid_string(resource_types):
-        resource_list = [r.strip() for r in resource_types.split(',')]
-        if len(resource_list) == 1:
-            conditions.append(f'objectRef.resource: {resource_list[0]}')
-        else:
-            resource_conditions = ' OR '.join([f'objectRef.resource: {r}' for r in resource_list])
-            conditions.append(f'({resource_conditions})')
-
-    # 资源名称过滤
-    if is_valid_string(resource_name):
-        if '*' in resource_name:
-            # 后缀通配符
-            prefix = resource_name.rstrip('*')
-            conditions.append(f'objectRef.name: {prefix}*')
-        else:
-            # 精确匹配
-            conditions.append(f'objectRef.name: {resource_name}')
-
-    # 用户过滤
-    if is_valid_string(user):
-        if '*' in user:
-            # 后缀通配符
-            prefix = user.rstrip('*')
-            conditions.append(f'user.username: {prefix}*')
-        else:
-            # 精确匹配
-            conditions.append(f'user.username: {user}')
-
-    return ' AND '.join(conditions)
-
-
-def _build_sls_query(params: QueryAuditLogsInput) -> str:
-    """构建 SLS 查询语句。"""
-    conditions = []
-
-    # 基础条件：审计日志类型
-    # conditions.append('__tag__:__receive_time__: *')
-
-    # 命名空间过滤
-    if params.namespace:
-        if '*' in params.namespace:
-            # 后缀通配符
-            prefix = params.namespace.rstrip('*')
-            conditions.append(f'objectRef.namespace: {prefix}*')
-        else:
-            # 精确匹配
-            conditions.append(f'objectRef.namespace: {params.namespace}')
-
-    # 操作动词过滤
-    if params.verbs:
-        verb_list = [v.strip() for v in params.verbs.split(',')]
-        if len(verb_list) == 1:
-            conditions.append(f'verb: {verb_list[0]}')
-        else:
-            verb_conditions = ' OR '.join([f'verb: {v}' for v in verb_list])
-            conditions.append(f'({verb_conditions})')
-
-    # 资源类型过滤
-    if params.resource_types:
-        resource_list = [r.strip() for r in params.resource_types.split(',')]
-        if len(resource_list) == 1:
-            conditions.append(f'objectRef.resource: {resource_list[0]}')
-        else:
-            resource_conditions = ' OR '.join([f'objectRef.resource: {r}' for r in resource_list])
-            conditions.append(f'({resource_conditions})')
-
-    # 资源名称过滤
-    if params.resource_name:
-        if '*' in params.resource_name:
-            # 后缀通配符
-            prefix = params.resource_name.rstrip('*')
-            conditions.append(f'objectRef.name: {prefix}*')
-        else:
-            # 精确匹配
-            conditions.append(f'objectRef.name: {params.resource_name}')
-
-    # 用户过滤
-    if params.user:
-        if '*' in params.user:
-            # 后缀通配符
-            prefix = params.user.rstrip('*')
-            conditions.append(f'user.username: {prefix}*')
-        else:
-            # 精确匹配
-            conditions.append(f'user.username: {params.user}')
-
-    return ' AND '.join(conditions)
-
-
-def _parse_audit_log_entry(log_data: Dict[str, Any]) -> AuditLogEntry:
-    """解析审计日志条目。"""
-    # 提取基本信息
-    timestamp = log_data.get('__time__')
-    if timestamp:
-        # __time__ 可能是字符串格式的时间戳
-        if isinstance(timestamp, str):
-            timestamp = datetime.fromtimestamp(int(timestamp)).isoformat()
-        else:
-            timestamp = datetime.fromtimestamp(timestamp).isoformat()
-
-    # 解析 JSON 字符串字段
-    def parse_json_field(field_value, default=None):
-        """解析 JSON 字符串字段"""
-        if not field_value:
-            return default
-        if isinstance(field_value, str):
-            try:
-                return json.loads(field_value)
-            except (json.JSONDecodeError, TypeError):
-                return default
-        return field_value
-
-    # 提取用户信息
-    user_info = parse_json_field(log_data.get('user'), {})
-    user_name = user_info.get('username') if isinstance(user_info, dict) else None
-
-    # 提取对象引用信息
-    object_ref = parse_json_field(log_data.get('objectRef'), {})
-
-    # 提取响应状态信息
-    response_status = parse_json_field(log_data.get('responseStatus'), {})
-
-    # 提取源IP
-    source_ips = parse_json_field(log_data.get('sourceIPs'), [])
-    if not isinstance(source_ips, list):
-        source_ips = []
-
-    # 提取请求和响应对象
-    request = parse_json_field(log_data.get('requestObject'), {})
-    response = parse_json_field(log_data.get('responseObject'), {})
-
-    return AuditLogEntry(
-        timestamp=timestamp,
-        verb=log_data.get('verb'),
-        resource_type=object_ref.get('resource') if isinstance(object_ref, dict) else None,
-        resource_name=object_ref.get('name') if isinstance(object_ref, dict) else None,
-        namespace=object_ref.get('namespace') if isinstance(object_ref, dict) else None,
-        user=user_name,
-        source_ips=source_ips,
-        user_agent=log_data.get('userAgent'),
-        response_code=response_status.get('code') if isinstance(response_status, dict) else None,
-        response_status=response_status.get('status') if isinstance(response_status, dict) else None,
-        request_uri=log_data.get('requestURI'),
-        request_object=request if isinstance(request, dict) else {},
-        response_object=response if isinstance(response, dict) else {},
-        raw_log=json.dumps(log_data, ensure_ascii=False)
-    )
-
-
 class ACKAuditLogHandler:
     """Handler for ACK audit log operations."""
 
@@ -293,11 +62,48 @@ class ACKAuditLogHandler:
         self.server = server
         self.allow_write = settings.get("allow_write", True) if settings else True
         self.settings = settings or {}
-
+        self.sls_client = None
+        self.resource_mapping = {
+            "pod": "pods",
+            "deployment": "deployments",
+            "service": "services",
+            "svc": "services",
+            "configmap": "configmaps",
+            "cm": "configmaps",
+            "secret": "secrets",
+            "sec": "secrets",
+            "role": "roles",
+            "rolebinding": "rolebindings",
+            "clusterrole": "clusterroles",
+            "clusterrolebinding": "clusterrolebindings",
+            "node": "nodes",
+            "namespace": "namespaces",
+            "ns": "namespaces",
+            "pv": "persistentvolumes",
+            "pvc": "persistentvolumeclaims",
+            "sa": "serviceaccounts",
+            "deploy": "deployments",
+            "rs": "replicasets",
+            "ds": "daemonsets",
+            "sts": "statefulsets",
+            "ing": "ingresses",
+        }
         # Register tools
         self.server.tool(
-            name="query_audit_logs",
-            description="查询ACK集群API Server的审计日志"
+            name="query_audit_log",
+            description="""Query Kubernetes (k8s) audit logs.
+
+    Function Description:
+    - Supports multiple time formats (ISO 8601 and relative time).
+    - Supports suffix wildcards for namespace, resource name, and user.
+    - Supports multiple values for verbs and resource types.
+    - Supports both full names and short names for resource types.
+    - Allows specifying the cluster name to query audit logs from multiple clusters.
+    - Provides detailed parameter validation and error messages.
+
+    Usage Suggestions:
+    - You can use the list_clusters() tool to view available clusters and their IDs.
+    - By default, it queries the audit logs for the last 24 hours. The number of returned records is limited to 10 by default."""
         )(self.query_audit_logs)
 
         self.server.tool(
@@ -307,266 +113,129 @@ class ACKAuditLogHandler:
 
         logger.info("ACK Audit Log Handler initialized")
 
-    async def query_audit_logs(
+    async def query_audit_logs(self,
+                               ctx: Context,
+                               cluster_id: str = Field(
+                                   ...,
+                                   description="The name of the cluster to query audit logs from. if you are not "
+                                               "sure, use 'list_clusters' tool to get available clusters."
+                               ),
+                               namespace: Optional[str] = Field(
+                                   None,
+                                   description="""(Optional) Match by namespace. 
+    Supports exact matching and suffix wildcards:
+    - Exact match: "default", "kube-system", "kube-public"
+    - Suffix wildcard: "kube*", "app-*" (matches namespaces that start with the specified prefix)"""
+                               ),
+                               verbs: Optional[str] = Field(
+                                   None,
+                                   description="""(Optional) Filter by action verbs, multiple values are allowed.
+    Can be a JSON array string like '["create", "update"]'.
+    Common values:
+    - "get": Get a resource
+    - "list": List resources
+    - "create": Create a resource
+    - "update": Update a resource
+    - "delete": Delete a resource
+    - "patch": Partially update a resource
+    - "watch": Watch for changes to a resource"""
+                               ),
+                               resource_types: Optional[str] = Field(
+                                   None,
+                                   description="""(Optional) K8s resource type, multiple values are allowed.
+    Can be a JSON array string like '["deployments", "pods"]'.
+    Supports full names and short names. Common values:
+    - Core: pods(pod), services(svc), configmaps(cm), secrets, nodes, namespaces(ns)
+    - App: deployments(deploy), replicasets(rs), daemonsets(ds), statefulsets(sts)
+    - Storage: persistentvolumes(pv), persistentvolumeclaims(pvc)
+    - Network: ingresses(ing), networkpolicies
+    - RBAC: roles, rolebindings, clusterroles, clusterrolebindings"""
+                               ),
+                               resource_name: Optional[str] = Field(
+                                   None,
+                                   description="""(Optional) Match by resource name. 
+    Supports exact matching and suffix wildcards:
+    - Exact match: "nginx-deployment", "my-service"
+    - Suffix wildcard: "nginx-*", "app-*" (matches resource names that start with the specified prefix)
+    """
+                               ),
+                               user: Optional[str] = Field(
+                                   None,
+                                   description="""(Optional) Match by user name. 
+    Supports exact matching and suffix wildcards:
+    - Exact match: "system:admin", "kubernetes-admin"
+    - Suffix wildcard: "system:*", "kube*" """
+                               ),
+                               start_time: str = Field(
+                                   "24h",
+                                   description="""(Optional) Query start time. 
+    Formats:
+    - ISO 8601: "2024-01-01T10:00:00"
+    - Relative: "30m", "1h", "24h", "7d"
+    Defaults to 24h."""
+                               ),
+                               end_time: Optional[str] = Field(
+                                   None,
+                                   description="""(Optional) Query end time.
+    Formats:
+    - ISO 8601: "2024-01-01T10:00:00"
+    - Relative: "30m", "1h", "24h", "7d"
+    Defaults to current time."""
+                               ),
+                               limit: int = Field(
+                                   10,
+                                   ge=1, le=100,
+                                   description="(Optional) Result limit, defaults to 10. Maximum is 100."
+                               )
+                               ) -> Dict[str, Any]:
+        """Query Kubernetes audit logs."""
+        if not cluster_id:
+            raise ValueError("cluster_id is required")
+
+        # 预处理参数：将JSON字符串转换为列表
+        processed_verbs = self._parse_list_param(verbs)
+        processed_resource_types = self._parse_list_param(resource_types)
+
+        return await self.query_audit_log(
+            ctx=ctx,
+            namespace=namespace,
+            verbs=processed_verbs,
+            resource_types=processed_resource_types,
+            resource_name=resource_name,
+            user=user,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            cluster_id=cluster_id
+        )
+
+    async def query_audit_log(
             self,
             ctx: Context,
-            cluster_id: str = Field(..., description="集群ID，例如 cxxxxx"),
-            namespace: Optional[str] = Field(None, description="命名空间，支持精确匹配和后缀通配符，默认为*"),
-            verbs: Optional[str] = Field(None, description="操作动词，多个值用逗号分隔，如 get,list,create"),
-            resource_types: Optional[str] = Field(None, description="K8s资源类型，多个值用逗号分隔，如 pods,services"),
-            resource_name: Optional[str] = Field(None, description="资源名称，支持精确匹配和后缀通配符"),
-            user: Optional[str] = Field(None, description="用户名，支持精确匹配和后缀通配符"),
-            start_time: Optional[str] = Field(None,
-                                              description="查询开始时间，格式为 ISO 8601 (如: 2025-09-16T08:09:44Z)"),
-            end_time: Optional[str] = Field(None,
-                                            description="查询结束时间，格式为 ISO 8601 (如: 2025-09-16T08:09:44Z)"),
-            limit: Optional[int] = Field(None, description="结果限制，默认10，最大100"),
-    ) -> QueryAuditLogsOutput:
-        """查询ACK集群的审计日志
-
-        Args:
-            ctx: FastMCP context containing lifespan providers
-            cluster_id: 集群ID
-            namespace: 命名空间过滤
-            verbs: 操作动词过滤
-            resource_types: 资源类型过滤
-            resource_name: 资源名称过滤
-            user: 用户过滤
-            start_time: 开始时间
-            end_time: 结束时间
-            limit: 结果限制
-
-        Returns:
-            QueryAuditLogsOutput: 包含审计日志条目和错误信息的输出
-        """
-        try:
-            # 验证参数
-            if not cluster_id:
-                return QueryAuditLogsOutput(
-                    error=ErrorModel(
-                        error_code=AuditLogErrorCodes.LOGSTORE_NOT_FOUND,
-                        error_message="cluster_id is required"
-                    )
-                )
-
-            # 限制结果数量 - 过滤掉 FieldInfo 对象
-            limit_value = limit if isinstance(limit, int) and not hasattr(limit, 'annotation') else 10
-            limit_value = min(limit_value, 100)
-
-            # 获取集群信息以确定区域
-            # 这里需要从集群ID推断区域，或者从配置中获取
-            # 简化处理：假设区域在配置中指定
-            lifespan_context = ctx.request_context.lifespan_context
-            config = lifespan_context.get("config", {})
-            region_id = config.get("region_id", "cn-hangzhou")
-
-            # 先查询集群的 SLS 审计项目信息
-            try:
-                cs_client = _get_cs_client(ctx, region_id)
-                from alibabacloud_cs20151215 import models as cs_models
-
-                # 调用 GetClusterAuditProject API 获取审计项目信息
-                audit_response = cs_client.get_cluster_audit_project(cluster_id)
-
-                if not audit_response or not audit_response.body:
-                    error_message = f"No audit project information found for cluster {cluster_id}"
-                    logger.warning(error_message)
-                    return QueryAuditLogsOutput(
-                        error=ErrorModel(
-                            error_code=AuditLogErrorCodes.CLUSTER_NOT_FOUND,
-                            error_message=error_message
-                        )
-                    )
-
-                # 检查审计功能是否启用
-                if not audit_response.body.audit_enabled:
-                    error_message = f"Audit logging is not enabled for cluster {cluster_id}"
-                    logger.warning(error_message)
-                    return QueryAuditLogsOutput(
-                        error=ErrorModel(
-                            error_code=AuditLogErrorCodes.AUDIT_NOT_ENABLED,
-                            error_message=error_message
-                        )
-                    )
-
-                # 获取 SLS 项目名称
-                sls_project_name = audit_response.body.sls_project_name
-                if not sls_project_name:
-                    error_message = f"SLS project name not found for cluster {cluster_id}"
-                    logger.warning(error_message)
-                    return QueryAuditLogsOutput(
-                        error=ErrorModel(
-                            error_code=AuditLogErrorCodes.LOGSTORE_NOT_FOUND,
-                            error_message=error_message
-                        )
-                    )
-
-                logger.info(f"Successfully retrieved audit project info for cluster {cluster_id}: {sls_project_name}")
-
-            except Exception as e:
-                logger.error(f"Failed to get audit project info for cluster {cluster_id}: {e}")
-                error_message = str(e)
-                error_code = AuditLogErrorCodes.CLUSTER_NOT_FOUND
-
-                # 根据错误信息判断具体的错误码
-                if "not found" in error_message.lower() or "does not exist" in error_message.lower():
-                    error_code = AuditLogErrorCodes.CLUSTER_NOT_FOUND
-                elif "audit" in error_message.lower() and "disabled" in error_message.lower():
-                    error_code = AuditLogErrorCodes.AUDIT_NOT_ENABLED
-
-                return QueryAuditLogsOutput(
-                    error=ErrorModel(
-                        error_code=error_code,
-                        error_message=error_message
-                    )
-                )
-
-            # 获取 SLS 客户端
-            try:
-                sls_client = _get_sls_client(ctx, cluster_id, region_id)
-            except Exception as e:
-                logger.error(f"Failed to get SLS client: {e}")
-                error_message = str(e)
-                error_code = AuditLogErrorCodes.LOGSTORE_NOT_FOUND
-
-                # 根据错误信息判断具体的错误码
-                if ("client initialization" in error_message.lower() or
-                        "access key" in error_message.lower() or
-                        "credentials" in error_message.lower() or
-                        "sls_client_factory not available" in error_message.lower()):
-                    error_code = AuditLogErrorCodes.SLS_CLIENT_INIT_AK_ERROR
-
-                return QueryAuditLogsOutput(
-                    error=ErrorModel(
-                        error_code=error_code,
-                        error_message=error_message
-                    )
-                )
-
-            # 构建查询语句 - 直接使用参数而不是创建 Pydantic 模型
-            # 设置默认值
-            namespace = namespace or "*"
-            # 默认查询过去24小时的数据，使用ISO 8601格式
-            if not start_time:
-                from datetime import datetime, timedelta
-                start_time = (datetime.now() - timedelta(hours=24)).strftime('%Y-%m-%dT%H:%M:%SZ')
-
-            # 构建查询语句
-            query = _build_sls_query_direct(
-                cluster_id=cluster_id,
-                namespace=namespace,
-                verbs=verbs,
-                resource_types=resource_types,
-                resource_name=resource_name,
-                user=user,
-                start_time=start_time,
-                end_time=end_time,
-                limit=limit_value
-            )
-
-            # 解析时间 - 过滤掉 FieldInfo 对象
-            start_time_str = start_time if isinstance(start_time, str) and not hasattr(start_time,
-                                                                                       'annotation') else "24h"
-            end_time_str = end_time if isinstance(end_time, str) and not hasattr(end_time, 'annotation') else None
-
-            # SLS API 需要秒级时间戳
-            start_timestamp_s = _parse_time(start_time_str)
-            end_timestamp_s = _parse_time(end_time_str) if end_time_str else int(datetime.now().timestamp())
-
-            # 使用从 API 获取的 SLS 项目名和日志库名
-            project_name = sls_project_name
-            logstore_name = "audit-" + cluster_id
-
-            # 调用 SLS API 查询日志
-            # 注意：这里使用模拟的响应，实际实现需要根据具体的 SLS SDK 版本调整
-            try:
-                from alibabacloud_sls20201230 import models as sls_models
-
-                request = sls_models.GetLogsRequest(
-                    from_=start_timestamp_s,
-                    to=end_timestamp_s,
-                    query=query,
-                    offset=0,
-                    line=limit_value,
-                    reverse=False
-                )
-
-                # 尝试不同的 API 调用方式
-                try:
-                    response = sls_client.get_logs(request)
-                except TypeError:
-                    # 如果上面的方式不对，尝试传递参数的方式
-                    response = sls_client.get_logs(project_name, logstore_name, request)
-                logger.info(f"SLS API response type: {type(response)}")
-                if hasattr(response, 'body'):
-                    logger.info(f"Response body type: {type(response.body)}")
-                    if hasattr(response.body, 'logs'):
-                        logger.info(f"Response body logs type: {type(response.body.logs)}")
-                    else:
-                        logger.info(f"Response body attributes: {dir(response.body)}")
-                else:
-                    logger.info(f"Response attributes: {dir(response)}")
-            except Exception as api_error:
-                # 如果 SLS API 调用失败，返回模拟数据用于测试
-                logger.warning(f"SLS API call failed, using mock data: {api_error}")
-                # 在测试环境中，尝试从 sls_client 获取模拟数据
-                if hasattr(sls_client, '_response_logs'):
-                    response = Mock()
-                    response.body = Mock()
-                    response.body.logs = sls_client._response_logs
-                else:
-                    response = Mock()
-                    response.body = Mock()
-                    response.body.logs = []
-
-            # 解析响应
-            entries = []
-            logs_data = []
-
-            # 处理不同的响应格式
-            if hasattr(response, 'body') and response.body:
-                if hasattr(response.body, 'logs'):
-                    logs_data = response.body.logs
-                elif hasattr(response.body, 'data') and isinstance(response.body.data, list):
-                    logs_data = response.body.data
-                elif isinstance(response.body, list):
-                    logs_data = response.body
-            elif isinstance(response, list):
-                logs_data = response
-            elif hasattr(response, 'logs'):
-                logs_data = response.logs
-
-            # 解析日志条目
-            if logs_data:
-                for log_data in logs_data:
-                    try:
-                        entry = _parse_audit_log_entry(log_data)
-                        entries.append(entry)
-                    except Exception as e:
-                        logger.warning(f"Failed to parse audit log entry: {e}")
-                        continue
-
-            return QueryAuditLogsOutput(
-                query=query,
-                entries=entries,
-                total=len(entries)
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to query audit logs for cluster {cluster_id}: {e}")
-            error_message = str(e)
-            error_code = AuditLogErrorCodes.LOGSTORE_NOT_FOUND
-
-            # 根据错误信息判断具体的错误码
-            if "client initialization" in error_message.lower() or "access key" in error_message.lower():
-                error_code = AuditLogErrorCodes.SLS_CLIENT_INIT_AK_ERROR
-
-            return QueryAuditLogsOutput(
-                error=ErrorModel(
-                    error_code=error_code,
-                    error_message=error_message
-                )
-            )
+            namespace: Optional[str] = None,
+            verbs: Optional[List[str]] = None,
+            resource_types: Optional[List[str]] = None,
+            resource_name: Optional[str] = None,
+            user: Optional[str] = None,
+            start_time: str = "24h",
+            end_time: Optional[str] = None,
+            limit: int = 10,
+            cluster_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Query Kubernetes audit logs (async version for MCP tools)."""
+        # 直接调用同步版本
+        return self.query_audit_log_sync(
+            ctx=ctx,
+            namespace=namespace,
+            verbs=verbs,
+            resource_types=resource_types,
+            resource_name=resource_name,
+            user=user,
+            start_time=start_time,
+            end_time=end_time,
+            limit=limit,
+            cluster_id=cluster_id
+        )
 
     async def get_current_time(self) -> GetCurrentTimeOutput:
         """获取当前时间
@@ -602,3 +271,375 @@ class ACKAuditLogHandler:
                     error_message=f"Failed to get current time: {str(e)}"
                 )
             )
+
+    def _normalize_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize parameters similar to the Go implementation."""
+        # Set default time range
+        if not params.get("start_time"):
+            params["start_time"] = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+        if not params.get("end_time"):
+            params["end_time"] = datetime.utcnow().isoformat()
+
+        # Set default limit
+        if not params.get("limit") or params["limit"] <= 0:
+            params["limit"] = 10
+        elif params["limit"] > 100:
+            params["limit"] = 100
+
+        # Normalize resource types
+        resource_types = params.get("resource_types", [])
+        if resource_types is None:
+            resource_types = []
+        if isinstance(resource_types, str):
+            resource_types = [resource_types]
+
+        new_resource_types = []
+        for rt in resource_types:
+            if not rt:
+                continue
+            rt = rt.lower()
+            if rt in self.resource_mapping:
+                new_resource_types.append(self.resource_mapping[rt])
+            else:
+                new_resource_types.append(rt)
+        params["resource_types"] = new_resource_types
+
+        return params
+
+    def _parse_time(self, time_str: str) -> datetime:
+        """Parse time string, supporting both ISO 8601 and relative time formats."""
+        if not time_str:
+            return datetime.utcnow()
+
+        # Try ISO 8601 format first
+        try:
+            return datetime.fromisoformat(time_str.replace('Z', '+00:00'))
+        except ValueError:
+            pass
+
+        # Try relative time format
+        if time_str.endswith('w'):
+            weeks = int(time_str[:-1])
+            return datetime.utcnow() - timedelta(weeks=weeks)
+        elif time_str.endswith('d'):
+            days = int(time_str[:-1])
+            return datetime.utcnow() - timedelta(days=days)
+        else:
+            # Parse other duration formats
+            try:
+                # Handle common duration formats like "1h", "30m", etc.
+                if time_str.endswith('h'):
+                    hours = int(time_str[:-1])
+                    return datetime.utcnow() - timedelta(hours=hours)
+                elif time_str.endswith('m'):
+                    minutes = int(time_str[:-1])
+                    return datetime.utcnow() - timedelta(minutes=minutes)
+                elif time_str.endswith('s'):
+                    seconds = int(time_str[:-1])
+                    return datetime.utcnow() - timedelta(seconds=seconds)
+            except ValueError:
+                pass
+
+        # Default to current time if parsing fails
+        return datetime.utcnow()
+
+    def _get_cluster_region(self, cs_client, cluster_id: str) -> str:
+        """通过DescribeClusterDetail获取集群的region信息
+
+        Args:
+            cs_client: CS客户端实例
+            cluster_id: 集群ID
+
+        Returns:
+            集群所在的region
+        """
+        try:
+            from alibabacloud_cs20151215 import models as cs_models
+
+            # 调用DescribeClusterDetail API获取集群详情
+            detail_response = cs_client.describe_cluster_detail(cluster_id)
+
+            if not detail_response or not detail_response.body:
+                raise ValueError(f"Failed to get cluster details for {cluster_id}")
+
+            cluster_info = detail_response.body
+            # 获取集群的region信息
+            region = getattr(cluster_info, 'region_id', '')
+
+            if not region:
+                raise ValueError(f"Could not determine region for cluster {cluster_id}")
+
+            return region
+
+        except Exception as e:
+            logger.error(f"Failed to get cluster region for {cluster_id}: {e}")
+            raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
+
+    def _parse_list_param(self, param: Optional[str]) -> Optional[List[str]]:
+        """解析列表参数，将JSON字符串转换为Python列表
+        
+        Args:
+            param: 可能是JSON字符串或None的参数
+            
+        Returns:
+            处理后的列表或None
+        """
+        if param is None:
+            return None
+
+        try:
+            # 尝试解析JSON字符串
+            parsed = json.loads(param)
+            if isinstance(parsed, list):
+                return parsed
+            else:
+                # 如果不是列表，包装成列表
+                return [str(parsed)]
+        except (json.JSONDecodeError, ValueError):
+            # 如果JSON解析失败，将字符串作为单个元素
+            return [param]
+
+    def query_audit_log_sync(
+            self,
+            ctx: Context,
+            namespace: Optional[str] = None,
+            verbs: Optional[List[str]] = None,
+            resource_types: Optional[List[str]] = None,
+            resource_name: Optional[str] = None,
+            user: Optional[str] = None,
+            start_time: str = "24h",
+            end_time: Optional[str] = None,
+            limit: int = 10,
+            cluster_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """Query Kubernetes audit logs (synchronous version)."""
+        # Collect parameters into a dict
+        params = {
+            "namespace": namespace,
+            "verbs": verbs,
+            "resource_types": resource_types,
+            "resource_name": resource_name,
+            "user": user,
+            "start_time": start_time,
+            "end_time": end_time,
+            "limit": limit,
+            "cluster_id": cluster_id
+        }
+        if self.sls_client is None:
+            cs_client = _get_cs_client(ctx, "CENTER")
+            self.sls_client = _get_sls_client(ctx, cluster_id, self._get_cluster_region(cs_client, cluster_id))
+
+        # Normalize parameters
+        normalized_params = self._normalize_params(params)
+
+        try:
+            # Query the audit logs using the provider (sync version)
+            query = self._build_query(normalized_params)
+
+            # Parse time parameters
+            start_time, end_time = self._parse_time_params(normalized_params)
+
+            try:
+                if not self.sls_client:
+                    raise RuntimeError("SLS client not properly initialized")
+
+                # Use real SLS client - 直接调用同步方法
+                return self._query_logs(f"k8s-log-{cluster_id}", f"audit-{cluster_id}", query, start_time, end_time,
+                                        normalized_params)
+
+            except Exception as e:
+                logger.error(f"Failed to query audit logs: {e}")
+                return {
+                    "provider_query": query,
+                    "entries": [],
+                    "total": 0,
+                    "params": normalized_params,
+                    "error": str(e)
+                }
+
+        except Exception as e:
+            # Return error message in the expected format
+            return {
+                "error": str(e),
+                "params": normalized_params
+            }
+
+    def _parse_time_params(self, params: Dict[str, Any]) -> tuple[int, int]:
+        """Parse time parameters to Unix timestamps.
+
+        Args:
+            params: Query parameters
+
+        Returns:
+            Tuple of (start_time, end_time) as Unix timestamps
+        """
+        from datetime import datetime, timedelta
+
+        # Parse start time
+        start_time_str = params.get("start_time", "24h")
+        if isinstance(start_time_str, str):
+            if start_time_str.endswith('h'):
+                hours = int(start_time_str[:-1])
+                start_time = datetime.utcnow() - timedelta(hours=hours)
+            elif start_time_str.endswith('d'):
+                days = int(start_time_str[:-1])
+                start_time = datetime.utcnow() - timedelta(days=days)
+            else:
+                try:
+                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                except ValueError:
+                    start_time = datetime.utcnow() - timedelta(hours=24)
+        else:
+            start_time = datetime.utcnow() - timedelta(hours=24)
+
+        # Parse end time
+        end_time_str = params.get("end_time")
+        if end_time_str:
+            try:
+                end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+            except ValueError:
+                end_time = datetime.utcnow()
+        else:
+            end_time = datetime.utcnow()
+
+        return int(start_time.timestamp()), int(end_time.timestamp())
+
+    def _query_logs(self, project: str, logstore: str, query: str, start_time: int, end_time: int,
+                    params: Dict[str, Any]) -> Dict[str, Any]:
+        """Query using real SLS client with get_logs API."""
+        try:
+            from alibabacloud_sls20201230 import models as sls_models
+
+            # 创建GetLogsRequest对象
+            request = sls_models.GetLogsRequest(
+                from_=start_time,
+                to=end_time,
+                query=query,  # 查询条件
+                offset=0,  # 从第一条开始
+                line=params.get("limit", 10),
+                reverse=False  # 按时间正序
+            )
+
+            # 调用SLS API - 使用get_logs方法
+            response = self.sls_client.get_logs(project, logstore, request)
+            
+            # Parse response - get_logs 返回的是 GetLogsResponse 对象
+            entries = []
+
+            # 从response.body获取日志数据（直接是数组）
+            try:
+                if hasattr(response, 'body') and response.body:
+                    # response.body 直接就是日志数组
+                    logs_data = response.body if isinstance(response.body, list) else []
+                    for log_entry in logs_data:
+                        # 解析日志条目，字段都是字符串格式的JSON
+                        log_data = {}
+
+                        # 解析各个字段 - 根据真实SLS数据结构，包含所有字段
+
+                        # 解析JSON字符串字段
+                        if 'user' in log_entry:
+                            try:
+                                user_data = json.loads(log_entry['user'])
+                                log_data['user'] = user_data
+                            except json.JSONDecodeError:
+                                log_data['user'] = {"username": log_entry['user']}
+
+                        if 'objectRef' in log_entry:
+                            try:
+                                object_ref_data = json.loads(log_entry['objectRef'])
+                                log_data['objectRef'] = object_ref_data
+                            except json.JSONDecodeError:
+                                log_data['objectRef'] = {"resource": log_entry['objectRef']}
+
+                        if 'responseStatus' in log_entry:
+                            try:
+                                response_status_data = json.loads(log_entry['responseStatus'])
+                                log_data['responseStatus'] = response_status_data
+                            except json.JSONDecodeError:
+                                log_data['responseStatus'] = {"code": 0}
+
+                        if 'annotations' in log_entry:
+                            try:
+                                annotations_data = json.loads(log_entry['annotations'])
+                                log_data['annotations'] = annotations_data
+                            except json.JSONDecodeError:
+                                log_data['annotations'] = log_entry['annotations']
+
+                        if 'sourceIPs' in log_entry:
+                            try:
+                                source_ips_data = json.loads(log_entry['sourceIPs'])
+                                log_data['sourceIPs'] = source_ips_data
+                            except json.JSONDecodeError:
+                                log_data['sourceIPs'] = [log_entry['sourceIPs']]
+
+                        if 'requestObject' in log_entry:
+                            try:
+                                request_object_data = json.loads(log_entry['requestObject'])
+                                log_data['requestObject'] = request_object_data
+                            except json.JSONDecodeError:
+                                log_data['requestObject'] = log_entry['requestObject']
+
+                        if 'responseObject' in log_entry:
+                            try:
+                                response_object_data = json.loads(log_entry['responseObject'])
+                                log_data['responseObject'] = response_object_data
+                            except json.JSONDecodeError:
+                                log_data['responseObject'] = log_entry['responseObject']
+
+                        # 添加所有其他字段
+                        log_data['verb'] = log_entry.get('verb', '')
+                        log_data['timestamp'] = log_entry.get('requestReceivedTimestamp', '')
+                        log_data['kind'] = log_entry.get('kind', '')
+                        log_data['apiVersion'] = log_entry.get('apiVersion', '')
+                        log_data['auditID'] = log_entry.get('auditID', '')
+                        log_data['level'] = log_entry.get('level', '')
+                        log_data['requestURI'] = log_entry.get('requestURI', '')
+                        log_data['userAgent'] = log_entry.get('userAgent', '')
+                        log_data['stage'] = log_entry.get('stage', '')
+                        log_data['stageTimestamp'] = log_entry.get('stageTimestamp', '')
+
+                        entries.append(log_data)
+            except Exception as e:
+                logger.warning(f"Failed to parse response body: {e}")
+
+            return {
+                "provider_query": query,
+                "entries": entries,
+                "total": len(entries),
+                "params": params
+            }
+
+        except Exception as e:
+            logger.error(f"SLS query failed: {e}")
+            raise
+
+    def _build_query(self, params: Dict[str, Any]) -> str:
+        """Build SLS query string from parameters.
+
+        Args:
+            params: Dictionary of query parameters
+
+        Returns:
+            Query string for SLS
+        """
+        query = "*"
+
+        if params.get("user") and params["user"] != "*":
+            query += f" and user.username: {params['user']}"
+
+        if params.get("namespace") and params["namespace"] != "*":
+            query += f" and objectRef.namespace: {params['namespace']}"
+
+        if params.get("verbs") and len(params["verbs"]) > 0:
+            verbs = [f"verb: \"{verb}\"" for verb in params["verbs"]]
+            query += f" and ({' or '.join(verbs)})"
+
+        if params.get("resource_types") and len(params["resource_types"]) > 0:
+            resource_types = [f"objectRef.resource: \"{rt}\"" for rt in params["resource_types"]]
+            query += f" and ({' or '.join(resource_types)})"
+
+        if params.get("resource_name") and params["resource_name"] != "*":
+            query += f" and objectRef.name: {params['resource_name']}"
+
+        return query
