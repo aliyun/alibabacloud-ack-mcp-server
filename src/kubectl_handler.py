@@ -409,11 +409,11 @@ class KubectlHandler:
         """Register kubectl tool."""
 
         @self.server.tool(
-            name="kubectl",
+            name="ack_kubectl",
             description="Execute kubectl command with intelligent context management. Supports cluster_id for "
                         "automatic context switching and creation."
         )
-        async def kubectl(
+        async def ack_kubectl(
                 ctx: Context,
                 command: str = Field(
                     ..., description="""Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix.
