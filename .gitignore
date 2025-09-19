@@ -41,3 +41,4 @@ config.prod.yaml
 *.tmp
 *.temp
 *.bak!/benchmarks/results/
+/benchmarks/results/

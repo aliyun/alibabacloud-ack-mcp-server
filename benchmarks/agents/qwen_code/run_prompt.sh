@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-#!/usr/bin/env bash
-
 # 使用说明函数
 usage() {
     echo "Usage: $0 [OPTIONS]"
