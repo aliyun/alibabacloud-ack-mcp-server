@@ -66,4 +66,4 @@ export OPENAI_ENDPOINT="$OPENAI_BASE_URL"
 export XDG_CONFIG_HOME=`pwd`
 
 # 执行 kubectl-ai 命令
-kubectl-ai --llm-provider=openai --model="$MODEL" --mcp-client "$PROMPT"
+kubectl-ai --llm-provider=openai --quiet --show-tool-output --skip-permissions --model="$MODEL" --mcp-client "$PROMPT"
