@@ -139,17 +139,20 @@ execute_script() {
     local output_file="$3"
     
     echo "执行 $script_name: $script_path"
+    echo "----------------------------------------"
     
     if [ ! -f "$script_path" ]; then
         echo "警告: 脚本文件不存在: $script_path"
         return 1
     fi
     
-    # 执行脚本并捕获输出
-    if bash "$script_path" > "$output_file" 2>&1; then
+    # 执行脚本并同时输出到 stdout 和文件
+    if bash "$script_path" 2>&1 | tee "$output_file"; then
+        echo "----------------------------------------"
         echo "✓ $script_name 执行成功"
         return 0
     else
+        echo "----------------------------------------"
         echo "✗ $script_name 执行失败"
         return 1
     fi
