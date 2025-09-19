@@ -163,21 +163,24 @@ execute_ai_agent() {
     
     echo "执行 AI Agent: $AGENT"
     echo "Prompt: $prompt"
+    echo "----------------------------------------"
     
     if [ ! -f "$agent_script" ]; then
         echo "错误: Agent 脚本不存在: $agent_script"
         return 1
     fi
     
-    # 执行 AI Agent 脚本
+    # 执行 AI Agent 脚本，同时输出到 stdout 和文件
     if bash "$agent_script" \
         --openai-api-key "$OPENAI_API_KEY" \
         --openai-base-url "$OPENAI_BASE_URL" \
         --model "$MODEL" \
-        --prompt "$prompt" > "$output_file" 2>&1; then
+        --prompt "$prompt" 2>&1 | tee "$output_file"; then
+        echo "----------------------------------------"
         echo "✓ AI Agent 执行成功"
         return 0
     else
+        echo "----------------------------------------"
         echo "✗ AI Agent 执行失败"
         return 1
     fi

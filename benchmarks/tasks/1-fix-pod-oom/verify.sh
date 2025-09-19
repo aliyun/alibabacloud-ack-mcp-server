@@ -10,7 +10,7 @@ if ! kubectl wait --for=condition=Available deployment/$DEPLOYMENT -n $NAMESPACE
 fi
 
 # Check if pods are running
-if ! kubectl wait --for=condition=Ready pod -l app=backend-api -n $NAMESPACE --timeout=30s; then
+if ! kubectl wait --for=condition=Ready pod -l app=$DEPLOYMENT -n $NAMESPACE --timeout=30s; then
     echo "Pods are not ready"
     exit 1
 fi
