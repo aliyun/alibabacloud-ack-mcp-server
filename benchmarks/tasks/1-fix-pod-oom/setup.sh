@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 NAMESPACE="case1-fix-pod-oom"
 DEPLOYMENT="case1-app"
-ARTIFACT_FILE=artifacts/oom_demo_deployment.yaml
+ARTIFACT_FILE="$SCRIPT_DIR/artifacts/oom_demo_deployment.yaml"
 
 kubectl delete namespace $NAMESPACE --ignore-not-found
 
