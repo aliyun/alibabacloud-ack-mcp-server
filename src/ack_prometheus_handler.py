@@ -4,7 +4,6 @@ from loguru import logger
 from pydantic import Field
 import httpx
 import os
-import json
 from datetime import datetime
 
 try:
@@ -48,13 +47,47 @@ class PrometheusHandler:
             self.query_prometheus_metric_guidance)
         logger.info("Prometheus Handler initialized")
 
+    def _get_cluster_region(self, cs_client, cluster_id: str) -> str:
+        """通过DescribeClusterDetail获取集群的region信息
+
+        Args:
+            cs_client: CS客户端实例
+            cluster_id: 集群ID
+
+        Returns:
+            集群所在的region
+        """
+        try:
+            from alibabacloud_cs20151215 import models as cs_models
+
+            # 调用DescribeClusterDetail API获取集群详情
+            detail_response = cs_client.describe_cluster_detail(cluster_id)
+
+            if not detail_response or not detail_response.body:
+                raise ValueError(f"Failed to get cluster details for {cluster_id}")
+
+            cluster_info = detail_response.body
+            # 获取集群的region信息
+            region = getattr(cluster_info, 'region_id', '')
+
+            if not region:
+                raise ValueError(f"Could not determine region for cluster {cluster_id}")
+
+            return region
+
+        except Exception as e:
+            logger.error(f"Failed to get cluster region for {cluster_id}: {e}")
+            raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
+
+
     def _resolve_prometheus_endpoint(self, ctx: Context, cluster_id: str) -> Optional[str]:
         # 1) 优先参考 alibabacloud-o11y-prometheus-mcp-server 中的方法：
         #    从 providers 里取 ARMS client，调用 GetPrometheusInstance，获取 http_api_inter_url（公网）
         lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
         providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
         try:
-            region_id = (lifespan.get("config", {}) or {}).get("region_id") if isinstance(lifespan, dict) else None
+            cs_client = _get_cs_client(ctx, "CENTER")
+            region_id = self._get_cluster_region(cs_client, cluster_id)
             config = (lifespan.get("config", {}) or {}) if isinstance(lifespan, dict) else {}
             arms_client_factory = providers.get("arms_client_factory") if isinstance(providers, dict) else None
             if arms_client_factory and region_id:
@@ -246,3 +279,18 @@ class PrometheusHandler:
             promql_samples=promql_samples,
             error=None
         )
+
+def _get_cs_client(ctx: Context, region_id: str):
+    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
+    lifespan_context = ctx.request_context.lifespan_context
+    if isinstance(lifespan_context, dict):
+        providers = lifespan_context.get("providers", {})
+        config = lifespan_context.get("config", {})
+    else:
+        providers = getattr(lifespan_context, "providers", {})
+        config = getattr(lifespan_context, "config", {}) if hasattr(lifespan_context, "config") else {}
+
+    cs_client_factory = providers.get("cs_client_factory")
+    if not cs_client_factory:
+        raise RuntimeError("cs_client_factory not available in runtime providers")
+    return cs_client_factory(region_id, config)
