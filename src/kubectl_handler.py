@@ -233,6 +233,8 @@ class KubectlHandler:
             server: FastMCP server instance
             settings: Optional settings dictionary
         """
+        if server is None:
+            return
         self.server = server
         self.settings = settings or {}
         

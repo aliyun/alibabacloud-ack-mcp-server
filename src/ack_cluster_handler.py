@@ -116,6 +116,8 @@ class ACKClusterHandler:
             allow_write: Whether to allow write operations
             settings: Configuration settings
         """
+        if server is None:
+            return
         self.server = server
         self.allow_write = settings.get("allow_write", True)
         self.settings = settings or {}
