@@ -72,7 +72,7 @@ class FakeCSClientFactory:
         self.audit_enabled = audit_enabled
         self.sls_project_name = sls_project_name
 
-    def __call__(self, region_id):
+    def __call__(self, region_id, config=None):
         return FakeCSClient(self.audit_enabled, self.sls_project_name)
 
 
@@ -117,7 +117,7 @@ async def test_query_audit_logs_success():
 
     _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
-    def sls_client_factory(cluster_id: str, region_id: str):
+    def sls_client_factory(region_id: str, config=None):
         return FakeSLSClient(fake_logs)
 
     cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
@@ -186,7 +186,7 @@ async def test_query_audit_logs_missing_cluster_id():
     """测试缺少 cluster_id 参数的情况"""
     _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
-    def sls_client_factory(cluster_id: str, region_id: str):
+    def sls_client_factory(region_id: str, config=None):
         return FakeSLSClient([])
 
     cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
@@ -213,7 +213,7 @@ async def test_query_audit_logs_empty_result():
     """测试返回空结果的情况"""
     _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
-    def sls_client_factory(cluster_id: str, region_id: str):
+    def sls_client_factory(region_id: str, config=None):
         return FakeSLSClient([])
 
     cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
@@ -258,7 +258,7 @@ async def test_query_audit_logs_with_filters():
 
     _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
-    def sls_client_factory(cluster_id: str, region_id: str):
+    def sls_client_factory(region_id: str, config=None):
         return FakeSLSClient(fake_logs)
 
     cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
@@ -302,7 +302,7 @@ async def test_query_audit_logs_limit_validation():
     """测试结果限制验证"""
     _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
-    def sls_client_factory(cluster_id: str, region_id: str):
+    def sls_client_factory(region_id: str, config=None):
         return FakeSLSClient([])
 
     cs_client_factory = FakeCSClientFactory(audit_enabled=True, sls_project_name="k8s-log-test")
@@ -328,7 +328,7 @@ async def test_query_audit_logs_audit_not_enabled():
     """测试审计功能未启用的情况"""
     _, tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"}, "query_audit_logs")
 
-    def sls_client_factory(cluster_id: str, region_id: str):
+    def sls_client_factory(region_id: str, config=None):
         return FakeSLSClient([])
 
     cs_client_factory = FakeCSClientFactory(audit_enabled=False, sls_project_name=None)

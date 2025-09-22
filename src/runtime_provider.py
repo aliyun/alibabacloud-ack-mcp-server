@@ -54,64 +54,85 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
         # 初始化凭证客户端（使用全局默认凭证链）
         try:
             credential_client = CredentialClient()
-
-            def cs_client_factory(target_region: str) -> CS20151215Client:
-                """每次调用都重新创建 CS 客户端，不使用缓存。"""
+            def cs_client_factory(target_region: str, cfg: Dict[str, Any]) -> CS20151215Client:
+                """每次调用都重新创建 CS 客户端，不使用缓存。统一入参 (region_id, config)。"""
+                effective_cfg = (cfg or {})
                 cs_config = open_api_models.Config(credential=credential_client)
                 # 明确支持通过 config 覆盖 AK 信息
-                if config.get("access_key_id"):
-                    cs_config.access_key_id = config.get("access_key_id")
-                if config.get("access_key_secret"):
-                    cs_config.access_key_secret = config.get("access_key_secret")
+                if effective_cfg.get("access_key_id"):
+                    cs_config.access_key_id = effective_cfg.get("access_key_id")
+                if effective_cfg.get("access_key_secret"):
+                    cs_config.access_key_secret = effective_cfg.get("access_key_secret")
 
                 # 如果传入的 target_region = "CENTER"，则使用中心化endpoint
                 if target_region == "CENTER":
                     cs_config.endpoint = f"cs.aliyuncs.com"
                 else:
-                    cs_config.region_id = target_region or config.get("region_id")
+                    cs_config.region_id = target_region or effective_cfg.get("region_id") or config.get("region_id")
                     cs_config.endpoint = f"cs.{cs_config.region_id}.aliyuncs.com"
                 client = CS20151215Client(cs_config)
                 logger.debug(f"Created new CS client for region: {target_region}")
                 return client
 
-            providers["credential_client"] = credential_client
             providers["cs_client_factory"] = cs_client_factory
-            providers["region_id"] = config.get("region_id")
             logger.info("ACK Cluster Handler providers initialized (cs_client_factory ready)")
         except Exception as e:
             logger.warning(f"Initialize providers partially without CS factory: {e}")
-            providers["credential_client"] = None
             providers["cs_client_factory"] = None
 
-        # 初始化 ARMS Client（Prometheus 管理端点解析使用）
+        # 初始化 ARMS Client Factory（Prometheus 管理端点解析使用）
         try:
-            region_id = config.get("region_id") or "cn-hangzhou"
-            arms_cfg = open_api_models.Config(credential=credential_client)
-            if config.get("access_key_id"):
-                arms_cfg.access_key_id = config.get("access_key_id")
-            if config.get("access_key_secret"):
-                arms_cfg.access_key_secret = config.get("access_key_secret")
-            arms_cfg.region_id = region_id
-            arms_cfg.endpoint = f"arms.{region_id}.aliyuncs.com"
-            arms_client = ARMSClient(arms_cfg)
-            providers["arms_client"] = {
-                "client": arms_client,
-                "region": region_id,
-                "initialized": True,
-            }
-            logger.info("ARMS client initialized for region: {}".format(region_id))
+            def arms_client_factory(region_id: str, cfg: Dict[str, Any]) -> ARMSClient:
+                """统一入参 (region_id, config) 创建 ARMS 客户端。"""
+                effective_cfg = (cfg or {})
+                arms_cfg = open_api_models.Config(credential=credential_client)
+                if effective_cfg.get("access_key_id"):
+                    arms_cfg.access_key_id = effective_cfg.get("access_key_id")
+                if effective_cfg.get("access_key_secret"):
+                    arms_cfg.access_key_secret = effective_cfg.get("access_key_secret")
+                region = region_id or effective_cfg.get("region_id") or config.get("region_id") or "cn-hangzhou"
+                arms_cfg.region_id = region
+                arms_cfg.endpoint = f"arms.{region}.aliyuncs.com"
+                return ARMSClient(arms_cfg)
+
+            providers["arms_client_factory"] = arms_client_factory
+            logger.info("ARMS client factory initialized")
         except Exception as e:
-            logger.warning(f"Initialize ARMS client failed: {e}")
-            providers["arms_client"] = {
-                "client": None,
-                "region": config.get("region_id"),
-                "initialized": False,
-                "error": str(e),
-            }
+            logger.warning(f"Initialize ARMS client factory failed: {e}")
+            providers["arms_client_factory"] = None
 
         # 初始化 SLS Client Factory（审计日志查询使用）
         try:
-            sls_client_factory = self.create_sls_client_factory(config)
+            def sls_client_factory(region_id: str, cfg: Dict[str, Any]):
+                """每次调用都重新创建 SLS 客户端，不使用缓存。"""
+                try:
+                    # 获取访问密钥
+                    effective_cfg = (cfg or {})
+                    access_key_id = effective_cfg.get("access_key_id") or config.get("access_key_id") or os.getenv("ACCESS_KEY_ID")
+                    access_key_secret = effective_cfg.get("access_key_secret") or config.get("access_key_secret") or os.getenv("ACCESS_KEY_SECRET")
+
+                    if not access_key_id or not access_key_secret:
+                        raise ValueError("SLS access key credentials not found in config or environment variables")
+
+                    # 构建 SLS 配置
+                    sls_config = open_api_models.Config(
+                        access_key_id=access_key_id,
+                        access_key_secret=access_key_secret,
+                        region_id=region_id,
+                        # endpoint=f"https://{region_id}.log.aliyuncs.com"
+                    )
+                    # refer: https://help.aliyun.com/zh/sls/developer-reference/get-oss-ingestion
+                    sls_config.endpoint = f"{region_id}.log.aliyuncs.com"
+
+                    # 创建 SLS 客户端
+                    sls_client = SLSClient(sls_config)
+
+                    logger.debug(f"Created new SLS client for region {region_id}")
+                    return sls_client
+
+                except Exception as e:
+                    logger.error(f"Failed to create SLS client for region {region_id}: {e}")
+                    raise RuntimeError(f"SLS client initialization failed: {str(e)}")
             providers["sls_client_factory"] = sls_client_factory
             logger.info("SLS client factory initialized")
         except Exception as e:
@@ -132,40 +153,6 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
     def get_default_cluster(self, config: Dict[str, Any]) -> str:
         """Get default cluster name."""
         return config.get("default_cluster_id", "")
-
-    def create_sls_client_factory(self, config: Dict[str, Any]):
-        """Create SLS client factory for audit log queries."""
-        def sls_client_factory(cluster_id: str, region_id: str):
-            """每次调用都重新创建 SLS 客户端，不使用缓存。"""
-            try:
-                # 获取访问密钥
-                access_key_id = config.get("access_key_id") or os.getenv("ALIBABA_CLOUD_ACCESS_KEY_ID")
-                access_key_secret = config.get("access_key_secret") or os.getenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET")
-                
-                if not access_key_id or not access_key_secret:
-                    raise ValueError("SLS access key credentials not found in config or environment variables")
-
-                # 构建 SLS 配置
-                sls_config = open_api_models.Config(
-                    access_key_id=access_key_id,
-                    access_key_secret=access_key_secret,
-                    region_id=region_id,
-                    # endpoint=f"https://{region_id}.log.aliyuncs.com"
-                )
-                # refer: https://help.aliyun.com/zh/sls/developer-reference/get-oss-ingestion
-                sls_config.endpoint = f"{region_id}.log.aliyuncs.com"
-
-                # 创建 SLS 客户端
-                sls_client = SLSClient(sls_config)
-                
-                logger.debug(f"Created new SLS client for cluster {cluster_id} in region {region_id}")
-                return sls_client
-                
-            except Exception as e:
-                logger.error(f"Failed to create SLS client for cluster {cluster_id}: {e}")
-                raise RuntimeError(f"SLS client initialization failed: {str(e)}")
-        
-        return sls_client_factory
 
     def initialize_prometheus_guidance(self) -> Dict[str, Any]:
         """初始化 Prometheus 指标指引数据。"""

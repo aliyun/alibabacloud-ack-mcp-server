@@ -112,7 +112,7 @@ async def test_query_inspect_report_success():
         check_items=[check_item]
     )
 
-    def cs_client_factory(_region: str):
+    def cs_client_factory(_region: str, config=None):
         return FakeCSClient(list_response, detail_response)
 
     ctx = FakeContext({
@@ -138,7 +138,7 @@ async def test_query_inspect_report_no_reports():
 
     # Mock empty reports response
     list_response = FakeListResponse([])
-    def cs_client_factory(_region: str):
+    def cs_client_factory(_region: str, config=None):
         return FakeCSClient(list_response, None)
 
     ctx = FakeContext({
@@ -161,7 +161,7 @@ async def test_query_inspect_report_no_report_id():
         pass  # No report_id attribute
 
     list_response = FakeListResponse([FakeReportNoId()])
-    def cs_client_factory(_region: str):
+    def cs_client_factory(_region: str, config=None):
         return FakeCSClient(list_response, None)
 
     ctx = FakeContext({
