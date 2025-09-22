@@ -274,6 +274,12 @@ def main():
         "fastmcp_log_level": os.getenv("FASTMCP_LOG_LEVEL", "INFO"),
         "development": os.getenv("DEVELOPMENT", "false").lower() == "true",
         
+        # 超时配置
+        "diagnose_timeout": int(os.getenv("DIAGNOSE_TIMEOUT", "600")),  # 诊断超时时间（秒）
+        "diagnose_poll_interval": int(os.getenv("DIAGNOSE_POLL_INTERVAL", "15")),  # 诊断轮询间隔（秒）
+        "kubectl_timeout": int(os.getenv("KUBECTL_TIMEOUT", "30")),  # kubectl命令超时（秒）
+        "api_timeout": int(os.getenv("API_TIMEOUT", "60")),  # API调用超时（秒）
+        
         # 兼容性配置
         "access_secret_key": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),  # 兼容旧字段名
         "original_settings": Configs(vars(args)),
