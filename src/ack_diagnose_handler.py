@@ -88,7 +88,7 @@ class DiagnoseHandler:
             cluster_id: str = Field(..., description="需要诊断的ACK集群clusterId"),
             region_id: str = Field(..., description="集群所在的regionId"),
             resource_type: str = Field(...,
-                                       description="诊断的目标资源类型：node/ingress/cluster/memory/pod/service/network"),
+                                       description="诊断的目标资源类型：node/ingress/memory/pod/service/network"),
             resource_target: str = Field(..., description="""用于指定诊断对象的参数，JSON字符串格式, 
             用于指定诊断对象的参数。不同诊断类型的参数示例：
                 node: {"name": "cn-shanghai.10.10.10.107"}
@@ -194,7 +194,7 @@ class DiagnoseHandler:
             )
 
         except Exception as e:
-            logger.error(f"Failed to get cluster diagnosis result: {e}")
+            logger.error(f"Failed to get diagnosis result: {e}")
             error_code = "UnknownError"
             if "DIAGNOSE_TASK_FAILED" in str(e):
                 error_code = "DIAGNOSE_TASK_FAILED"
