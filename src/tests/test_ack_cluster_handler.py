@@ -83,7 +83,7 @@ async def test_list_clusters_success():
 
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
-    def cs_client_factory(_region: str):
+    def cs_client_factory(_region: str, config=None):
         return FakeCSClient(fake_clusters)
 
     ctx = FakeContext({
@@ -145,7 +145,7 @@ async def test_list_clusters_missing_region_id():
     """测试缺少 region_id 参数的情况"""
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
-    def cs_client_factory(region: str):
+    def cs_client_factory(region: str, config=None):
         return FakeCSClient([])
 
     ctx = FakeContext({
@@ -168,7 +168,7 @@ async def test_list_clusters_empty_result():
     """测试返回空结果的情况"""
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
-    def cs_client_factory(region: str):
+    def cs_client_factory(region: str, config=None):
         return FakeCSClient([])
 
     ctx = FakeContext({
@@ -193,7 +193,7 @@ async def test_list_clusters_with_pagination():
 
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
-    def cs_client_factory(region: str):
+    def cs_client_factory(region: str, config=None):
         return FakeCSClient(fake_clusters)
 
     ctx = FakeContext({
@@ -220,7 +220,7 @@ async def test_list_clusters_invalid_cluster_data():
 
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
-    def cs_client_factory(region: str):
+    def cs_client_factory(region: str, config=None):
         return FakeCSClient(fake_clusters)
 
     ctx = FakeContext({

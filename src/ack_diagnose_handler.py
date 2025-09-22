@@ -56,11 +56,13 @@ def _serialize_sdk_object(obj):
 
 def _get_cs_client(ctx: Context, region: str):
     """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    providers = getattr(ctx.request_context, "lifespan_context", {}).get("providers", {})
+    lifespan_context = getattr(ctx.request_context, "lifespan_context", {}) or {}
+    providers = lifespan_context.get("providers", {}) if isinstance(lifespan_context, dict) else {}
+    config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
     factory = providers.get("cs_client_factory") if isinstance(providers, dict) else None
     if not factory:
         raise RuntimeError("cs_client_factory not available in runtime providers")
-    return factory(region)
+    return factory(region, config)
 
 
 class DiagnoseHandler:

@@ -256,7 +256,9 @@ class KubectlHandler:
 
             cs_client_factory = providers.get("cs_client_factory")
             if cs_client_factory:
-                get_context_manager().set_cs_client(cs_client_factory("CENTER"))
+                # 传入统一签名所需的 config
+                config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
+                get_context_manager().set_cs_client(cs_client_factory("CENTER", config))
                 logger.debug("CS client factory set successfully")
             else:
                 logger.warning("cs_client not available in lifespan context")

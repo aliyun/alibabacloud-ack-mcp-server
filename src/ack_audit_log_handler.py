@@ -26,13 +26,15 @@ except ImportError:
     )
 
 
-def _get_sls_client(ctx: Context, cluster_id: str, region_id: str):
-    """从 lifespan providers 中获取指定集群和区域的 SLS 客户端。"""
-    providers = getattr(ctx.request_context, "lifespan_context", {}).get("providers", {})
+def _get_sls_client(ctx: Context, region_id: str):
+    """从 lifespan providers 中获取指定区域的 SLS 客户端（统一入参: region_id, config）。"""
+    lifespan_context = getattr(ctx.request_context, "lifespan_context", {}) or {}
+    providers = lifespan_context.get("providers", {}) if isinstance(lifespan_context, dict) else {}
+    config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
     factory = providers.get("sls_client_factory") if isinstance(providers, dict) else None
     if not factory:
         raise RuntimeError("sls_client_factory not available in runtime providers")
-    return factory(cluster_id, region_id)
+    return factory(region_id, config)
 
 
 def _get_cs_client(ctx: Context, region_id: str):
@@ -40,13 +42,15 @@ def _get_cs_client(ctx: Context, region_id: str):
     lifespan_context = ctx.request_context.lifespan_context
     if isinstance(lifespan_context, dict):
         providers = lifespan_context.get("providers", {})
+        config = lifespan_context.get("config", {})
     else:
         providers = getattr(lifespan_context, "providers", {})
+        config = getattr(lifespan_context, "config", {}) if hasattr(lifespan_context, "config") else {}
 
     cs_client_factory = providers.get("cs_client_factory")
     if not cs_client_factory:
         raise RuntimeError("cs_client_factory not available in runtime providers")
-    return cs_client_factory(region_id)
+    return cs_client_factory(region_id, config)
 
 
 class ACKAuditLogHandler:
@@ -387,7 +391,8 @@ class ACKAuditLogHandler:
         }
         if self.sls_client is None:
             cs_client = _get_cs_client(ctx, "CENTER")
-            self.sls_client = _get_sls_client(ctx, cluster_id, self._get_cluster_region(cs_client, cluster_id))
+            region = self._get_cluster_region(cs_client, cluster_id)
+            self.sls_client = _get_sls_client(ctx, region)
 
         # Normalize parameters
         normalized_params = self._normalize_params(params)

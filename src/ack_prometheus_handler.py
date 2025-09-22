@@ -52,10 +52,11 @@ class PrometheusHandler:
         lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
         providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
         try:
-            arms_info = providers.get("arms_client", {}) if isinstance(providers, dict) else {}
-            arms_client = arms_info.get("client") if isinstance(arms_info, dict) else None
             region_id = (lifespan.get("config", {}) or {}).get("region_id") if isinstance(lifespan, dict) else None
-            if arms_client and region_id:
+            config = (lifespan.get("config", {}) or {}) if isinstance(lifespan, dict) else {}
+            arms_client_factory = providers.get("arms_client_factory") if isinstance(providers, dict) else None
+            if arms_client_factory and region_id:
+                arms_client = arms_client_factory(region_id, config)
                 from alibabacloud_arms20190808 import models as arms_models
                 from alibabacloud_tea_util import models as util_models
                 req = arms_models.GetPrometheusInstanceRequest(region_id=region_id, cluster_id=cluster_id)

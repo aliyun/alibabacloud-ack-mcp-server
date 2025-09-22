@@ -118,7 +118,7 @@ async def test_kubectl_with_cluster_id_success(monkeypatch):
             return FakeResponse()
     
     class FakeCSClientFactory:
-        def __call__(self, region_id):
+        def __call__(self, region_id, config=None):
             return FakeCSClient()
     
     # Mock providers
@@ -164,7 +164,7 @@ async def test_kubectl_with_cluster_id_no_kubeconfig(monkeypatch):
             return FakeResponse()
     
     class FakeCSClientFactory:
-        def __call__(self, region_id):
+        def __call__(self, region_id, config=None):
             return FakeCSClient()
     
     # Mock providers
@@ -252,7 +252,7 @@ async def test_kubectl_temp_file_cleanup(monkeypatch):
             return FakeResponse()
     
     class FakeCSClientFactory:
-        def __call__(self, region_id):
+        def __call__(self, region_id, config=None):
             return FakeCSClient()
     
     # Mock providers
