@@ -35,6 +35,8 @@ class PrometheusHandler:
     """ACK Prometheus 查询与指标指引 Handler。"""
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
+        if server is None:
+            return
         self.server = server
         self.settings = settings or {}
         self.allow_write = self.settings.get("allow_write", True)
