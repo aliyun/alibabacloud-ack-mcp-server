@@ -170,7 +170,7 @@ class ACKAuditLogHandler:
                                    "24h",
                                    description="""(Optional) Query start time. 
     Formats:
-    - ISO 8601: "2024-01-01T10:00:00"
+    - ISO 8601: "2024-01-01T10:00:00Z"
     - Relative: "30m", "1h", "24h", "7d"
     Defaults to 24h."""
                                ),
@@ -178,7 +178,7 @@ class ACKAuditLogHandler:
                                    None,
                                    description="""(Optional) Query end time.
     Formats:
-    - ISO 8601: "2024-01-01T10:00:00"
+    - ISO 8601: "2024-01-01T10:00:00Z"
     - Relative: "30m", "1h", "24h", "7d"
     Defaults to current time."""
                                ),
@@ -273,14 +273,11 @@ class ACKAuditLogHandler:
             )
 
     def _normalize_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Normalize parameters similar to the Go implementation."""
-        # Set default time range
+        """标准化参数"""
         if not params.get("start_time"):
-            params["start_time"] = (datetime.utcnow() - timedelta(hours=24)).isoformat()
-        if not params.get("end_time"):
-            params["end_time"] = datetime.utcnow().isoformat()
+            params["start_time"] = "24h"
 
-        # Set default limit
+        # 设置默认限制
         if not params.get("limit") or params["limit"] <= 0:
             params["limit"] = 10
         elif params["limit"] > 100:
@@ -305,43 +302,6 @@ class ACKAuditLogHandler:
         params["resource_types"] = new_resource_types
 
         return params
-
-    def _parse_time(self, time_str: str) -> datetime:
-        """Parse time string, supporting both ISO 8601 and relative time formats."""
-        if not time_str:
-            return datetime.utcnow()
-
-        # Try ISO 8601 format first
-        try:
-            return datetime.fromisoformat(time_str.replace('Z', '+00:00'))
-        except ValueError:
-            pass
-
-        # Try relative time format
-        if time_str.endswith('w'):
-            weeks = int(time_str[:-1])
-            return datetime.utcnow() - timedelta(weeks=weeks)
-        elif time_str.endswith('d'):
-            days = int(time_str[:-1])
-            return datetime.utcnow() - timedelta(days=days)
-        else:
-            # Parse other duration formats
-            try:
-                # Handle common duration formats like "1h", "30m", etc.
-                if time_str.endswith('h'):
-                    hours = int(time_str[:-1])
-                    return datetime.utcnow() - timedelta(hours=hours)
-                elif time_str.endswith('m'):
-                    minutes = int(time_str[:-1])
-                    return datetime.utcnow() - timedelta(minutes=minutes)
-                elif time_str.endswith('s'):
-                    seconds = int(time_str[:-1])
-                    return datetime.utcnow() - timedelta(seconds=seconds)
-            except ValueError:
-                pass
-
-        # Default to current time if parsing fails
-        return datetime.utcnow()
 
     def _get_cluster_region(self, cs_client, cluster_id: str) -> str:
         """通过DescribeClusterDetail获取集群的region信息
@@ -377,10 +337,10 @@ class ACKAuditLogHandler:
 
     def _parse_list_param(self, param: Optional[str]) -> Optional[List[str]]:
         """解析列表参数，将JSON字符串转换为Python列表
-        
+
         Args:
             param: 可能是JSON字符串或None的参数
-            
+
         Returns:
             处理后的列表或None
         """
@@ -464,43 +424,41 @@ class ACKAuditLogHandler:
                 "params": normalized_params
             }
 
-    def _parse_time_params(self, params: Dict[str, Any]) -> tuple[int, int]:
-        """Parse time parameters to Unix timestamps.
-
-        Args:
-            params: Query parameters
-
-        Returns:
-            Tuple of (start_time, end_time) as Unix timestamps
-        """
+    def _parse_single_time(self, time_str: str, default_hours: int = 24) -> datetime:
+        """解析时间字符串，支持相对时间和ISO 8601格式"""
         from datetime import datetime, timedelta
-
-        # Parse start time
-        start_time_str = params.get("start_time", "24h")
-        if isinstance(start_time_str, str):
-            if start_time_str.endswith('h'):
-                hours = int(start_time_str[:-1])
-                start_time = datetime.utcnow() - timedelta(hours=hours)
-            elif start_time_str.endswith('d'):
-                days = int(start_time_str[:-1])
-                start_time = datetime.utcnow() - timedelta(days=days)
-            else:
-                try:
-                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
-                except ValueError:
-                    start_time = datetime.utcnow() - timedelta(hours=24)
+        
+        if not time_str:
+            return datetime.now() - timedelta(hours=default_hours)
+            
+        # 相对时间格式
+        if time_str.endswith('h'):
+            return datetime.now() - timedelta(hours=int(time_str[:-1]))
+        elif time_str.endswith('d'):
+            return datetime.now() - timedelta(days=int(time_str[:-1]))
+        elif time_str.endswith('m'):
+            return datetime.now() - timedelta(minutes=int(time_str[:-1]))
+        elif time_str.endswith('s'):
+            return datetime.now() - timedelta(seconds=int(time_str[:-1]))
+        elif time_str.endswith('w'):
+            return datetime.now() - timedelta(weeks=int(time_str[:-1]))
         else:
-            start_time = datetime.utcnow() - timedelta(hours=24)
-
-        # Parse end time
-        end_time_str = params.get("end_time")
-        if end_time_str:
+            # ISO 8601格式
             try:
-                end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
+                if time_str.endswith('Z'):
+                    time_str = time_str.replace('Z', '+00:00')
+                return datetime.fromisoformat(time_str)
             except ValueError:
-                end_time = datetime.utcnow()
-        else:
-            end_time = datetime.utcnow()
+                return datetime.now() - timedelta(hours=default_hours)
+
+    def _parse_time_params(self, params: Dict[str, Any]) -> tuple[int, int]:
+        """解析时间参数为Unix时间戳"""
+        start_time = self._parse_single_time(params.get("start_time", "24h"), default_hours=24)
+        end_time = self._parse_single_time(params.get("end_time"), default_hours=0) if params.get("end_time") else datetime.now()
+        
+        # 确保时间范围合理
+        if start_time >= end_time:
+            end_time = datetime.now()
 
         return int(start_time.timestamp()), int(end_time.timestamp())
 
