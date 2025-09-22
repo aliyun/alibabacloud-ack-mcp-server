@@ -64,6 +64,25 @@ Issues = "https://github.com/alibabacloud/alibabacloud-cs-mcp-server/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+exclude = ["tests", "tests.*", "*.egg-info"]
+
+[tool.setuptools.package-dir]
+"" = "src"
+
+[tool.setuptools]
+py-modules = [
+    "ack_audit_log_handler",
+    "ack_cluster_handler",
+    "ack_controlplane_log_handler",
+    "ack_diagnose_handler",
+    "ack_inspect_handler",
+    "ack_prometheus_handler",
+    "kubectl_handler",
+    "main_server",
+    "models",
+    "runtime_provider",
+    "config",
+]
 
 [tool.setuptools.package-data]
 "*" = ["*.json", "*.yaml", "*.yml"]

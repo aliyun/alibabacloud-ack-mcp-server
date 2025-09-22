@@ -1,0 +1,3 @@
+recursive-include src/prometheus_metrics_guidance *.json *.md
+include src/fastmcp.json
+
