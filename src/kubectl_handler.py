@@ -235,6 +235,10 @@ class KubectlHandler:
         """
         self.server = server
         self.settings = settings or {}
+        
+        # 超时配置
+        self.kubectl_timeout = self.settings.get("kubectl_timeout", 30)
+        
         self._register_tools()
 
     def _setup_cs_client(self, ctx: Context):
@@ -478,9 +482,9 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                 is_streaming, stream_type = self.is_streaming_command(command)
 
                 if is_streaming:
-                    result = self.run_streaming_command(command, kubeconfig_path)
+                    result = self.run_streaming_command(command, kubeconfig_path, self.kubectl_timeout)
                 else:
-                    result = self.run_command(command, kubeconfig_path)
+                    result = self.run_command(command, kubeconfig_path, self.kubectl_timeout)
 
                 return KubectlOutput(
                     command=command,
