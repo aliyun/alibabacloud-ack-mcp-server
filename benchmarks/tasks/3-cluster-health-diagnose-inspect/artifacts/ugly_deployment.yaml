@@ -26,22 +26,20 @@ spec:
             - --vm
             - "1"
             - --vm-bytes
-            - 1000M
+            - 16M
             - --timeout
             - 3600s
           ## progrium/stress:latest
           image: registry-cn-beijing.ack.aliyuncs.com/acs/docker-stress:v1.0.1-f69a43e-aliyun
           imagePullPolicy: Always
-          name: main-container
-          resources:
-            limits:
-              memory: 1024Mi
-            requests:
-              memory: 1024Mi
+          name: ugly-container
           terminationMessagePath: /dev/termination-log
           terminationMessagePolicy: File
+          securityContext:
+            privileged: true
+      hostNetwork: true
+      hostPID: true
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       schedulerName: default-scheduler
-      securityContext: {}
       terminationGracePeriodSeconds: 30
