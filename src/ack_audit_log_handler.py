@@ -63,12 +63,12 @@ class ACKAuditLogHandler:
             server: FastMCP server instance
             settings: Configuration settings
         """
+        self.sls_client = None
         if server is None:
             return
         self.server = server
         self.allow_write = settings.get("allow_write", True) if settings else True
         self.settings = settings or {}
-        self.sls_client = None
         self.resource_mapping = {
             "pod": "pods",
             "deployment": "deployments",
