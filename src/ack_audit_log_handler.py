@@ -64,9 +64,6 @@ class ACKAuditLogHandler:
             settings: Configuration settings
         """
         self.sls_client = None
-        if server is None:
-            return
-        self.server = server
         self.allow_write = settings.get("allow_write", True) if settings else True
         self.settings = settings or {}
         self.resource_mapping = {
@@ -94,6 +91,9 @@ class ACKAuditLogHandler:
             "sts": "statefulsets",
             "ing": "ingresses",
         }
+        if server is None:
+            return
+        self.server = server
         # Register tools
         self.server.tool(
             name="query_audit_log",
