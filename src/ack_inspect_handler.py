@@ -140,8 +140,10 @@ class InspectHandler:
             for item in check_item_results:
                 check_items.append(CheckItemResult(
                     category=getattr(item, 'category', ''),
+                    checkItemUid=getattr(item, 'check_item_uid', ''),
+                    level=getattr(item, 'level', ''),
                     name=getattr(item, 'name', ''),
-                    targetType=getattr(item, 'targetType', ''),
+                    targetType=getattr(item, 'target_type', ''),
                     targets=getattr(item, 'targets', []) or [],
                     description=getattr(item, 'description', ''),
                     fix=getattr(item, 'fix', ''),
