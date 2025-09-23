@@ -127,6 +127,8 @@ class CheckItemResult(BaseModel):
     targets: List[str] = Field(default_factory=list, description="巡检项的目标资源对象名列表")
     description: str = Field(..., description="巡检项的描述")
     fix: str = Field(..., description="修复建议方案")
+    checkItemUid: str = Field(..., description="巡检项的唯一标识uid")
+    level: str = Field(..., description="巡检项所属级别。取值：/advice：建议/warning：低危/error：中危/critical：高危")
 
 
 class QueryInspectReportOutput(BaseModel):
