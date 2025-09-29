@@ -137,8 +137,8 @@ class PrometheusHandler:
             ctx: Context,
             cluster_id: str = Field(..., description="需要查询的阿里云prometheus所在的ACK集群的clusterId"),
             promql: str = Field(..., description="PromQL表达式"),
-            start_time: Optional[str] = Field(None, description="RFC3339或unix时间；与end_time同时提供为range查询"),
-            end_time: Optional[str] = Field(None, description="RFC3339或unix时间；与start_time同时提供为range查询"),
+            start_time: Optional[str] = Field(None, description="RFC3339或unix时间；与end_time同时提供为range查询; 可能需要调用tool get_current_time获取当前时间"),
+            end_time: Optional[str] = Field(None, description="RFC3339或unix时间；与start_time同时提供为range查询；可能需要调用tool get_current_time获取当前时间"),
             step: Optional[str] = Field(None, description="range查询步长，如30s"),
     ) -> QueryPrometheusOutput | Dict[str, Any]:
         endpoint = self._resolve_prometheus_endpoint(ctx, cluster_id)
