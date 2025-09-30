@@ -1,37 +1,76 @@
 #!/usr/bin/env bash
 
-# 获取脚本所在目录
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-NAMESPACE="case3-cluster-health-diagnose-inspect"
-DEPLOYMENT="case3-app"
-ARTIFACT_FILE="$SCRIPT_DIR/artifacts/ugly_deployment.yaml"
-
-kubectl delete namespace $NAMESPACE --ignore-not-found
-
-# Create namespace
-kubectl create namespace $NAMESPACE
-
-# Apply the deployment from artifacts
-kubectl apply -f $ARTIFACT_FILE -n $NAMESPACE
-
-# Wait for the deployment to be created
-kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=30s || true
-
-# Get all nodes and mark one as unschedulable for cluster health diagnosis
+# 获取集群中的所有节点
 echo "Getting node list..."
 NODES=$(kubectl get nodes -o jsonpath='{.items[*].metadata.name}')
-if [ -n "$NODES" ]; then
-    # Convert to array and select first node
-    NODE_ARRAY=($NODES)
-    SELECTED_NODE=${NODE_ARRAY[0]}
-    echo "Selected node for unschedulable test: $SELECTED_NODE"
-    
-    # Mark the node as unschedulable
-    kubectl patch node "$SELECTED_NODE" -p '{"spec":{"unschedulable":true}}'
-    echo "Node $SELECTED_NODE marked as unschedulable"
-else
+if [ -z "$NODES" ]; then
     echo "No nodes found in cluster"
     exit 1
 fi
 
+# 转换为数组并选择第一个节点
+NODE_ARRAY=($NODES)
+SELECTED_NODE=${NODE_ARRAY[0]}
+echo "Selected node for coredns scheduling: $SELECTED_NODE"
+
+# 为coredns deployment移除podAntiAffinity并添加nodeselector，使其调度到选定节点
+echo "Patching coredns deployment to remove podAntiAffinity and schedule on node: $SELECTED_NODE"
+kubectl patch deployment coredns -n kube-system -p '{
+  "spec": {
+    "template": {
+      "spec": {
+        "affinity": {
+          "nodeAffinity": {
+            "preferredDuringSchedulingIgnoredDuringExecution": [
+              {
+                "preference": {
+                  "matchExpressions": [
+                    {
+                      "key": "k8s.aliyun.com",
+                      "operator": "NotIn",
+                      "values": [
+                        "true"
+                      ]
+                    }
+                  ]
+                },
+                "weight": 100
+              }
+            ],
+            "requiredDuringSchedulingIgnoredDuringExecution": {
+              "nodeSelectorTerms": [
+                {
+                  "matchExpressions": [
+                    {
+                      "key": "type",
+                      "operator": "NotIn",
+                      "values": [
+                        "virtual-kubelet"
+                      ]
+                    },
+                    {
+                      "key": "alibabacloud.com/lingjun-worker",
+                      "operator": "NotIn",
+                      "values": [
+                        "true"
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        "nodeSelector": {
+          "kubernetes.io/hostname": "'$SELECTED_NODE'"
+        }
+      }
+    }
+  }
+}'
+
+# 等待coredns deployment状态更新成功
+echo "Waiting for coredns deployment to be updated..."
+kubectl rollout status deployment/coredns -n kube-system --timeout=60s || true
+
+echo "Setup completed successfully"

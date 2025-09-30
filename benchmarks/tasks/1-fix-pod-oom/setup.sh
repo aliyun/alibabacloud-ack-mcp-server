@@ -3,7 +3,7 @@
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-NAMESPACE="case1-fix-pod-oom"
+NAMESPACE="case1"
 DEPLOYMENT="case1-app"
 ARTIFACT_FILE="$SCRIPT_DIR/artifacts/oom_demo_deployment.yaml"
 
