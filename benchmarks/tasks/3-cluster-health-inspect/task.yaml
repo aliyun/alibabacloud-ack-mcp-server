@@ -1,4 +1,6 @@
-task_name: "history-top-resource-usage-app-analysis"
+task_name: "3-cluster-health-inspect"
+Prerequisites:
+  - "此集群需要开启巡检报告，执行setup.py后，即刻执行一次集群巡检"
 scripts:
   - prompt: "我的benchmark测试集群是否健康，如果有异常的资源帮我发起根因诊断"
 setup:
@@ -6,5 +8,12 @@ setup:
 cleanup:
   - cleanup_script_file: "cleanup.sh"
 verify:
-  - verify_script_file: "verify.sh"
+  - prompt: "请帮助判断上面AI的结论是否正确，是否正确发现集群里存在CoreDNS单点故障风险。如果正确请仅输出：回答正确，如果错误请仅输出 回答错误"
+    verify_config:
+      ai_agent:
+        name: qwen_code
+        version: 0.0.11
+      llm_model:
+        name: qwen3-coder-plus
+
 

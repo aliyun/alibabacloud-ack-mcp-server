@@ -1,4 +1,6 @@
 task_name: "track-historical-svc-specification-port"
+Prerequisites:
+  - "此集群需要开启安全管理->集群审计功能"
 scripts:
   - prompt: "我的 benchmark 测试集群，最近15分钟被删除的service当时的端口是什么？"
 setup:
