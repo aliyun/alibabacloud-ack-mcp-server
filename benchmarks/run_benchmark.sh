@@ -9,7 +9,7 @@ usage() {
     echo "  --agent AGENT           运行Benchmark的AI Agent, 默认为 qwen_code, 可选为 qwen_code, kubectl-ai"
     echo "  --model MODEL           模型名称 (默认: qwen3-coder-plus)"
     echo "  --openai-base-url URL    OpenAI 基础 URL (默认: https://dashscope.aliyuncs.com/compatible-mode/v1/)"
-    echo "  --task TASK_NAME        指定要运行的任务名称 (可选，不指定则运行所有任务)"
+    echo "  --task TASK_NAME        指定要运行的任务名称 (可选，不指定则运行所有任务，task.yaml中定义的task name)"
     echo "  -h, --help              显示此帮助信息"
     exit 1
 }
