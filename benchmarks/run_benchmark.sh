@@ -194,6 +194,7 @@ execute_ai_agent_verify() {
     local verify_prompt="$1"
     local agent_result="$2"
     local output_file="$3"
+    local detailed_output_file="$4"  # 新增：用于保存详细过程的文件
     
     # 确定使用的 agent 和 model
     local verify_agent="$AGENT"
@@ -215,6 +216,23 @@ execute_ai_agent_verify() {
     # 拼接 AI Agent 结果和验证 prompt
     local combined_prompt="验证问题：\n $verify_prompt \n\n 以下是AI的回答结果：\n\n$agent_result\n\n"
     
+    # 记录验证过程的详细信息到 detailed_output_file
+    cat > "$detailed_output_file" << EOF
+==========================================
+AI验证过程详细记录
+==========================================
+验证代理: $verify_agent
+使用模型: $verify_model
+==========================================
+原始验证任务Prompt:
+$verify_prompt
+==========================================
+传递给验证AI的完整Prompt:
+$combined_prompt
+==========================================
+验证AI的输出结果:
+EOF
+    
     echo ""
     echo "==========================================="
     echo "执行 AI Agent 验证: $verify_agent"
@@ -227,26 +245,39 @@ execute_ai_agent_verify() {
     
     if [ ! -f "$verify_agent_script" ]; then
         echo "错误: Agent 脚本不存在: $verify_agent_script"
+        echo "错误: Agent 脚本不存在: $verify_agent_script" >> "$detailed_output_file"
         return 1
     fi
     
     echo "开始执行 AI 验证..."
     echo "----------------------------------------"
     
-    # 执行 AI Agent 脚本，同时输出到 stdout 和文件
+    # 构建完整的bash命令并输出到stdout
+    local full_command="bash \"$verify_agent_script\" --openai-api-key \"$OPENAI_API_KEY\" --openai-base-url \"$OPENAI_BASE_URL\" --model \"$verify_model\" --prompt \"$combined_prompt\""
+    echo "完整执行命令:"
+    echo "$full_command"
+    echo "----------------------------------------"
+    
+    # 执行 AI Agent 脚本，同时输出到 stdout、原输出文件和详细输出文件
     if bash "$verify_agent_script" \
         --openai-api-key "$OPENAI_API_KEY" \
         --openai-base-url "$OPENAI_BASE_URL" \
         --model "$verify_model" \
-        --prompt "$combined_prompt" 2>&1 | tee "$output_file"; then
+        --prompt "$combined_prompt" 2>&1 | tee -a "$detailed_output_file" | tee "$output_file"; then
         echo "----------------------------------------"
         echo "✓ AI Agent 验证执行成功"
-        echo "==========================================="
+        echo "=========================================="
+        echo "=========================================" >> "$detailed_output_file"
+        echo "验证执行状态: 成功" >> "$detailed_output_file"
+        echo "=========================================" >> "$detailed_output_file"
         return 0
     else
         echo "----------------------------------------"
         echo "✗ AI Agent 验证执行失败"
-        echo "==========================================="
+        echo "=========================================="
+        echo "=========================================" >> "$detailed_output_file"
+        echo "验证执行状态: 失败" >> "$detailed_output_file"
+        echo "=========================================" >> "$detailed_output_file"
         return 1
     fi
 }
@@ -320,6 +351,7 @@ execute_task() {
     local agent_output="$temp_dir/agent_output.txt"
     local verify_output="$temp_dir/verify_output.txt"
     local verify_ai_output="$temp_dir/verify_ai_output.txt"
+    local verify_ai_detailed_output="$temp_dir/verify_ai_detailed_output.txt"  # 新增：详细验证过程文件
     local cleanup_output="$temp_dir/cleanup_output.txt"
     
     local task_start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -361,13 +393,13 @@ execute_task() {
             agent_result=$(cat "$agent_output")
         fi
         
-        if ! execute_ai_agent_verify "$VERIFY_PROMPT" "$agent_result" "$verify_ai_output"; then
+        if ! execute_ai_agent_verify "$VERIFY_PROMPT" "$agent_result" "$verify_ai_output" "$verify_ai_detailed_output"; then
             verify_ai_success=false
             task_error="AI 验证执行失败"
         else
-            # 读取 AI 验证结果
-            if [ -f "$verify_ai_output" ]; then
-                verify_ai_result=$(cat "$verify_ai_output" | sed 's/"/\\"/g' | tr '\n' ' ')
+            # 读取 AI 验证的详细过程（包含完整过程和结果）
+            if [ -f "$verify_ai_detailed_output" ]; then
+                verify_ai_result=$(cat "$verify_ai_detailed_output" | sed 's/"/\\"/g' | tr '\n' ' ')
             fi
         fi
     fi
@@ -392,12 +424,12 @@ execute_task() {
         verify_content=$(cat "$verify_output" | sed 's/"/\\"/g' | tr '\n' ' ')
     fi
     
-    # 如果有 AI 验证结果，则添加到 verify_content 中
+    # 如果有 AI 验证结果，则将完整的验证过程添加到 verify_content 中
     if [ -n "$verify_ai_result" ]; then
         if [ -n "$verify_content" ]; then
-            verify_content="$verify_content AI验证结果: $verify_ai_result"
+            verify_content="$verify_content $verify_ai_result"
         else
-            verify_content="AI验证结果: $verify_ai_result"
+            verify_content="$verify_ai_result"
         fi
     fi
     
