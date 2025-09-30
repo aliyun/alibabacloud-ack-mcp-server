@@ -95,6 +95,10 @@ Deepseek (Later)
 
 #### 2. Need Existing Alibaba Container Service Cluster with intranet kubeconfig
 
+Prepare the ACK cluster for testing, which needs to have at least 3 nodes with 4C8G configuration, and requires mounting a public IP (EIP) to enable public access to the kubeconfig.
+
+Additionally, rename this cluster to include the keyword 'benchmark' in the cluster name, and ensure that the cluster with the 'benchmark' keyword remains unique within your account.
+
 #### 3. Install AI Agent and LLM Model
 
 #### kubectl-ai
