@@ -1,6 +1,6 @@
 task_name: "fix-pod-oom"
 scripts:
-  - prompt: "我的benchmark测试集群里，case1的namespace下有哪些应用有异常，以及请帮我修复。"
+  - prompt: "我的benchmark测试集群里，帮我诊断case4的namespace下的异常pod，并帮我修复"
 setup:
   - setup_script_file: "setup.sh"
 cleanup:

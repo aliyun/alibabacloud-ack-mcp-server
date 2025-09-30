@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NAMESPACE="case1-fix-pod-oom"
-DEPLOYMENT="case1-app"
+NAMESPACE="case4"
+DEPLOYMENT="case4-app"
 
-kubectl delete namespace $NAMESPACE --ignore-not-found=true
+kubectl delete namespace $NAMESPACE --ignore-not-found=true --force --grace-period=0
