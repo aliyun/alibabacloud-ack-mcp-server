@@ -1,10 +1,15 @@
 task_name: "history-top-resource-usage-app-analysis"
 scripts:
-  - prompt: "最近15分钟，我的benchmark测试集群，有哪些应用是最消耗资源的？帮我优化一下"
+  - prompt: "最近5分钟，我的benchmark测试集群，有哪些应用最消耗资源？"
 setup:
   - setup_script_file: "setup.sh"
 cleanup:
   - cleanup_script_file: "cleanup.sh"
 verify:
-  - verify_script_file: "verify.sh"
-
+  - prompt: "请帮助判断上面AI的结论是否正确，是否正确找出集群中最近5分钟最消耗资源的应用有：case2-app 这个deployment的应用。如果正确请仅输出：回答正确，如果错误请仅输出 回答错误"
+    verify_config:
+      ai_agent:
+        name: qwen_code
+        version: 0.0.11
+      llm_model:
+        name: qwen3-coder-plus

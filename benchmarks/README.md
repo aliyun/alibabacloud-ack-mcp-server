@@ -1,5 +1,7 @@
 # Benchmark for ack-mcp-server
 
+## Briefing
+
 此benchmark串联 AI Agent + LLM Model + ack-mcp-server，在定制的场景任务下进行效果测试。
 
 运行结果将在 {{BENCHMARK_HOME}}/results 下记录每次运行结果报告。
@@ -54,14 +56,16 @@ results:
       finishedTimestamp: '2025-09-18T05:51:48Z'
       result_content: xxx
       verify_content: xxx
+      verify_config:                  # task的结果由另一个大模型来验证
+        ai_agent:
+          name: kubectl-ai
+          version: v0.0.1
+        llm_model:
+          name: qwen3-coder-plus
 
 ```
-                        
 
-
-## Prepare Dependencies
-
-### 1. Support AI Agents
+### Support AI Agents
 
 - [kubectl-ai](https://github.com/GoogleCloudPlatform/kubectl-ai/blob/main/pkg/mcp/README.md#local-stdio-based-server-configuration)
 - [QWen Code](https://qwenlm.github.io/qwen-code-docs/zh/tools/mcp-server/#%E4%BD%BF%E7%94%A8-qwen-mcp-%E7%AE%A1%E7%90%86-mcp-%E6%9C%8D%E5%8A%A1%E5%99%A8)
@@ -70,7 +74,7 @@ results:
 - Later [Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson)
 - Later [VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server)
 
-### 2. Support LLM Models
+### Support LLM Models
 
 QWen
 - qwen3-coder-plus
@@ -78,29 +82,26 @@ QWen
 
 Claude (Later)
 
-
 Gemini (Later)
 
 Deepseek (Later)
 
 
-### 3. Config Aliyun Account AccessKey and Run ack-mcp-server
-
-
-### 4. Need Existing Alibaba Container Service Cluster with intranet kubeconfig 
-
-
-
-
-
 ## How to use
 
-1. need prepare env
-2. LLM provider
+### Prepare Dependencies
 
+#### 1. Config Aliyun Account AccessKey and Run ack-mcp-server
 
-### kubectl-ai config
-export env
+#### 2. Need Existing Alibaba Container Service Cluster with intranet kubeconfig
+
+#### 3. Install AI Agent and LLM Model
+
+#### kubectl-ai
+
+1. install kubectl-ai CLI
+
+2. export env
 ```
 export OPENAI_API_KEY={{your-api-key-here}}
 export OPENAI_ENDPOINT=https://dashscope.aliyuncs.com/compatible-mode/v1/
@@ -108,20 +109,23 @@ export XDG_CONFIG_HOME={{kubectl-ai mcp server config dir path}}
 # kubectl-ai will create a config file in $XDG_CONFIG_HOME/kubectl-ai/mcp.yaml
 ```
 
-then set mcp.yaml
+3. then set mcp.yaml
 ```angular2html
 servers:
   - name: ack-mcp-server-local
     url: http://localhost:8000/mcp
 ```
 
-finally, run kubectl-ai with mcp-client
+4. finally, run kubectl-ai with mcp-client
 
 ```
 kubectl-ai --llm-provider=openai --model=qwen3-coder-plus --mcp-client
 ```
 
-### qwen code
+e2e run benchmark task will  use script ```benchmarks/agents/kubectl-ai/run_prompt.sh```
+
+
+#### qwen code
 
 1. install qwen code cli
 
@@ -142,4 +146,26 @@ qwen mcp add --transport http ack-mcp-server http://localhost:8000/mcp --trust
 ```angular2html
 qwen --openai-api-key "{{your-api-key-here}}" --openai-base-url "https://dashscope.aliyuncs.com/compatible-mode/v1/" --model "qwen3-32b" -p "帮我查询我有哪些集群，并看下行疾的集群里是否有异常的应用"
 ```
+
+e2e run benchmark task will  use script ```benchmarks/agents/qwen_code/run_prompt.sh```
+
+
+
+
+### E2E run benchmark task
+
+after you prepare the dependencies, you can e2e run the benchmark.
+
+```shell
+cd {{$ProjectHome}}/benchmarks/
+
+# run single task
+./run_benchmark.sh --openai-api-key {{your-api-key-here}} --agent qwen_code --model qwen3-coder-plus --task "history-top-resource-usage-app-analysis"
+
+# run all tasks
+./run_benchmark.sh --openai-api-key {{your-api-key-here}} --agent qwen_code --model qwen3-coder-plus
+
+```
+
+
    
