@@ -1,35 +1,112 @@
 #!/usr/bin/env bash
 
-NAMESPACE="case1-fix-pod-oom"
-DEPLOYMENT="case1-app"
+echo "开始验证集群所有节点的可调度状态..."
 
-# Check if the deployment is ready
-if ! kubectl wait --for=condition=Available deployment/$DEPLOYMENT -n $NAMESPACE --timeout=60s; then
-    echo "Deployment is not available"
+# 获取集群中所有节点
+echo "获取集群中所有节点..."
+ALL_NODES=$(kubectl get nodes --no-headers -o custom-columns=":metadata.name")
+
+if [ -z "$ALL_NODES" ]; then
+    echo "错误: 未找到任何节点"
     exit 1
 fi
 
-# Check if pods are running
-if ! kubectl wait --for=condition=Ready pod -l app=$DEPLOYMENT -n $NAMESPACE --timeout=30s; then
-    echo "Pods are not ready"
-    exit 1
-fi
+echo "找到的节点:"
+echo "$ALL_NODES"
 
-# Check that there are no recent PodOOMKilling events
-OOMKILLED_COUNT=$(kubectl get events -n $NAMESPACE --field-selector reason=PodOOMKilling --sort-by='.lastTimestamp' -o json | jq '.items | length')
+# 计数器
+TOTAL_NODES=0
+SCHEDULABLE_NODES=0
+UNSCHEDULABLE_NODES=0
+UNSCHEDULABLE_NODE_LIST=()
 
-if [ "$OOMKILLED_COUNT" -gt 0 ]; then
-    # Check if the most recent PodOOMKilling event is from the last 2 minutes (indicating ongoing issues)
-    RECENT_OOMKILLED=$(kubectl get events -n $NAMESPACE --field-selector reason=PodOOMKilling --sort-by='.lastTimestamp' -o jsonpath='{.items[-1].lastTimestamp}' 2>/dev/null)
-    if [ -n "$RECENT_OOMKILLED" ]; then
-        RECENT_TIME=$(date -d "$RECENT_OOMKILLED" +%s 2>/dev/null)
-        CURRENT_TIME=$(date +%s)
-        if [ $((CURRENT_TIME - RECENT_TIME)) -lt 120 ]; then
-            echo "Recent OOMKilled events detected"
-            exit 1
-        fi
+echo "检查每个节点的调度状态..."
+echo "========================================"
+
+# 逐个检查节点的可调度状态
+for node in $ALL_NODES; do
+    TOTAL_NODES=$((TOTAL_NODES + 1))
+    
+    # 检查节点是否为不可调度状态
+    UNSCHEDULABLE=$(kubectl get node $node -o jsonpath='{.spec.unschedulable}' 2>/dev/null)
+    
+    # 获取节点的条件信息
+    NODE_STATUS=$(kubectl get node $node -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}' 2>/dev/null)
+    NODE_REASON=$(kubectl get node $node -o jsonpath='{.status.conditions[?(@.type=="Ready")].reason}' 2>/dev/null)
+    
+    # 检查节点是否有 NoSchedule taint
+    TAINTS=$(kubectl get node $node -o jsonpath='{.spec.taints[*].effect}' 2>/dev/null)
+    HAS_NO_SCHEDULE_TAINT=false
+    if echo "$TAINTS" | grep -q "NoSchedule"; then
+        HAS_NO_SCHEDULE_TAINT=true
     fi
+    
+    echo "节点: $node"
+    echo "  Ready 状态: $NODE_STATUS"
+    
+    if [ "$UNSCHEDULABLE" = "true" ]; then
+        UNSCHEDULABLE_NODES=$((UNSCHEDULABLE_NODES + 1))
+        UNSCHEDULABLE_NODE_LIST+=("$node")
+        echo "  调度状态: ✗ 不可调度 (Unschedulable)"
+    elif [ "$HAS_NO_SCHEDULE_TAINT" = "true" ]; then
+        UNSCHEDULABLE_NODES=$((UNSCHEDULABLE_NODES + 1))
+        UNSCHEDULABLE_NODE_LIST+=("$node")
+        echo "  调度状态: ✗ 不可调度 (NoSchedule Taint)"
+        echo "  Taints: $TAINTS"
+    elif [ "$NODE_STATUS" != "True" ]; then
+        UNSCHEDULABLE_NODES=$((UNSCHEDULABLE_NODES + 1))
+        UNSCHEDULABLE_NODE_LIST+=("$node")
+        echo "  调度状态: ✗ 不可调度 (Not Ready: $NODE_REASON)"
+    else
+        SCHEDULABLE_NODES=$((SCHEDULABLE_NODES + 1))
+        echo "  调度状态: ✓ 可调度"
+    fi
+    echo "----------------------------------------"
+done
+
+echo ""
+echo "========================================"
+echo "节点状态统计:"
+echo "  总节点数: $TOTAL_NODES"
+echo "  可调度节点: $SCHEDULABLE_NODES"
+echo "  不可调度节点: $UNSCHEDULABLE_NODES"
+
+if [ $UNSCHEDULABLE_NODES -gt 0 ]; then
+    echo ""
+    echo "不可调度的节点列表:"
+    for unschedulable_node in "${UNSCHEDULABLE_NODE_LIST[@]}"; do
+        echo "  - $unschedulable_node"
+    done
 fi
 
-echo "Pod is running successfully without OOMKilled events"
-exit 0
+echo "========================================"
+
+# 显示详细的节点信息
+echo "详细节点信息:"
+kubectl get nodes -o wide
+
+echo ""
+echo "========================================"
+
+# 验证结果
+if [ $UNSCHEDULABLE_NODES -eq 0 ]; then
+    echo "✓ 验证成功: 所有节点都处于可调度状态"
+    echo "  - 总节点数: $TOTAL_NODES"
+    echo "  - 可调度节点数: $SCHEDULABLE_NODES"
+    exit 0
+else
+    echo "✗ 验证失败: 发现 $UNSCHEDULABLE_NODES 个不可调度的节点"
+    echo "  - 总节点数: $TOTAL_NODES"
+    echo "  - 可调度节点数: $SCHEDULABLE_NODES"
+    echo "  - 不可调度节点数: $UNSCHEDULABLE_NODES"
+    echo ""
+    echo "请检查以下不可调度的节点:"
+    for unschedulable_node in "${UNSCHEDULABLE_NODE_LIST[@]}"; do
+        echo "  - $unschedulable_node"
+        # 显示详细信息
+        echo "    详细信息:"
+        kubectl describe node "$unschedulable_node" | grep -E "(Unschedulable|Taints|Conditions)" -A 3
+        echo ""
+    done
+    exit 1
+fi
