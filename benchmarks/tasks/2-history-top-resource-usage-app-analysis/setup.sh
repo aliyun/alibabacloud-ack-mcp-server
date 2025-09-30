@@ -18,3 +18,7 @@ kubectl apply -f $ARTIFACT_FILE -n $NAMESPACE
 
 # Wait for the deployment to be created
 kubectl rollout status deployment/$DEPLOYMENT -n $NAMESPACE --timeout=30s || true
+
+# Wait for 1 minute to let the deployment generate some metrics
+echo "等待1分钟让部署生成一些指标数据..."
+sleep 60

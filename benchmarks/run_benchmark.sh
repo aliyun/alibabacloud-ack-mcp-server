@@ -189,6 +189,68 @@ execute_ai_agent() {
     fi
 }
 
+# 函数：执行 AI Agent 验证
+execute_ai_agent_verify() {
+    local verify_prompt="$1"
+    local agent_result="$2"
+    local output_file="$3"
+    
+    # 确定使用的 agent 和 model
+    local verify_agent="$AGENT"
+    local verify_model="$MODEL"
+    local verify_agent_script=""
+    
+    # 如果 task.yaml 中指定了 verify 配置，则使用指定的配置
+    if [ -n "$VERIFY_AI_AGENT_NAME" ]; then
+        verify_agent="$VERIFY_AI_AGENT_NAME"
+    fi
+    
+    if [ -n "$VERIFY_LLM_MODEL" ]; then
+        verify_model="$VERIFY_LLM_MODEL"
+    fi
+    
+    # 确定 agent 脚本路径
+    verify_agent_script="$BENCHMARK_HOME/agents/$verify_agent/run_prompt.sh"
+    
+    # 拼接 AI Agent 结果和验证 prompt
+    local combined_prompt="验证问题：\n $verify_prompt \n\n 以下是AI的回答结果：\n\n$agent_result\n\n"
+    
+    echo ""
+    echo "==========================================="
+    echo "执行 AI Agent 验证: $verify_agent"
+    echo "使用模型: $verify_model"
+    echo "==========================================="
+    echo "验证任务 Prompt: $verify_prompt"
+    echo "==========================================="
+    echo "最终验证 Prompt: $combined_prompt"
+    echo "----------------------------------------"
+    
+    if [ ! -f "$verify_agent_script" ]; then
+        echo "错误: Agent 脚本不存在: $verify_agent_script"
+        return 1
+    fi
+    
+    echo "开始执行 AI 验证..."
+    echo "----------------------------------------"
+    
+    # 执行 AI Agent 脚本，同时输出到 stdout 和文件
+    if bash "$verify_agent_script" \
+        --openai-api-key "$OPENAI_API_KEY" \
+        --openai-base-url "$OPENAI_BASE_URL" \
+        --model "$verify_model" \
+        --prompt "$combined_prompt" 2>&1 | tee "$output_file"; then
+        echo "----------------------------------------"
+        echo "✓ AI Agent 验证执行成功"
+        echo "==========================================="
+        return 0
+    else
+        echo "----------------------------------------"
+        echo "✗ AI Agent 验证执行失败"
+        echo "==========================================="
+        return 1
+    fi
+}
+
 # 函数：解析 task.yaml 文件
 parse_task_yaml() {
     local task_dir="$1"
@@ -199,19 +261,39 @@ parse_task_yaml() {
         return 1
     fi
     
-    # 使用 yq 或简单的 grep 来解析 YAML
-    # 这里使用简单的 grep 方法，假设 YAML 格式简单
+    # 解析主 prompt (在 scripts 部分)
     TASK_NAME=$(grep "task_name:" "$task_yaml" | sed 's/.*task_name: *"\([^"]*\)".*/\1/')
-    PROMPT=$(grep "prompt:" "$task_yaml" | sed 's/.*prompt: *"\([^"]*\)".*/\1/')
+    PROMPT=$(awk '/scripts:/,/verify:/ {if ($0 ~ /[[:space:]]*prompt:/) {gsub(/.*prompt: *"/, ""); gsub(/".*/, ""); print; exit}}' "$task_yaml")
     SETUP_SCRIPT=$(grep "setup_script_file:" "$task_yaml" | sed 's/.*setup_script_file: *"\([^"]*\)".*/\1/')
     CLEANUP_SCRIPT=$(grep "cleanup_script_file:" "$task_yaml" | sed 's/.*cleanup_script_file: *"\([^"]*\)".*/\1/')
     VERIFY_SCRIPT=$(grep "verify_script_file:" "$task_yaml" | sed 's/.*verify_script_file: *"\([^"]*\)".*/\1/')
+    
+    # 检查是否有 verify 配置
+    if grep -q "verify:" "$task_yaml"; then
+        # 解析验证用的提示词 (注意 YAML 结构)
+        VERIFY_PROMPT=$(grep -A 3 "verify:" "$task_yaml" | grep "prompt:" | sed 's/.*prompt: *"\([^"]*\)".*/\1/' | head -1)
+        
+        # 解析 verify_config 信息
+        VERIFY_AI_AGENT_NAME=$(grep -A 8 "verify:" "$task_yaml" | grep -A 3 "ai_agent:" | grep "name:" | sed 's/.*name: *\([^ ]*\).*/\1/' | head -1)
+        VERIFY_AI_AGENT_VERSION=$(grep -A 8 "verify:" "$task_yaml" | grep -A 3 "ai_agent:" | grep "version:" | sed 's/.*version: *\([^ ]*\).*/\1/' | head -1)
+        VERIFY_LLM_MODEL=$(grep -A 8 "verify:" "$task_yaml" | grep -A 3 "llm_model:" | grep "name:" | sed 's/.*name: *\([^ ]*\).*/\1/' | head -1)
+    else
+        VERIFY_PROMPT=""
+        VERIFY_AI_AGENT_NAME=""
+        VERIFY_AI_AGENT_VERSION=""
+        VERIFY_LLM_MODEL=""
+    fi
     
     echo "解析任务: $TASK_NAME"
     echo "Prompt: $PROMPT"
     echo "Setup: $SETUP_SCRIPT"
     echo "Cleanup: $CLEANUP_SCRIPT"
     echo "Verify: $VERIFY_SCRIPT"
+    if [ -n "$VERIFY_PROMPT" ]; then
+        echo "Verify Prompt: $VERIFY_PROMPT"
+        echo "Verify AI Agent: $VERIFY_AI_AGENT_NAME $VERIFY_AI_AGENT_VERSION"
+        echo "Verify LLM Model: $VERIFY_LLM_MODEL"
+    fi
 }
 
 # 函数：执行单个任务
@@ -237,6 +319,7 @@ execute_task() {
     local setup_output="$temp_dir/setup_output.txt"
     local agent_output="$temp_dir/agent_output.txt"
     local verify_output="$temp_dir/verify_output.txt"
+    local verify_ai_output="$temp_dir/verify_ai_output.txt"
     local cleanup_output="$temp_dir/cleanup_output.txt"
     
     local task_start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -260,14 +343,36 @@ execute_task() {
     fi
     
     # 3. 执行 verify
+    local verify_success=true
     if [ "$task_success" = true ] && [ -n "$VERIFY_SCRIPT" ]; then
         if ! execute_script "$task_dir/$VERIFY_SCRIPT" "verify" "$verify_output"; then
-            task_success=false
+            verify_success=false
             task_error="verify 执行失败"
         fi
     fi
     
-    # 4. 执行 cleanup
+    # 4. 执行 AI 验证（如果有 verify prompt）
+    local verify_ai_success=true
+    local verify_ai_result=""
+    if [ "$task_success" = true ] && [ -n "$VERIFY_PROMPT" ]; then
+        # 读取 AI Agent 的结果
+        local agent_result=""
+        if [ -f "$agent_output" ]; then
+            agent_result=$(cat "$agent_output")
+        fi
+        
+        if ! execute_ai_agent_verify "$VERIFY_PROMPT" "$agent_result" "$verify_ai_output"; then
+            verify_ai_success=false
+            task_error="AI 验证执行失败"
+        else
+            # 读取 AI 验证结果
+            if [ -f "$verify_ai_output" ]; then
+                verify_ai_result=$(cat "$verify_ai_output" | sed 's/"/\\"/g' | tr '\n' ' ')
+            fi
+        fi
+    fi
+    
+    # 5. 执行 cleanup
     if [ -n "$CLEANUP_SCRIPT" ]; then
         execute_script "$task_dir/$CLEANUP_SCRIPT" "cleanup" "$cleanup_output"
     fi
@@ -282,12 +387,57 @@ execute_task() {
         result_content=$(cat "$agent_output" | sed 's/"/\\"/g' | tr '\n' ' ')
     fi
     
+    # 合并传统验证和 AI 验证结果
     if [ -f "$verify_output" ]; then
         verify_content=$(cat "$verify_output" | sed 's/"/\\"/g' | tr '\n' ' ')
     fi
     
+    # 如果有 AI 验证结果，则添加到 verify_content 中
+    if [ -n "$verify_ai_result" ]; then
+        if [ -n "$verify_content" ]; then
+            verify_content="$verify_content AI验证结果: $verify_ai_result"
+        else
+            verify_content="AI验证结果: $verify_ai_result"
+        fi
+    fi
+    
     # 添加任务结果到报告
-    cat >> "$REPORT_FILE" << EOF
+    if [ -n "$VERIFY_PROMPT" ]; then
+        # 如果有 AI 验证配置，添加 verify_config 部分
+        # 确定报告中使用的 agent 和 model 名称
+        local report_agent_name="$AGENT"
+        local report_agent_version="$AGENT_VERSION"
+        local report_model_name="$MODEL"
+        
+        # 如果 task.yaml 中指定了 verify 配置，则使用指定的配置
+        if [ -n "$VERIFY_AI_AGENT_NAME" ]; then
+            report_agent_name="$VERIFY_AI_AGENT_NAME"
+        fi
+        if [ -n "$VERIFY_AI_AGENT_VERSION" ]; then
+            report_agent_version="$VERIFY_AI_AGENT_VERSION"
+        fi
+        if [ -n "$VERIFY_LLM_MODEL" ]; then
+            report_model_name="$VERIFY_LLM_MODEL"
+        fi
+        
+        cat >> "$REPORT_FILE" << EOF
+    - task_name: $task_name
+      is_success: $task_success
+      error: $([ "$task_success" = true ] && echo "null" || echo "\"$task_error\"")
+      startTimestamp: '$task_start_time'
+      finishedTimestamp: '$task_end_time'
+      result_content: "$result_content"
+      verify_content: "$verify_content"
+      verify_config:
+        ai_agent:
+          name: $report_agent_name
+          version: $report_agent_version
+        llm_model:
+          name: $report_model_name
+EOF
+    else
+        # 没有 AI 验证配置的标准格式
+        cat >> "$REPORT_FILE" << EOF
     - task_name: $task_name
       is_success: $task_success
       error: $([ "$task_success" = true ] && echo "null" || echo "\"$task_error\"")
@@ -296,6 +446,7 @@ execute_task() {
       result_content: "$result_content"
       verify_content: "$verify_content"
 EOF
+    fi
     
     # 清理临时文件
     rm -rf "$temp_dir"
