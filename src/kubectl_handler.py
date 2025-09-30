@@ -424,7 +424,7 @@ class KubectlHandler:
         async def ack_kubectl(
                 ctx: Context,
                 command: str = Field(
-                    ..., description="""Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix.
+                    ..., description="""Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix. 
 
 IMPORTANT: Do not use interactive commands. Instead:
 - Use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply' instead of 'kubectl edit'
@@ -446,13 +446,11 @@ user: what is the status of the pod my-pod?
 assistant: get pod my-pod -o jsonpath='{.status.phase}'
 
 user: I need to edit the pod configuration
-assistant: # Option 1: Using patch for targeted changes
+assistant: Using patch for targeted changes
 patch pod my-pod --patch '{"spec":{"containers":[{"name":"main","image":"new-image"}]}}'
 
-# Option 2: Using get and apply for full changes
-get pod my-pod -o yaml > pod.yaml
-# Edit pod.yaml locally
-apply -f pod.yaml
+if need use patch to delete some exist field, need patch this field but set value to null.
+example drop a exist nodeSelector kubernetes.io/hostname key: kubectl patch deployments nginx-deployment -p '{"spec": {"template": {"spec": {"nodeSelector": {"kubernetes.io/hostname": null}}}}}'
 
 user: I need to execute a command in the pod
 assistant: exec my-pod -- /bin/sh -c "your command here"""
