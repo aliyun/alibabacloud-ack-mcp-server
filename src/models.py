@@ -112,8 +112,6 @@ class InspectSummary(BaseModel):
     errorCount: int = Field(0, description="error级别的检查结果个数")
     warnCount: int = Field(0, description="warn级别的检查结果个数")
     normalCount: int = Field(0, description="normal级别的检查结果个数")
-    adviceCount: int = Field(0, description="advice级别的检查结果个数")
-    unknownCount: int = Field(0, description="结果为unknown的检查结果个数")
 
 
 class InspectTarget(BaseModel):
