@@ -13,13 +13,14 @@ NODE_ARRAY=($NODES)
 SELECTED_NODE=${NODE_ARRAY[0]}
 echo "Selected node for coredns scheduling: $SELECTED_NODE"
 
-# 为coredns deployment移除podAntiAffinity并添加nodeselector，使其调度到选定节点
-echo "Patching coredns deployment to remove podAntiAffinity and schedule on node: $SELECTED_NODE"
+# 为coredns deployment移除podAntiAffinity和topologySpreadConstraints并添加nodeselector，使其调度到选定节点
+echo "Patching coredns deployment to remove podAntiAffinity and topologySpreadConstraints, and schedule on node: $SELECTED_NODE"
 kubectl patch deployment coredns -n kube-system -p '{
   "spec": {
     "template": {
       "spec": {
         "affinity": {
+          "podAntiAffinity": null,
           "nodeAffinity": {
             "preferredDuringSchedulingIgnoredDuringExecution": [
               {
@@ -61,8 +62,21 @@ kubectl patch deployment coredns -n kube-system -p '{
             }
           }
         },
+        "topologySpreadConstraints": [
+          {
+            "labelSelector": {
+              "matchLabels": {
+                "k8s-app": "kube-dns"
+              }
+            },
+            "maxSkew": 2,
+            "topologyKey": "topology.kubernetes.io/zone",
+            "whenUnsatisfiable": "DoNotSchedule"
+          }
+        ],
         "nodeSelector": {
-          "kubernetes.io/hostname": "'$SELECTED_NODE'"
+          "kubernetes.io/hostname": "'$SELECTED_NODE'",
+          "kubernetes.io/os": "linux"
         }
       }
     }
