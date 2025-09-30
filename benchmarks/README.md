@@ -2,7 +2,7 @@
 
 ## Briefing
 
-此benchmark串联 AI Agent + LLM Model + ack-mcp-server，在定制的场景任务下进行效果测试。
+此benchmark串联 三方AI Agent + LLM Model + ack-mcp-server，在定制的场景任务task下进行效果测试验证。
 
 运行结果将在 {{BENCHMARK_HOME}}/results 下记录每次运行结果报告。
 文件目录结构为：
@@ -157,7 +157,7 @@ e2e run benchmark task will  use script ```benchmarks/agents/qwen_code/run_promp
 after you prepare the dependencies, you can e2e run the benchmark.
 
 ```shell
-cd {{$ProjectHome}}/benchmarks/
+cd {{BENCHMARK_HOME}}
 
 # run single task
 ./run_benchmark.sh --openai-api-key {{your-api-key-here}} --agent qwen_code --model qwen3-coder-plus --task "history-top-resource-usage-app-analysis"
