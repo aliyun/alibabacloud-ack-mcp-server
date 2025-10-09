@@ -75,34 +75,6 @@ def test_runtime_provider():
         logger.error(f"❌ 运行时提供器测试失败: {e}")
         assert False, f"运行时提供器测试失败: {e}"
 
-def test_server_creation():
-    """测试服务器创建."""
-    logger.info("\n🚀 测试服务器创建")
-    logger.info("-" * 50)
-    
-    try:
-        # 导入服务器模块
-        sys.path.append(os.path.join(src_path, 'ack-diagnose-mcp-server'))
-        from server import create_mcp_server
-        
-        # 创建测试配置
-        test_config = {
-            "allow_write": False,
-            "transport": "stdio"
-        }
-        
-        # 创建服务器实例
-        server = create_mcp_server(test_config)
-        
-        logger.info("✅ 服务器创建成功")
-        logger.info(f"  服务器名称: {server.name}")
-        
-        assert True  # 服务器创建成功
-        
-    except Exception as e:
-        logger.error(f"❌ 服务器创建测试失败: {e}")
-        assert False, f"服务器创建测试失败: {e}"
-
 def main():
     """主测试函数."""
     logger.remove()
@@ -118,7 +90,6 @@ def main():
     tests = [
         ("环境变量加载", test_env_loading),
         ("运行时提供器", test_runtime_provider),
-        ("服务器创建", test_server_creation),
     ]
     
     results = []

@@ -42,26 +42,29 @@ class FakeListResponse:
 
 class FakeSummary:
     def __init__(self, error_count=0, warn_count=0, normal_count=0, advice_count=0, unknown_count=0):
-        self.errorCount = error_count
-        self.warnCount = warn_count
-        self.normalCount = normal_count
-        self.adviceCount = advice_count
-        self.unknownCount = unknown_count
+        self.error_count = error_count
+        self.warn_count = warn_count
+        self.normal_count = normal_count
+        self.advice_count = advice_count
+        self.unknown_count = unknown_count
 
 
 class FakeCheckItem:
-    def __init__(self, category="stability", name="test", target_type="Node", targets=None, description="test desc", fix="test fix"):
+    def __init__(self, category="stability", name="test", target_type="Node", targets=None, description="test desc", fix="test fix", check_item_uid="test-uid", level="warning"):
         self.category = category
         self.name = name
-        self.targetType = target_type
+        self.target_type = target_type
         self.targets = targets or ["test-target"]
         self.description = description
         self.fix = fix
+        self.check_item_uid = check_item_uid
+        self.level = level
 
 
 class FakeCreateResponseBody:
     def __init__(self, reports=None):
         self.reports = reports or [FakeReport("report-123")]
+        self.report_id = self.reports[0].report_id if self.reports else "report-123"
 
 
 class FakeCreateResponse:
@@ -74,7 +77,7 @@ class FakeDetailResponseBody:
         self.status = status
         self.endTime = end_time
         self.summary = summary or FakeSummary()
-        self.checkItemResults = check_items or []
+        self.check_item_results = check_items or []
 
 
 class FakeDetailResponse:
@@ -117,11 +120,13 @@ async def test_query_inspect_report_success():
         target_type="Node",
         targets=["cn-beijing.1.31.81", "cn-beijing.10.131.3"],
         description="Some versions of Alibaba Cloud Linux 3 and other operating systems utilize a Linux kernel with a flaw that causes CPU utilization spikes during high-frequency invocations of LRU Maps.",
-        fix="Please refer to [Document](https://www.alibabacloud.com/help/en/ack/product-overview/product-announcement-announcement-on-the-problem-of-intermittent-high-cpu-usage-on-linux-nodes-with-terway) to upgrade kernel."
+        fix="Please refer to [Document](https://www.alibabacloud.com/help/en/ack/product-overview/product-announcement-announcement-on-the-problem-of-intermittent-high-cpu-usage-on-linux-nodes-with-terway) to upgrade kernel.",
+        check_item_uid="check-001",
+        level="warning"
     )
     summary = FakeSummary(error_count=3, warn_count=3, normal_count=3, advice_count=3, unknown_count=3)
     detail_response = FakeDetailResponse(
-        status="completed",  # 先设置为completed验证checkItemResults
+        status="completed",
         end_time="2025-09-16T08:09:44Z",
         summary=summary,
         check_items=[check_item]
@@ -141,11 +146,13 @@ async def test_query_inspect_report_success():
     assert result.report_finish_time == "2025-09-16T08:09:44Z"
     assert result.summary.errorCount == 3
     assert result.summary.warnCount == 3
-    # 暂时设置为0，因为测试数据设置需要调整
-    assert len(result.checkItemResults) == 0
-    # 如果未checkItemResults，则不验证内容
-    # assert result.checkItemResults[0].name == "Linux kernel has a risk of high CPU utilization"
-    # assert result.checkItemResults[0].category == "stability"
+    assert result.summary.normalCount == 3
+    assert len(result.checkItemResults) == 1
+    assert result.checkItemResults[0].name == "Linux kernel has a risk of high CPU utilization"
+    assert result.checkItemResults[0].category == "stability"
+    assert result.checkItemResults[0].targetType == "Node"  # 使用target_type后映射到targetType
+    assert result.checkItemResults[0].level == "warning"
+    assert len(result.checkItemResults[0].targets) == 2
     assert result.error is None
 
 
