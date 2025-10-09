@@ -74,7 +74,7 @@ class KubectlContextManager(TTLCache):
                         pass
 
             if removed_count > 0:
-                logger.info(f"Cleaned up {removed_count} MCP kubeconfig files")
+                print(f"Cleaned up {removed_count} MCP kubeconfig files")
         except Exception:
             pass
 
@@ -134,7 +134,7 @@ class KubectlContextManager(TTLCache):
                 except Exception:
                     pass
         self.clear()
-        logger.info(f"Cleaned up {removed_count} kubeconfig files")
+        print(f"Cleaned up {removed_count} kubeconfig files")
 
     def set_cs_client(self, cs_client):
         """设置CS客户端
