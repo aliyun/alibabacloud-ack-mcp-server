@@ -1,36 +1,45 @@
 # Stage 1: Builder - Install dependencies
-FROM python:3.11-slim as builder
+FROM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim as builder
 
 # Set working directory
 WORKDIR /app
 
-# Install uv for package management
-RUN pip install uv
-
 # Copy dependency definition files
-COPY ../src/ack-mcp-server/pyproject.toml uv.lock* ./
+COPY requirements.txt pyproject.toml ./
 
-# Install dependencies into a separate layer.
+# Install dependencies using requirements.txt
 # This leverages Docker's layer caching, so dependencies are only re-installed
-# if the lock file or pyproject.toml changes.
-RUN uv pip install --system --no-cache -r pyproject.toml --no-deps
+# if the requirements.txt changes.
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final image - Create the production image
-FROM python:3.11-slim
+FROM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim
 
 # Set working directory
 WORKDIR /app
 
 # Copy installed dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy the application code
-COPY ../src/ack-mcp-server/app ./app
+# Copy the application source code
+COPY ./* ./
+
+# Create a non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# Set Python path to include src directory
+ENV PYTHONPATH=/app/src:$PYTHONPATH
+ENV PYTHONUNBUFFERED=1
 
 # Expose the port the app runs on
-EXPOSE 8080
+EXPOSE 8000
 
 # Command to run the application
-# The -m flag runs the module as a script
-CMD ["python", "-m", "app.main"]
+# Run the main server with http transport for containerized environments
+CMD ["python", "-m", "main_server", "--transport", "http", "--allow-write", "--host", "0.0.0.0", "--port", "8000"]
+
+# how to run
+# docker run -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --allow-write --host 0.0.0.0 --port 8000

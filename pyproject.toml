@@ -28,14 +28,21 @@ dependencies = [
     "fastmcp>=2.12.2",
     "loguru>=0.7.0",
     "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-dotenv>=1.0.0",
     "alibabacloud-cs20151215>=4.9.0",
     "alibabacloud-credentials>=1.0.2",
+    "alibabacloud-arms20190808>=10.0.1",
+    "alibabacloud-sls20201230>=5.7.0",
+    "alibabacloud-tea-util>=0.3.0",
+    "alibabacloud-tea-openapi>=0.4.0",
     "kubernetes>=33.0.0",
-    "pyyaml>=6.0.0",
-    "python-dotenv>=1.0.0",
-    "aiofiles>=24.0.0",
-    "aiohttp>=3.12.0",
+    "httpx>=0.28.0",
     "requests>=2.32.0",
+    "aiohttp>=3.12.0",
+    "aiofiles>=24.0.0",
+    "cachetools>=5.5.0",
+    "pyyaml>=6.0.0",
 ]
 
 [project.optional-dependencies]
@@ -46,6 +53,7 @@ build = [
 ]
 dev = [
     "pytest>=8.0.0",
+    "pytest-cov>=7.0.0",
     "pytest-asyncio>=0.24.0",
     "ruff>=0.1.0",
     "mypy>=1.0.0",
@@ -57,10 +65,10 @@ dev = [
 alibabacloud-cs-mcp-server = "main_server:main"
 
 [project.urls]
-Homepage = "https://github.com/alibabacloud/alibabacloud-cs-mcp-server"
-Repository = "https://github.com/alibabacloud/alibabacloud-cs-mcp-server"
-Documentation = "https://github.com/alibabacloud/alibabacloud-cs-mcp-server#readme"
-Issues = "https://github.com/alibabacloud/alibabacloud-cs-mcp-server/issues"
+Homepage = "https://github.com/aliyun/alibabacloud-ack-mcp-server"
+Repository = "https://github.com/aliyun/alibabacloud-ack-mcp-server"
+Documentation = "https://github.com/aliyun/alibabacloud-ack-mcp-server#readme"
+Issues = "https://github.com/aliyun/alibabacloud-ack-mcp-server/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
