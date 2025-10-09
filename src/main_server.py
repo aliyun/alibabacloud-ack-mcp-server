@@ -227,11 +227,6 @@ def main():
         help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)"
     )
     parser.add_argument(
-        "--default-cluster-id",
-        type=str,
-        help="Default ACK cluster ID (default: from env DEFAULT_CLUSTER_ID)"
-    )
-    parser.add_argument(
         "--audit-config",
         "-c",
         type=str,
@@ -262,8 +257,7 @@ def main():
         "region_id": args.region or os.getenv("REGION_ID", "cn-hangzhou"),
         "access_key_id": args.access_key_id or os.getenv("ACCESS_KEY_ID"),
         "access_key_secret": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),
-        "default_cluster_id": args.default_cluster_id or os.getenv("DEFAULT_CLUSTER_ID", ""),
-        
+
         # 审计日志配置
         "audit_config_path": args.audit_config,
         "audit_config_dict": None,
@@ -301,9 +295,7 @@ def main():
     mode_str = " in " + ", ".join(mode_info) if mode_info else ""
     logger.info(f"Starting AlibabaCloud Container Service Main MCP Server{mode_str}")
     logger.info(f"Region: {settings_dict['region_id']}")
-    if settings_dict.get('default_cluster_id'):
-        logger.info(f"Default Cluster: {settings_dict['default_cluster_id']}")
-    
+
     # 记录敏感信息（隐藏部分内容）
     if settings_dict.get('access_key_id'):
         logger.info(f"Access Key ID: {settings_dict['access_key_id'][:8]}***")

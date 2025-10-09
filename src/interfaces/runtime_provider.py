@@ -50,16 +50,3 @@ class RuntimeProvider(ABC):
             初始化后的提供者字典
         """
         raise NotImplementedError
-    
-    @abstractmethod
-    def get_default_cluster(self, config: Dict[str, Any]) -> str:
-        """
-        获取默认集群名称，由子类实现。
-        
-        Args:
-            config: 配置字典
-            
-        Returns:
-            默认集群名称
-        """
-        raise NotImplementedError

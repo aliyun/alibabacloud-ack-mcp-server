@@ -150,10 +150,6 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
 
         return providers
 
-    def get_default_cluster(self, config: Dict[str, Any]) -> str:
-        """Get default cluster name."""
-        return config.get("default_cluster_id", "")
-
     def initialize_prometheus_guidance(self) -> Dict[str, Any]:
         """初始化 Prometheus 指标指引数据。"""
         base_dir = os.path.dirname(os.path.abspath(__file__))
