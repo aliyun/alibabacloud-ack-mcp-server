@@ -23,7 +23,6 @@ def test_env_loading():
         ("ACCESS_KEY_ID", "阿里云Access Key ID"),
         ("ACCESS_KEY_SECRET", "阿里云Access Key Secret"),
         ("REGION_ID", "地域ID"),
-        ("DEFAULT_CLUSTER_ID", "默认集群ID"),
         ("CACHE_TTL", "缓存TTL"),
         ("CACHE_MAX_SIZE", "缓存最大大小"),
         ("FASTMCP_LOG_LEVEL", "日志级别"),
@@ -58,12 +57,10 @@ def test_runtime_provider():
         logger.info("✅ 运行时提供器配置加载成功")
         
         region_id = os.getenv('REGION_ID', 'cn-hangzhou')
-        default_cluster_id = os.getenv('DEFAULT_CLUSTER_ID')
         access_key_id = os.getenv('ACCESS_KEY_ID')
         
         logger.info(f"  地域: {region_id}")
-        logger.info(f"  默认集群: {default_cluster_id or '未配置'}")
-        
+
         if access_key_id:
             logger.info(f"  Access Key: {access_key_id[:8]}***")
         else:

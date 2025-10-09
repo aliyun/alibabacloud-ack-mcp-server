@@ -6,7 +6,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install dependencies using uv
-	uv sync
+	pip install -r requirements.txt
 
 test: ## Run all tests
 	python -m pytest src/tests/ -v
@@ -26,11 +26,11 @@ test-integration: ## Run integration tests only
 test-unit: ## Run unit tests only
 	python -m pytest src/tests/ -v -m "unit"
 
-lint: ## Run code linting
+lint: ## Run code linting, need install ruff
 	python -m ruff check src/
 	python -m mypy src/ --ignore-missing-imports
 
-format: ## Format code
+format: ## Format code, need install ruff
 	python -m ruff format src/
 
 dev-setup: install ## Set up development environment

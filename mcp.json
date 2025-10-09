@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ack-mcp-server": {
+      "type": "stdio",
+      "command": "python",
+      "args": ["-m", "src.main_server", "--transport=stdio", "--allow-write"],
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    }
+  }
+}
