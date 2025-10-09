@@ -75,7 +75,7 @@ class FakeCSClientFactory:
         self.components = components if components is not None else ["apiserver", "kcm", "scheduler", "ccm"]
         self.log_project = log_project
 
-    def __call__(self, region_id):
+    def __call__(self, region_id, config=None):
         return FakeCSClient(self.components, self.log_project)
 
 

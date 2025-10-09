@@ -81,8 +81,8 @@ def parse_master_url(master_url: str) -> dict:
     Returns:
         dict: A dictionary containing the parsed endpoints
     """
-    # Default response structure
-    endpoints = {"api_server_endpoint": None, "intranet_api_server_endpoint": None}
+    # Default response structure with empty strings instead of None
+    endpoints = {"api_server_endpoint": "", "intranet_api_server_endpoint": ""}
 
     # If master_url is empty or None, return default
     if not master_url:
@@ -93,14 +93,14 @@ def parse_master_url(master_url: str) -> dict:
         url_data = json.loads(master_url)
         # Extract endpoints from the JSON structure
         if isinstance(url_data, dict):
-            endpoints["api_server_endpoint"] = url_data.get("api_server_endpoint")
+            endpoints["api_server_endpoint"] = url_data.get("api_server_endpoint") or ""
             endpoints["intranet_api_server_endpoint"] = url_data.get(
                 "intranet_api_server_endpoint"
-            )
+            ) or ""
     except json.JSONDecodeError as e:
         # Log the error and return empty dict as requested
         print(f"JSON decode error when parsing master_url: {e}")
-        return {}
+        return {"api_server_endpoint": "", "intranet_api_server_endpoint": ""}
 
     return endpoints
 
