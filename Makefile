@@ -14,9 +14,6 @@ test: ## Run all tests
 test-verbose: ## Run tests with verbose output
 	python -m pytest src/tests/ -vv
 
-test-architecture: ## Run architecture tests only
-	python -m pytest src/tests/test_architecture.py -v
-
 test-coverage: ## Run tests with coverage report
 	python -m pytest src/tests/ --cov=src --cov-report=html --cov-report=term
 
