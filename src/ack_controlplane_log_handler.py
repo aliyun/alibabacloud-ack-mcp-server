@@ -132,11 +132,15 @@ def _build_controlplane_log_query(
     def is_valid_string(value):
         return isinstance(value, str) and not hasattr(value, 'annotation')
 
+    # 添加组件名过滤条件
+    if is_valid_string(component_name):
+        conditions.append(f"component: {component_name}")
+
     # 额外过滤条件
     if is_valid_string(filter_pattern):
         conditions.append(filter_pattern)
 
-    return ' AND '.join(conditions)
+    return ' AND '.join(conditions) if conditions else '*'
 
 
 def _parse_controlplane_log_entry(log_data: Dict[str, Any]) -> ControlPlaneLogEntry:

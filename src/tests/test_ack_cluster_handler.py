@@ -69,15 +69,20 @@ async def test_list_clusters_success():
             "vswitch_ids": ["vsw-123"],
             "resource_group_id": "rg-123",
             "security_group_id": "sg-123",
-            "network_mode": "VPC",
-            "proxy_mode": "ipvs"
+            "proxy_mode": "ipvs",
+            "tags": [],
+            "master_url": '{"api_server_endpoint": "https://test.com", "intranet_api_server_endpoint": "https://internal.test.com"}'
         },
         {
-            "cluster_name": "c2", 
-            "clusterId": "cls-2", 
-            "status": "Initializing", 
-            "clusterType": "Kubernetes",
-            "currentVersion": "1.23.6-aliyun.1"
+            "name": "c2",  # 使用name而不是cluster_name
+            "cluster_id": "cls-2",  # 使用cluster_id而不是clusterId
+            "state": "Initializing",  # 使用state而不是status
+            "region_id": "cn-hangzhou",  # 添加必填的region_id
+            "cluster_type": "Kubernetes",  # 使用cluster_type而不是clusterType
+            "current_version": "1.23.6-aliyun.1",  # 使用current_version
+            "tags": [],
+            "vswitch_ids": [],
+            "master_url": '{}'
         },
     ]
 
@@ -91,7 +96,7 @@ async def test_list_clusters_success():
         "providers": {"cs_client_factory": cs_client_factory}
     })
 
-    result = await tool(ctx, region_id="cn-hangzhou", page_size=10, page_num=1)
+    result = await tool(ctx, page_size=10, page_num=1)
 
     assert isinstance(result, ListClustersOutput)
     assert result.count == 2
@@ -109,7 +114,7 @@ async def test_list_clusters_success():
     assert cluster1.vpc_id == "vpc-123"
     assert cluster1.vswitch_ids == ["vsw-123"]
     
-    # 验证第二个集群信息（兼容不同字段名）
+    # 验证第二个集群信息
     cluster2 = result.clusters[1]
     assert cluster2.cluster_name == "c2"
     assert cluster2.cluster_id == "cls-2"
@@ -122,7 +127,7 @@ async def test_list_clusters_api_error():
     """测试 API 调用失败的情况"""
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
-    def cs_client_factory(region: str):
+    def cs_client_factory(region: str, config=None):
         raise RuntimeError("NO_RAM_POLICY_AUTH: 当前账号无ram policy权限，需要授权")
 
     ctx = FakeContext({
@@ -130,7 +135,7 @@ async def test_list_clusters_api_error():
         "providers": {"cs_client_factory": cs_client_factory}
     })
 
-    result = await tool(ctx, region_id="cn-hangzhou", page_size=10, page_num=1)
+    result = await tool(ctx, page_size=10, page_num=1)
 
     assert isinstance(result, ListClustersOutput)
     assert result.count == 0
@@ -141,19 +146,19 @@ async def test_list_clusters_api_error():
 
 
 @pytest.mark.asyncio
-async def test_list_clusters_missing_region_id():
-    """测试缺少 region_id 参数的情况"""
+async def test_list_clusters_cs_client_error():
+    """测试CS客户端初始化失败的情况"""
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
 
     def cs_client_factory(region: str, config=None):
-        return FakeCSClient([])
+        raise RuntimeError("缺少region_id参数")
 
     ctx = FakeContext({
         "config": {"access_key_id": "ak", "access_key_secret": "sk"},
         "providers": {"cs_client_factory": cs_client_factory}
     })
 
-    result = await tool(ctx, region_id="", page_size=10, page_num=1)
+    result = await tool(ctx, page_size=10, page_num=1)
 
     assert isinstance(result, ListClustersOutput)
     assert result.count == 0
@@ -176,7 +181,7 @@ async def test_list_clusters_empty_result():
         "providers": {"cs_client_factory": cs_client_factory}
     })
 
-    result = await tool(ctx, region_id="cn-hangzhou", page_size=10, page_num=1)
+    result = await tool(ctx, page_size=10, page_num=1)
 
     assert isinstance(result, ListClustersOutput)
     assert result.count == 0
@@ -188,7 +193,16 @@ async def test_list_clusters_empty_result():
 async def test_list_clusters_with_pagination():
     """测试分页参数"""
     fake_clusters = [
-        {"name": "c1", "cluster_id": "cls-1", "state": "Running", "cluster_type": "ManagedKubernetes"}
+        {
+            "name": "c1", 
+            "cluster_id": "cls-1", 
+            "state": "Running", 
+            "region_id": "cn-hangzhou",
+            "cluster_type": "ManagedKubernetes",
+            "tags": [],
+            "vswitch_ids": [],
+            "master_url": '{}'
+        }
     ]
 
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
@@ -201,7 +215,7 @@ async def test_list_clusters_with_pagination():
         "providers": {"cs_client_factory": cs_client_factory}
     })
 
-    result = await tool(ctx, region_id="cn-hangzhou", page_size=100, page_num=2)
+    result = await tool(ctx, page_size=100, page_num=2)
 
     assert isinstance(result, ListClustersOutput)
     assert result.count == 1
@@ -213,9 +227,27 @@ async def test_list_clusters_with_pagination():
 async def test_list_clusters_invalid_cluster_data():
     """测试无效的集群数据"""
     fake_clusters = [
-        {"name": "c1", "cluster_id": "cls-1", "state": "Running", "cluster_type": "ManagedKubernetes"},
+        {
+            "name": "c1", 
+            "cluster_id": "cls-1", 
+            "state": "Running", 
+            "region_id": "cn-hangzhou",
+            "cluster_type": "ManagedKubernetes",
+            "tags": [],
+            "vswitch_ids": [],
+            "master_url": '{}'
+        },
         {"invalid": "data"},  # 无效数据
-        {"name": "c3", "cluster_id": "cls-3", "state": "Running", "cluster_type": "Kubernetes"}
+        {
+            "name": "c3", 
+            "cluster_id": "cls-3", 
+            "state": "Running", 
+            "region_id": "cn-hangzhou",
+            "cluster_type": "Kubernetes",
+            "tags": [],
+            "vswitch_ids": [],
+            "master_url": '{}'
+        }
     ]
 
     tool = make_handler_and_tool({"access_key_id": "ak", "access_key_secret": "sk"})
@@ -228,7 +260,7 @@ async def test_list_clusters_invalid_cluster_data():
         "providers": {"cs_client_factory": cs_client_factory}
     })
 
-    result = await tool(ctx, region_id="cn-hangzhou", page_size=10, page_num=1)
+    result = await tool(ctx, page_size=10, page_num=1)
 
     assert isinstance(result, ListClustersOutput)
     # 应该只返回有效的集群数据
@@ -269,7 +301,6 @@ def test_cluster_info_model():
         vswitch_ids=["vsw-123", "vsw-456"],
         resource_group_id="rg-123",
         security_group_id="sg-123",
-        network_mode="VPC",
         proxy_mode="ipvs"
     )
     
@@ -283,7 +314,6 @@ def test_cluster_info_model():
     assert cluster.vswitch_ids == ["vsw-123", "vsw-456"]
     assert cluster.resource_group_id == "rg-123"
     assert cluster.security_group_id == "sg-123"
-    assert cluster.network_mode == "VPC"
     assert cluster.proxy_mode == "ipvs"
 
 
