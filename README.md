@@ -16,7 +16,7 @@
   - 执行 `kubectl` 类操作（读写可控）、获取日志/事件，列表/详情/增删改
 - **可观测性**
   - Prometheus（ARMS 指标）PromQL 查询、自然语言转 PromQL
-  - SLS 日志 SQL 查询、自然语言转 Log-SQL、失败诊断
+  - SLS 日志 SQL 查询、自然语言转 SLS-SQL、失败诊断
   - 云监控（CMS）资源指标与告警能力
 - **工程能力**
   - 分层清晰：工具层、服务层、认证层解耦
@@ -58,6 +58,11 @@ DEVELOPMENT=false
 - 可以通过命令行参数覆盖上述项（见下）。
 
 ## 运行
+
+docker方式
+```angular2html
+docker run -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --allow-write --host 0.0.0.0 --port 8000
+```
 
 主服务入口：`src/main_server.py`
 
