@@ -8,6 +8,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from unittest.mock import Mock
+from alibabacloud_tea_util import models as util_models
 
 try:
     from .models import (
@@ -122,7 +123,6 @@ def _parse_time(time_str: str) -> int:
 
 
 def _build_controlplane_log_query(
-        component_name: str,
         filter_pattern: Optional[str] = None
 ) -> str:
     """构建控制面日志查询语句。"""
@@ -131,10 +131,6 @@ def _build_controlplane_log_query(
     # 过滤掉 FieldInfo 对象，只处理字符串
     def is_valid_string(value):
         return isinstance(value, str) and not hasattr(value, 'annotation')
-
-    # 添加组件名过滤条件
-    if is_valid_string(component_name):
-        conditions.append(f"component: {component_name}")
 
     # 额外过滤条件
     if is_valid_string(filter_pattern):
@@ -187,42 +183,43 @@ def _parse_controlplane_log_entry(log_data: Dict[str, Any]) -> ControlPlaneLogEn
         raw_log=json.dumps(log_data, ensure_ascii=False)
     )
 
+"""
+_get_controlplane_log_config
+获取一个集群的控制面日志功能，所在的sls project地址，以及component列表。
+每个component的日志所在的logstore为: component名-{{clusterId}}
 
+获取途径分优先级：
+1. 配置中明确指定
+2. 通过OpenAPI CheckControlPlaneLogEnable 检查控制面日志功能是否开启，并获取project等配置
+"""
 def _get_controlplane_log_config(ctx: Context, cluster_id: str, region_id: str) -> ControlPlaneLogConfig:
     """获取控制面日志配置信息。"""
+
+    # try get from openAPI
     try:
         cs_client = _get_cs_client(ctx, region_id)
         from alibabacloud_cs20151215 import models as cs_models
 
-        # 调用 CheckControlPlaneLogEnable API 获取控制面日志配置
+        # 调用 CheckControlPlaneLogEnable API 获取控制面日志配置 https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/developer-reference/api-cs-2015-12-15-checkcontrolplanelogenable
         # 注意：这里需要根据实际的 API 调用方式调整
         # 根据文档，API 路径是 GET /clusters/{ClusterId}/controlplanelog
 
-        # 由于 SDK 可能没有直接的方法，我们使用通用的 HTTP 请求方式
-        # 这里使用模拟数据，实际实现需要根据具体的 SDK 版本调整
         logger.info(f"Getting control plane log config for cluster {cluster_id}")
 
-        # 在测试环境中，尝试从 cs_client 获取模拟的组件列表
-        if hasattr(cs_client, 'components'):
-            # 使用测试环境中的组件列表
-            components = cs_client.components
-        else:
-            # 默认组件列表
-            components = ["apiserver", "ccm", "scheduler", "kcm", "controlplane-events", "alb"]
-
-        # 模拟 API 响应数据
-        mock_config = {
-            "log_project": f"k8s-log-{cluster_id}",
-            "log_ttl": "30",
-            "aliuid": "162981*****",
-            "components": components
-        }
-
+        runtime = util_models.RuntimeOptions()
+        headers = {}
+        response = cs_client.check_control_plane_log_enable_with_options(cluster_id, headers, runtime)
+        # 提取project
+        components = getattr(response.body, 'components', []) if response.body else []
+        if not components:
+            raise Exception("This cluster not enable controlplane log function, please enable it. Failed to get control plane log config components from OpenAPI. response:" + response)
+        controlplane_project = getattr(response.body, 'log_project', None) if response.body else None
+        if not controlplane_project:
+            raise Exception("Failed to get control plane log config from OpenAPI. response:" + response)
         return ControlPlaneLogConfig(
-            log_project=mock_config.get("log_project"),
-            log_ttl=mock_config.get("log_ttl"),
-            aliuid=mock_config.get("aliuid"),
-            components=mock_config.get("components", [])
+            log_project=controlplane_project,
+            log_ttl="30",
+            components=components
         )
 
     except Exception as e:
@@ -253,6 +250,38 @@ class ACKControlPlaneLogHandler:
         )(self.query_controlplane_logs)
 
         logger.info("ACK Control Plane Log Handler initialized")
+
+    def _get_cluster_region(self, cs_client, cluster_id: str) -> str:
+        """通过DescribeClusterDetail获取集群的region信息
+
+        Args:
+            cs_client: CS客户端实例
+            cluster_id: 集群ID
+
+        Returns:
+            集群所在的region
+        """
+        try:
+            from alibabacloud_cs20151215 import models as cs_models
+
+            # 调用DescribeClusterDetail API获取集群详情
+            detail_response = cs_client.describe_cluster_detail(cluster_id)
+
+            if not detail_response or not detail_response.body:
+                raise ValueError(f"Failed to get cluster details for {cluster_id}")
+
+            cluster_info = detail_response.body
+            # 获取集群的region信息
+            region = getattr(cluster_info, 'region_id', '')
+
+            if not region:
+                raise ValueError(f"Could not determine region for cluster {cluster_id}")
+
+            return region
+
+        except Exception as e:
+            logger.error(f"Failed to get cluster region for {cluster_id}: {e}")
+            raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
 
     async def query_controlplane_logs(
             self,
@@ -312,11 +341,17 @@ class ACKControlPlaneLogHandler:
             # 获取集群信息以确定区域
             lifespan_context = ctx.request_context.lifespan_context
             config = lifespan_context.get("config", {})
+
+            # default region_id
             region_id = config.get("region_id", "cn-hangzhou")
 
             # 步骤1: 先查询控制面日志配置信息
             logger.info(f"Step 1: Getting control plane log config for cluster {cluster_id}")
             try:
+                # cluster's region_id
+                cs_client = _get_cs_client(ctx, "CENTER")
+                region_id = self._get_cluster_region(cs_client, cluster_id)
+
                 controlplane_config = _get_controlplane_log_config(ctx, cluster_id, region_id)
 
                 # 检查控制面日志功能是否启用
@@ -402,12 +437,6 @@ class ACKControlPlaneLogHandler:
                     )
                 )
 
-            # 构建查询语句
-            query = _build_controlplane_log_query(
-                component_name=component_name,
-                filter_pattern=filter_pattern
-            )
-
             # 解析时间
             start_time_str = start_time if isinstance(start_time, str) and not hasattr(start_time,
                                                                                        'annotation') else "24h"
@@ -420,7 +449,6 @@ class ACKControlPlaneLogHandler:
             # 步骤4: 构建SLS查询语句
             logger.info(f"Step 4: Building SLS query for component {component_name}")
             query = _build_controlplane_log_query(
-                component_name=component_name,
                 filter_pattern=filter_pattern
             )
             logger.info(f"SLS query: {query}")
@@ -440,11 +468,7 @@ class ACKControlPlaneLogHandler:
                 )
 
                 # 尝试不同的 API 调用方式
-                try:
-                    response = sls_client.get_logs(request)
-                except TypeError:
-                    # 如果上面的方式不对，尝试传递参数的方式
-                    response = sls_client.get_logs(sls_project_name, logstore_name, request)
+                response = sls_client.get_logs(sls_project_name, logstore_name, request)
                 logger.info(f"SLS API response type: {type(response)}")
                 if hasattr(response, 'body'):
                     logger.info(f"Response body type: {type(response.body)}")
