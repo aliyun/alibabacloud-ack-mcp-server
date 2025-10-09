@@ -5,6 +5,7 @@ from loguru import logger
 from pydantic import Field
 import json
 from datetime import datetime, timedelta
+from alibabacloud_tea_util import models as util_models
 
 try:
     from .models import (
@@ -63,6 +64,7 @@ class ACKAuditLogHandler:
             server: FastMCP server instance
             settings: Configuration settings
         """
+        self.cs_client = None
         self.sls_client = None
         self.allow_write = settings.get("allow_write", True) if settings else True
         self.settings = settings or {}
@@ -391,10 +393,11 @@ class ACKAuditLogHandler:
             "limit": limit,
             "cluster_id": cluster_id
         }
-        if self.sls_client is None:
+        if self.cs_client is None:
             cs_client = _get_cs_client(ctx, "CENTER")
-            region = self._get_cluster_region(cs_client, cluster_id)
-            self.sls_client = _get_sls_client(ctx, region)
+            self.cs_client = cs_client
+        region_id = self._get_cluster_region(self.cs_client, cluster_id)
+        self.sls_client = _get_sls_client(ctx, region_id)
 
         # Normalize parameters
         normalized_params = self._normalize_params(params)
@@ -410,8 +413,12 @@ class ACKAuditLogHandler:
                 if not self.sls_client:
                     raise RuntimeError("SLS client not properly initialized")
 
+                # 一个集群的审计日志 sls project、logstore 需要从OpenAPI中调用后获取 or 能通过配置自定义
+                # https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/developer-reference/api-cs-2015-12-15-getclusterauditproject?spm=a2c4g.11186623.0.i5#undefined
+                audit_sls_project, audit_sls_logstore = self._get_audit_sls_project_and_logstore(cluster_id)
+
                 # Use real SLS client - 直接调用同步方法
-                return self._query_logs(f"k8s-log-{cluster_id}", f"audit-{cluster_id}", query, start_time, end_time,
+                return self._query_logs(audit_sls_project, audit_sls_logstore, query, start_time, end_time,
                                         normalized_params)
 
             except Exception as e:
@@ -608,3 +615,21 @@ class ACKAuditLogHandler:
             query += f" and objectRef.name: {params['resource_name']}"
 
         return query
+
+    def _get_audit_sls_project_and_logstore(self, cluster_id):
+        runtime = util_models.RuntimeOptions()
+        headers = {}
+        try:
+            response = self.cs_client.get_cluster_audit_project_with_options(cluster_id, headers, runtime)
+            logger.info(f"_get_audit_sls_project_and_logstore response type: {type(response)}")
+            if hasattr(response, 'body'):
+                if hasattr(response.body, 'sls_project_name'):
+                    if response.body.audit_enabled:
+                        # get and return
+                        return response.body.sls_project_name, f"audit-{cluster_id}"
+            # 此集群没有开启审计日志功能
+            raise Exception("此集群没有开启审计日志功能")
+        except Exception as error:
+            logger.error(error)
+            raise
+
