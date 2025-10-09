@@ -212,10 +212,10 @@ def _get_controlplane_log_config(ctx: Context, cluster_id: str, region_id: str) 
         # 提取project
         components = getattr(response.body, 'components', []) if response.body else []
         if not components:
-            raise Exception("This cluster not enable controlplane log function, please enable it. Failed to get control plane log config components from OpenAPI. response:" + response)
+            raise Exception(f"This cluster not enable controlplane log function, please enable it. Failed to get control plane log config components from OpenAPI. response: {str(response)}")
         controlplane_project = getattr(response.body, 'log_project', None) if response.body else None
         if not controlplane_project:
-            raise Exception("Failed to get control plane log config from OpenAPI. response:" + response)
+            raise Exception(f"Failed to get control plane log config from OpenAPI. response: {str(response)}")
         return ControlPlaneLogConfig(
             log_project=controlplane_project,
             log_ttl="30",
@@ -377,7 +377,9 @@ class ACKControlPlaneLogHandler:
                 # 根据错误信息判断具体的错误码
                 if "not found" in error_message.lower() or "does not exist" in error_message.lower():
                     error_code = ControlPlaneLogErrorCodes.CLUSTER_NOT_FOUND
-                elif "control plane" in error_message.lower() and "disabled" in error_message.lower():
+                elif ("not enable" in error_message.lower() or 
+                      "control plane" in error_message.lower() and "disabled" in error_message.lower() or
+                      "controlplane log function" in error_message.lower()):
                     error_code = ControlPlaneLogErrorCodes.CONTROLPLANE_LOG_NOT_ENABLED
 
                 return QueryControlPlaneLogsOutput(
