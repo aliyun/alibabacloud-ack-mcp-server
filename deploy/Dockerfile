@@ -1,29 +1,23 @@
 # Stage 1: Builder - Install dependencies
-FROM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim as builder
+FROM --platform=$TARGETPLATFORM python:3.12-slim
+
+# multi arch build
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BUILDARCH
+ARG TARGETARCH
+RUN echo "I am running on $BUILDPLATFORM $BUILDARCH, building for $TARGETPLATFORM $TARGETARCH"
 
 # Set working directory
 WORKDIR /app
 
-# Copy dependency definition files
-COPY requirements.txt pyproject.toml ./
+# Copy the application source code
+COPY ./* ./
 
 # Install dependencies using requirements.txt
 # This leverages Docker's layer caching, so dependencies are only re-installed
 # if the requirements.txt changes.
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Stage 2: Final image - Create the production image
-FROM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim
-
-# Set working directory
-WORKDIR /app
-
-# Copy installed dependencies from the builder stage
-COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy the application source code
-COPY ./* ./
 
 # Create a non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser

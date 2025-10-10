@@ -1,5 +1,5 @@
 # Makefile for AlibabaCloud Container Service MCP Server
-.PHONY: help test test-verbose test-architecture test-coverage install clean build build-binary build-local build-spec build-all-platforms
+.PHONY: help test test-verbose test-architecture test-coverage install clean build build-binary build-local build-spec build-all-platforms docker-build
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -56,6 +56,12 @@ pre-commit: format lint test ## Run pre-commit checks (format, lint, test)
 
 build: ## Build the package
 	python -m build
+
+docker-build-amd64: ## Build Docker image for AMD64 platform
+	docker build -t ack-mcp-server:1.0 . -f ./deploy/Dockerfile --platform linux/amd64
+
+docker-build-arm64: ## Build Docker image for ARM64 platform
+	docker build -t ack-mcp-server:1.0 . -f ./deploy/Dockerfile --platform linux/arm64
 
 build-binary: ## Build standalone binary using PyInstaller
 	@echo "Building standalone binary..."
