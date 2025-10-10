@@ -2,7 +2,8 @@
 
 ## Briefing
 
-此benchmark串联 三方AI Agent + LLM Model + ack-mcp-server，在定制的场景任务task下进行效果测试验证。
+此benchmark串联 三方AI Agent + LLM Model + ack-mcp-server，在定制的场景任务task下进行效果测试验证。  
+部分case需要由三方裁判llm来进行验证(verify)。
 
 运行结果将在 {{BENCHMARK_HOME}}/results 下记录每次运行结果报告。
 文件目录结构为：
