@@ -1,131 +1,39 @@
-{{- if .Values.k8sMcpServer.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server
+  name: ack-mcp-server
+  namespace: {{ .Release.Namespace }}
   labels:
-    app: {{ include "mcp-chart.name" . }}
-    component: k8s-mcp-server
+    app: {{ include "ack-mcp-server.name" . }}
+    component: ack-mcp-server
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ include "mcp-chart.name" . }}
-      component: k8s-mcp-server
+      app: {{ include "ack-mcp-server.name" . }}
+      component: ack-mcp-server
   template:
     metadata:
       labels:
-        app: {{ include "mcp-chart.name" . }}
-        component: k8s-mcp-server
-    spec:
-      serviceAccountName: {{ include "mcp-chart.serviceAccountName" . }}
-      containers:
-        - name: k8s-mcp-server
-          image: "{{ .Values.global.registry }}/k8s-mcp-server:{{ .Values.global.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.k8sMcpServer.port }}
-              protocol: TCP
----
-{{- end }}
-
-{{- if .Values.obsMcpServer.enabled }}
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "mcp-chart.fullname" . }}-obs-mcp-server
-  labels:
-    app: {{ include "mcp-chart.name" . }}
-    component: obs-mcp-server
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ include "mcp-chart.name" . }}
-      component: obs-mcp-server
-  template:
-    metadata:
-      labels:
-        app: {{ include "mcp-chart.name" . }}
-        component: obs-mcp-server
+        app: {{ include "ack-mcp-server.name" . }}
+        component: ack-mcp-server
     spec:
       containers:
-        - name: obs-mcp-server
-          image: "{{ .Values.global.registry }}/obs-mcp-server:{{ .Values.global.tag }}"
+        - name: ack-mcp-server
+          image: "{{ .Values.image.registry }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           env:
-          - name: ACCESS_KEY_ID
-            valueFrom:
-              secretKeyRef:
-                name: {{ include "mcp-chart.fullname" . }}-obs-credentials
-                key: accessKeyId
-          - name: ACCESS_KEY_SECRET
-            valueFrom:
-              secretKeyRef:
-                name: {{ include "mcp-chart.fullname" . }}-obs-credentials
-                key: accessKeySecret
+            - name: ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ack-mcp-server.fullname" . }}-credentials
+                  key: accessKeyId
+            - name: ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "ack-mcp-server.fullname" . }}-credentials
+                  key: accessKeySecret
           ports:
             - name: http
               containerPort: {{ .Values.obsMcpServer.port }}
               protocol: TCP
----
-{{- end }}
-
-{{- if .Values.mcpProxy.enabled }}
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "mcp-chart.fullname" . }}-mcp-proxy
-  labels:
-    app: {{ include "mcp-chart.name" . }}
-    component: mcp-proxy
-spec:
-  replicas: {{ .Values.replicaCount }}
-  selector:
-    matchLabels:
-      app: {{ include "mcp-chart.name" . }}
-      component: mcp-proxy
-  template:
-    metadata:
-      labels:
-        app: {{ include "mcp-chart.name" . }}
-        component: mcp-proxy
-    spec:
-      initContainers:
-        # 第一个 Init Container，等待 k8s-mcp-server
-        - name: wait-for-k8s-mcp-server
-          image: "{{ .Values.global.registry }}/busybox:{{ .Values.global.tag }}" # 使用包含 nc 的标准镜像
-          # 命令会持续检查目标服务的端口，直到可以连接
-          command: ['sh', '-c',
-            'until nc -z -v -w 2 {{ include "mcp-chart.fullname" . }}-k8s-mcp-server {{ .Values.k8sMcpServerService.port }}; do
-              echo "Waiting for service k8s-mcp-server...";
-              sleep 2;
-            done;'
-          ]
-        # 第二个 Init Container，等待 obs-mcp-server
-        - name: wait-for-obs-mcp-server
-          image: "{{ .Values.global.registry }}/busybox:{{ .Values.global.tag }}"
-          command: ['sh', '-c',
-            'until nc -z -v -w 2 {{ include "mcp-chart.fullname" . }}-obs-mcp-server {{ .Values.obsMcpServerService.port }}; do
-              echo "Waiting for service obs-mcp-server...";
-              sleep 2;
-            done;'
-          ]
-      containers:
-        - name: mcp-proxy
-          image: "{{ .Values.global.registry }}/mcp-proxy:{{ .Values.global.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: proxy
-              containerPort: {{ .Values.mcpProxy.port }}
-              protocol: TCP
-          volumeMounts:
-            - name: proxy-config
-              mountPath: /configs
-              readOnly: true
-      volumes:
-        - name: proxy-config
-          configMap:
-            name: {{ include "mcp-chart.fullname" . }}-proxy-config
-{{- end }}

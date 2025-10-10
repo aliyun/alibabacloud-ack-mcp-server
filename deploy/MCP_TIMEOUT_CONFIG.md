@@ -43,55 +43,10 @@ DIAGNOSE_TIMEOUT=900 KUBECTL_TIMEOUT=60 python src/main_server.py --transport ss
 
 ### 3. Docker环境配置
 
-在Docker环境中，可以通过环境变量或docker-compose.yml配置：
+在Docker环境中，可以docker run -e传递环境变量：
 
-```yaml
-# docker-compose.yml
-version: '3.8'
-services:
-  mcp-server:
-    image: your-mcp-server:latest
-    environment:
-      - DIAGNOSE_TIMEOUT=900
-      - KUBECTL_TIMEOUT=60
-      - API_TIMEOUT=120
-      - DIAGNOSE_POLL_INTERVAL=20
-    ports:
-      - "3000:3000"
-```
-
-### 4. Kubernetes环境配置
-
-在Kubernetes中，可以通过ConfigMap或环境变量配置：
-
-```yaml
-# configmap.yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: mcp-server-config
-data:
-  DIAGNOSE_TIMEOUT: "900"
-  KUBECTL_TIMEOUT: "60"
-  API_TIMEOUT: "120"
-  DIAGNOSE_POLL_INTERVAL: "20"
-```
-
-```yaml
-# deployment.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: mcp-server
-spec:
-  template:
-    spec:
-      containers:
-      - name: mcp-server
-        image: your-mcp-server:latest
-        envFrom:
-        - configMapRef:
-            name: mcp-server-config
+```shell
+docker run -e CACHE_TTL=300 -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --allow-write --host 0.0.0.0 --port 8000
 ```
 
 ## 超时参数说明
