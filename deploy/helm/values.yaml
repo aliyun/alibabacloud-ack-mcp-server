@@ -6,11 +6,16 @@
 accessKeyId: <your-access-key-id>
 # Required: Alibaba Cloud Access Key Secret
 accessKeySecret: <your-access-key-secret>
+
+transport: sse
+port: 8000
+allowWrite: true
+
 image:
   registry: registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server
-  tag: "v0.1.0-rc1-edcb06d-aliyun"
+  tag: "latest"
   pullPolicy: Always
-port: 8000
+
 # Probes (disabled as per requirements)
 livenessProbe: { }
 readinessProbe: { }
