@@ -1,10 +1,12 @@
+
+# Stage 1: Builder - Install dependencies
+FROM --platform=$TARGETPLATFORM python:3.12-slim as builder
+
 # multi arch build
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG BUILDARCH
 ARG TARGETARCH
-# Stage 1: Builder - Install dependencies
-FROM --platform=$TARGETPLATFORM python:3.12-slim as builder
 RUN echo "I am running on $BUILDPLATFORM $BUILDARCH, building for $TARGETPLATFORM $TARGETARCH"
 
 # Set working directory
