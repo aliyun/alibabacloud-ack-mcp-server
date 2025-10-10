@@ -145,31 +145,35 @@ git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
 cd alibabacloud-cs-mcp-server
 
 # 使用 Helm 部署
-helm install ack-mcp-server ./deploy/helm\ chart/ \
-  --set config.accessKeyId="your-access-key-id" \
-  --set config.accessKeySecret="your-access-key-secret" 
+helm install \
+--set accessKeyId=<your-access-key-id> \
+--set accessKeySecret=<your-access-key-secret> \
+--set transport=sse \
+ack-mcp-server \
+./deploy/helm \
+-n kube-system 
 ```
+部署后通过为ack-mcp-server service配置负载均衡等方式透出外网访问服务，以对接AI Agent。
 
 **参数说明**
-- `config.accessKeyId`: 阿里云账号的 AccessKeyId
-- `config.accessKeySecret`: 阿里云账号的 AccessKeySecret
-- `config.regionId`: 可选，启动ack-mcp-server阿里云账号的区域ID，默认为cn-hangzhou，容器服务开服region可[参考文档](https://help.aliyun.com/zh/ack/product-overview/supported-regions)
+- `accessKeyId`: 阿里云账号的 AccessKeyId
+- `accessKeySecret`: 阿里云账号的 AccessKeySecret
 
 #### 2.3.2 部署方式2 - 📦 使用 Docker 镜像部署ack-mcp-server
 
 ```bash
 # 拉取镜像
-docker pull registry.cn-hangzhou.aliyuncs.com/acs/ack-mcp-server:latest
+docker pull registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server:latest
 
 # 运行容器
-docker run -d \
+docker run \ 
+  -d \
   --name ack-mcp-server \
   -e ACCESS_KEY_ID="your-access-key-id" \
   -e ACCESS_KEY_SECRET="your-access-key-secret" \
-  -e REGION_ID="cn-hangzhou" \
   -p 8000:8000 \
-  registry.cn-hangzhou.aliyuncs.com/acs/ack-mcp-server:latest \
-  python -m src.main_server --transport sse --host 0.0.0.0 --port 8000 --allow-write
+  registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server:latest \
+  python -m main_server --transport sse --host 0.0.0.0 --port 8000 --allow-write
 ```
 
 #### 2.3.3 部署方式3 - 💻 使用 Binary 方式启动部署
