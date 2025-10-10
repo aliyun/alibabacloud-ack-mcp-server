@@ -1,6 +1,6 @@
 apiVersion: v2
-name: mcp-chart
-description: A Helm chart for Kubernetes
+name: ack-mcp-server
+description: A Helm chart for ACK (Container Service for Kubernetes (ACK)) MCP Server.
 
 # A chart can be either an 'application' or a 'library' chart.
 #
