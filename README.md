@@ -36,7 +36,7 @@
 - **审计日志**: Kubernetes 操作审计追踪 (`query_audit_log`)
 - …… (更多[容器可观测能力](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/observability-best-practices) ing)
 
-**阿里云 ACK 诊断、巡检**
+**阿里云 ACK 诊断、巡检功能**
 - 集群资源诊断 (`diagnose_resource`)
 - 集群健康巡检 (`query_inspect_report`)
 
