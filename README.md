@@ -4,12 +4,10 @@
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.12.2+-green.svg)](https://github.com/jlowin/fastmcp)
 
-阿里云容器服务MCP Server工具集。  
-基于 MCP（Model Context Protocol）的被[阿里云容器服务智能助手功能](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-container-ai-assistant-for-troubleshooting-and-intelligent-q-a)集成的工具集。  
+阿里云容器服务MCP Server工具集 ack-mcp-server。   
 将 ACK 集群/资源管理、Kubernetes 原生操作与容器场景的可观测性能力、安全审计、诊断巡检等运维能力统一为AI原生的标准化工具集。   
-供 三方AI Agent ([kubectl-ai](https://github.com/GoogleCloudPlatform/kubectl-ai/blob/main/pkg/mcp/README.md#local-stdio-based-server-configuration)、[QWen Code](https://qwenlm.github.io/qwen-code-docs/zh/tools/mcp-server/#%E4%BD%BF%E7%94%A8-qwen-mcp-%E7%AE%A1%E7%90%86-mcp-%E6%9C%8D%E5%8A%A1%E5%99%A8)、[Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/mcp)、[Cursor](https://cursor.com/cn/docs/context/mcp/directory)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson)、[VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server)等)或自动化系统调用集成。  
-支持通过自然语言与 AI 助手交互，完成复杂的容器运维任务。帮助构建用户自己的容器场景AIOps运维体系。
-
+本工具集的能力被[阿里云容器服务智能助手功能](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-container-ai-assistant-for-troubleshooting-and-intelligent-q-a)集成。也可支持三方AI Agent ([kubectl-ai](https://github.com/GoogleCloudPlatform/kubectl-ai/blob/main/pkg/mcp/README.md#local-stdio-based-server-configuration)、[QWen Code](https://qwenlm.github.io/qwen-code-docs/zh/tools/mcp-server/#%E4%BD%BF%E7%94%A8-qwen-mcp-%E7%AE%A1%E7%90%86-mcp-%E6%9C%8D%E5%8A%A1%E5%99%A8)、[Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/mcp)、[Cursor](https://cursor.com/cn/docs/context/mcp/directory)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson)、[VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server)等)或自动化系统调用集成，基于 MCP（Model Context Protocol）协议。  
+实现支持通过自然语言与 AI 助手交互，完成复杂的容器运维任务。帮助构建用户自己的容器场景AIOps运维体系。
 
 ## 🌟 1. 概述 & 功能简介
 
@@ -78,42 +76,14 @@
 
 **构建环境要求**
 - Python 3.12+
-- 阿里云账号及 AccessKey、AccessSecretKey
-- 已创建的 ACK 集群
+- 阿里云账号及 AccessKey、AccessSecretKey，所需权限集
+- 阿里云账号中已创建的 ACK 集群
 - ACK集群开启公网访问的kubeconfig or ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
 
-**安装依赖**
+#####  阿里云账号认证与所需权限集
 
-使用 `uv`（推荐）：
-```bash
-uv sync
-```
+// TODO
 
-或使用 `pip`：
-```bash
-pip install -r requirements.txt
-```
-
-### ⚙️ 2.2 配置设置
-
-创建 `.env` 文件（可参考 `.env.example`）：
-
-```env
-# 阿里云凭证与地域
-ACCESS_KEY_ID=your-access-key-id
-ACCESS_KEY_SECRET=your-access-key-secret
-REGION_ID=cn-hangzhou
-
-# 缓存配置
-CACHE_TTL=300
-CACHE_MAX_SIZE=1000
-
-# 日志配置
-FASTMCP_LOG_LEVEL=INFO
-DEVELOPMENT=false
-```
-
-> ⚠️ **注意**: 未设置 ACCESS_KEY_ID/ACCESS_KEY_SECRET 时，部分依赖云 API 的功能不可用。
 
 ### 📍 2.3 运行ack-mcp-server
 
@@ -162,14 +132,66 @@ make build-binary
 ./dist/ack-mcp-server --help
 ```
 
-### 🎯 2.4 如何本地开发运行
+## 🎯 3 如何本地开发运行
 
-#### 2.4.1 运行模式1. 基于 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) 的交互界面（适合本地效果调试）
+### 📋 3.1 开发环境搭建
+
+```bash
+# 克隆项目
+git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
+cd alibabacloud-cs-mcp-server
+
+# 安装依赖
+uv sync
+
+# 配置环境
+cp .env.example .env
+vim .env
+
+# 运行开发服务
+make install
+make run
+```
+
+**安装依赖**
+
+使用 `uv`（推荐）：
+```bash
+uv sync
+```
+
+或使用 `pip`：
+```bash
+pip install -r requirements.txt
+```
+
+### ⚙️ 3.2 配置设置
+
+创建 `.env` 文件（可参考 `.env.example`）：
+
+```env
+# 阿里云凭证与地域
+ACCESS_KEY_ID=your-access-key-id
+ACCESS_KEY_SECRET=your-access-key-secret
+REGION_ID=cn-hangzhou
+
+# 缓存配置
+CACHE_TTL=300
+CACHE_MAX_SIZE=1000
+
+# 日志配置
+FASTMCP_LOG_LEVEL=INFO
+DEVELOPMENT=false
+```
+
+> ⚠️ **注意**: 未设置 ACCESS_KEY_ID/ACCESS_KEY_SECRET 时，部分依赖云 API 的功能不可用。
+
+### 3.3.1 运行模式1. 基于 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) 的交互界面（适合本地效果调试）
 ```bash
 npx @modelcontextprotocol/inspector --config ./mcp.json
 ```
 
-#### 2.4.2 本地python命令运行ack-mcp-server
+#### 3.3.2 本地python命令运行ack-mcp-server
 
 **本地运行ack-mcp-server Stdio 模式（适合本地开发）**
 ```bash
@@ -206,13 +228,14 @@ python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
 | `--port` | 端口号 | 8000 |
 
 
-## 3. 认证与所需权限集
+### 4. 功能测试UT
 
-- 默认走环境凭证（上文环境变量）。
-- 对齐各子服务的 AK 传入逻辑：内部统一以凭证客户端+配置对象传入 `access_key_id/access_key_secret/region_id/endpoint`。
-- 在 SSE（HTTP）模式下，可按需在上层网关增加请求级别的 AK 头部注入；如未注入，则回退环境凭证。具体头部键名可按网关---
+```bash
+# 运行全部测试UT
+make test
+```
 
-## 🛠️ 4. 如何参与开发
+## 🛠️ 4. 如何参与开发贡献
 
 ### 🏗️ 4.1 工程架构设计
 
@@ -220,27 +243,7 @@ python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
 
 详细架构设计参见 [`DESIGN.md`](DESIGN.md)。
 
-### 📋 4.2 开发环境搭建
-
-```bash
-# 克隆项目
-git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
-cd alibabacloud-cs-mcp-server
-
-# 安装依赖
-uv sync
-
-# 配置环境
-cp .env.example .env
-vim .env
-
-# 运行开发服务
-make install
-make run
-```
-
-
-### 👥 4.3 项目维护机制与贡献者
+### 👥 4.2 项目维护机制与贡献者
 
 #### 🤝 如何贡献
 
@@ -298,14 +301,6 @@ cd benchmarks
 - - ……
 - 企业级特性（RBAC, 安全扫描）
 - AI 自动化运维能力
-
-
-## 测试
-
-```bash
-# 运行全部测试
-make test
-```
 
 ## 常见问题
 
