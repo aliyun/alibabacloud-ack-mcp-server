@@ -4,6 +4,16 @@
 
 # 如何构建镜像
 
+makefile
+```
+# amd64 docker build
+make docker-build-amd64
+
+# arm64 docker build
+make docker-build-arm64
+```
+
+docker build command
 ```
 # 如 linux/arm64 架构 
 docker build -t ack-mcp-server:1.0 . -f ./deploy/Dockerfile --platform linux/arm64
