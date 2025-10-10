@@ -22,6 +22,14 @@ spec:
         - name: ack-mcp-server
           image: "{{ .Values.image.registry }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - python
+            - '-m'
+            - 'main_server'
+            - '--transport=http'
+            - '--allow-write'
+            - '--host=0.0.0.0'
+            - '--port={{ .Values.port }}'
           env:
             - name: ACCESS_KEY_ID
               valueFrom:
@@ -35,5 +43,5 @@ spec:
                   key: accessKeySecret
           ports:
             - name: http
-              containerPort: {{ .Values.obsMcpServer.port }}
+              containerPort: {{ .Values.port }}
               protocol: TCP
