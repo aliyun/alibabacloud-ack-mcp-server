@@ -1,16 +1,15 @@
-{{- if and .Values.k8sMcpServer.enabled .Values.k8sMcpServer.serviceAccount.create }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: {{ include "mcp-chart.serviceAccountName" . }}
-  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+  name: {{ include "ack-mcp-server.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-role
-  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+  name: {{ include "ack-mcp-server.fullname" . }}-role
+  namespace: {{ .Release.Namespace }}
 rules:
 - apiGroups: [""]
   resources: ["*"]
@@ -29,22 +28,22 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-rolebinding
-  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+  name: {{ include "ack-mcp-server.fullname" . }}-rolebinding
+  namespace: {{ .Release.Namespace }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "mcp-chart.serviceAccountName" . }}
-  namespace: {{ .Values.k8sMcpServer.rbac.namespaceAccess }}
+  name: {{ include "ack-mcp-server.serviceAccountName" . }}
+  namespace: {{ .Release.Namespace }}
 roleRef:
   kind: Role
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-role
+  name: {{ include "ack-mcp-server.fullname" . }}-role
   apiGroup: rbac.authorization.k8s.io
 
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-clusterrole
+  name: {{ include "ack-mcp-server.fullname" . }}-clusterrole
 rules:
 - apiGroups: [""]
   resources: ["pods", "services", "endpoints", "persistentvolumeclaims", "events", "configmaps", "secrets", "nodes", "namespaces"]
@@ -69,13 +68,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-clusterrolebinding
+  name: {{ include "ack-mcp-server.fullname" . }}-clusterrolebinding
 subjects:
 - kind: ServiceAccount
-  name: {{ include "mcp-chart.serviceAccountName" . }}
+  name: {{ include "ack-mcp-server.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 roleRef:
   kind: ClusterRole
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server-clusterrole
+  name: {{ include "ack-mcp-server.fullname" . }}-clusterrole
   apiGroup: rbac.authorization.k8s.io
-{{- end }}

@@ -14,10 +14,7 @@ WORKDIR /app
 # Copy the application source code
 COPY ./* ./
 
-# Install dependencies using requirements.txt
-# This leverages Docker's layer caching, so dependencies are only re-installed
-# if the requirements.txt changes.
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 
 # Create a non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser

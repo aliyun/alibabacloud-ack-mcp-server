@@ -1,55 +1,17 @@
-{{- if .Values.k8sMcpServer.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "mcp-chart.fullname" . }}-k8s-mcp-server
+  name: ack-mcp-server
+  namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "mcp-chart.labels" . | nindent 4 }}
-    component: k8s-mcp-server
+    {{ include "ack-mcp-server.labels" . | nindent 4 }}
+    component: ack-mcp-server
 spec:
   selector:
-    app: {{ include "mcp-chart.name" . }}
-    component: k8s-mcp-server
+    app: {{ include "ack-mcp-server.name" . }}
+    component: ack-mcp-server
   ports:
     - protocol: TCP
-      port: {{ .Values.k8sMcpServerService.port }}
-      targetPort: {{ .Values.k8sMcpServer.port }}
+      port: {{ .Values.port }}
+      targetPort: {{ .Values.port }}
 ---
-{{- end }}
-
-{{- if .Values.obsMcpServer.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "mcp-chart.fullname" . }}-obs-mcp-server
-  labels:
-    {{- include "mcp-chart.labels" . | nindent 4 }}
-    component: obs-mcp-server
-spec:
-  selector:
-    app: {{ include "mcp-chart.name" . }}
-    component: obs-mcp-server
-  ports:
-    - protocol: TCP
-      port: {{ .Values.obsMcpServerService.port }}
-      targetPort: {{ .Values.obsMcpServer.port }}
----
-{{- end }}
-
-{{- if .Values.mcpProxy.enabled }}
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "mcp-chart.fullname" . }}-mcp-proxy
-  labels:
-    {{- include "mcp-chart.labels" . | nindent 4 }}
-    component: mcp-proxy
-spec:
-  selector:
-    app: {{ include "mcp-chart.name" . }}
-    component: mcp-proxy
-  ports:
-    - protocol: TCP
-      port: {{ .Values.mcpProxyService.port }}
-      targetPort: {{ .Values.mcpProxy.port }}
-{{- end }}
