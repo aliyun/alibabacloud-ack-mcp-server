@@ -4,18 +4,28 @@
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.12.2+-green.svg)](https://github.com/jlowin/fastmcp)
 
-一个基于 MCP（Model Context Protocol）的阿里云容器服务智能助手，将 ACK 集群管理、Kubernetes 原生操作与可观测性能力统一为标准化工具集，供 AI 代理或自动化系统调用。
+阿里云容器服务MCP Server工具集。  
+基于 MCP（Model Context Protocol）的被[阿里云容器服务智能助手功能](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-container-ai-assistant-for-troubleshooting-and-intelligent-q-a)集成的工具集。  
+将 ACK 集群/资源管理、Kubernetes 原生操作与容器场景的可观测性能力、安全审计、诊断巡检等运维能力统一为AI原生的标准化工具集。   
+供 三方AI Agent ([kubectl-ai](https://github.com/GoogleCloudPlatform/kubectl-ai/blob/main/pkg/mcp/README.md#local-stdio-based-server-configuration)、[QWen Code](https://qwenlm.github.io/qwen-code-docs/zh/tools/mcp-server/#%E4%BD%BF%E7%94%A8-qwen-mcp-%E7%AE%A1%E7%90%86-mcp-%E6%9C%8D%E5%8A%A1%E5%99%A8)、[Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/mcp)、[Cursor](https://cursor.com/cn/docs/context/mcp/directory)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson)、[VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server)等)或自动化系统调用集成。  
+支持通过自然语言与 AI 助手交互，完成复杂的容器运维任务。帮助构建用户自己的容器场景AIOps运维体系。
 
 
-## 🌟 概述 & 功能简介
+## 🌟 1. 概述 & 功能简介
 
-### 🎯 核心功能
+### 🎬 1.1 演示效果
 
-**阿里云 ACK 管理**
-- 节点池扩缩容 (`scale_nodepool`、`remove_nodepool_nodes`)
-- 任务查询 (`describe_task_info`)
-- 集群诊断 (`create_cluster_diagnosis`、`get_cluster_diagnosis_result`)
-- 集群健康巡检 (`query_inspect_report`)
+// TODO
+
+### 🎯 1.2 核心功能
+
+**阿里云 ACK 全生命周期的资源管理**
+- 集群查询 (`list_clusters`)
+- 节点资源管理、节点池扩缩容 (Later)
+- 组件Addon管理 (Later)
+- 集群创建、删除 (Later)
+- 集群升级 (Later)
+- 集群资源运维任务查询 (Later)
 
 **Kubernetes 原生操作**
 - 执行 `kubectl` 类操作（读写权限可控）
@@ -23,10 +33,13 @@
 - 支持所有标准 Kubernetes API
 
 **全方位可观测性**
-- **Prometheus**: ARMS 指标查询、自然语言转 PromQL
-- **SLS 日志**: SQL 查询、自然语言转 SLS-SQL、智能故障诊断
-- **云监控**: 资源指标与告警能力
+- **Prometheus**: 支持ACK集群对应的阿里云Prometheus、自建Prometheus的指标查询、自然语言转 PromQL
+- **集群控制面日志查询**: 支持ACK集群的控制面SLS 日志的查询，包括SLS SQL 查询、自然语言转 SLS-SQL
 - **审计日志**: Kubernetes 操作审计追踪
+
+**阿里云 ACK 诊断、巡检**
+- 集群资源诊断 (`diagnose_resource`)
+- 集群健康巡检 (`query_inspect_report`)
 
 **企业级工程能力**
 - 🏗️ 分层架构：工具层、服务层、认证层完全解耦
@@ -34,42 +47,38 @@
 - 📊 健壮错误处理：结构化错误输出与类型化响应
 - 📦 模块化设计：各子服务可独立运行
 
-### 🎬 演示效果
 
-// TODO
-
-
-### 🏆 核心优势
+### 🏆 1.3 核心优势
 
 - **🤖 AI 原生**: 专为 AI 代理设计的标准化接口
 - **🔧 统一工具集**: 一站式容器运维能力整合
-- **⚡ 高性能**: 异步处理，支持并发调用
+- **⚡ 知识沉淀**: 内置ACK、K8s、容器可观测体系的最佳实践经验沉淀
 - **🛡️ 企业级**: 完善的认证、授权、日志机制
 - **📈 可扩展**: 插件化架构，轻松扩展新功能
 
-### 📈 Benchmark 效果验证 (持续更新中)
+### 📈 1.4 Benchmark 效果验证 (持续更新中)
 
 基于实际场景的 AI 能力测评，支持多种 AI 代理和大模型的效果对比：
 
-| 任务场景 | AI 代理 | 大模型 | 成功率 | 处理时间 |
-|------|------|------|-------|--------|
-| Pod OOM 修复 | qwen_code | qwen3-coder-plus | ✅ 100% | 2.3min |
-| 集群健康检查 | qwen_code | qwen3-coder-plus | ✅ 95% | 6.4min |
+| 任务场景 | AI Agent   | 大模型 | 成功率 | 平均处理时间 |
+|------|------------|------|-------|--------|
+| Pod OOM 修复 | qwen_code  | qwen3-coder-plus | ✅ 100% | 2.3min |
+| 集群健康检查 | qwen_code  | qwen3-coder-plus | ✅ 95% | 6.4min |
 | 资源异常诊断 | kubectl-ai | qwen3-32b | ✅ 90% | 4.1min |
-| 历史资源分析 | qwen_code | qwen3-coder-plus | ✅ 85% | 3.8min |
+| 历史资源分析 | qwen_code  | qwen3-coder-plus | ✅ 85% | 3.8min |
 
 最新 Benchmark 报告参见 [`benchmarks/results/`](benchmarks/results/) 目录。
 
 ---
 
-## 🚀 如何使用 & 运行
+## 🚀 2. 如何使用 & 运行
 
-### 💻 环境准备
+### 💻 2.1 环境准备
 
 **构建环境要求**
 - Python 3.12+
 - 阿里云账号及 AccessKey、AccessSecretKey
-- 已创建的 ACK 集群（可选）
+- 已创建的 ACK 集群
 - ACK集群开启公网访问的kubeconfig or ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
 
 **安装依赖**
@@ -84,7 +93,7 @@ uv sync
 pip install -r requirements.txt
 ```
 
-### ⚙️ 配置设置
+### ⚙️ 2.2 配置设置
 
 创建 `.env` 文件（可参考 `.env.example`）：
 
@@ -93,7 +102,6 @@ pip install -r requirements.txt
 ACCESS_KEY_ID=your-access-key-id
 ACCESS_KEY_SECRET=your-access-key-secret
 REGION_ID=cn-hangzhou
-DEFAULT_CLUSTER_ID=your-cluster-id  # 可选
 
 # 缓存配置
 CACHE_TTL=300
@@ -106,7 +114,9 @@ DEVELOPMENT=false
 
 > ⚠️ **注意**: 未设置 ACCESS_KEY_ID/ACCESS_KEY_SECRET 时，部分依赖云 API 的功能不可用。
 
-### 📍 使用 Helm 部署
+### 📍 2.3 运行ack-mcp-server
+
+#### 2.3.1 部署方式1 - 使用 Helm 部署在k8s集群内
 
 在 Kubernetes 集群中部署：
 
@@ -122,7 +132,7 @@ helm install ack-mcp-server ./deploy/helm\ chart/ \
   --set config.regionId="cn-hangzhou"
 ```
 
-### 📦 使用 Docker 镜像
+#### 2.3.2 部署方式2 - 📦 使用 Docker 镜像部署ack-mcp-server
 
 ```bash
 # 拉取镜像
@@ -139,7 +149,7 @@ docker run -d \
   python -m src.main_server --transport sse --host 0.0.0.0 --port 8000 --allow-write
 ```
 
-### 💻 使用 Binary 方式
+#### 2.3.3 部署方式3 - 💻 使用 Binary 方式启动部署
 
 下载预编译的二进制文件：
 
@@ -151,19 +161,30 @@ make build-binary
 ./dist/ack-mcp-server --help
 ```
 
-### 🎯 本地开发运行
+### 🎯 2.4 如何本地开发运行
 
+#### 2.4.1 运行模式1. 基于 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) 的交互界面（适合本地效果调试）
+```bash
+npx @modelcontextprotocol/inspector --config ./mcp.json
+```
 
-支持通过自然语言与 AI 助手交互，完成复杂的容器运维任务。
+#### 2.4.2 本地python命令运行ack-mcp-server
 
-**Stdio 模式（适合本地开发）**
+**本地运行ack-mcp-server Stdio 模式（适合本地开发）**
 ```bash
 make run
 # 或
 python -m src.main_server
 ```
 
-**SSE 模式（HTTP 服务）**
+**本地运行ack-mcp-server Streaming HTTP 模式（推荐线上系统集成使用）**
+```bash
+make run-http
+# 或
+python -m src.main_server --transport http --host 0.0.0.0 --port 8000
+```
+
+**本地运行ack-mcp-server SSE 模式**
 ```bash
 make run-sse
 # 或
@@ -184,33 +205,21 @@ python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
 | `--port` | 端口号 | 8000 |
 
 
-**基于 MCP Inspector 的交互界面（适合本地调试）**
-```bash
-npx @modelcontextprotocol/inspector --config ./mcp.json
-```
-
-## 认证与凭证注入
+## 3. 认证与所需权限集
 
 - 默认走环境凭证（上文环境变量）。
 - 对齐各子服务的 AK 传入逻辑：内部统一以凭证客户端+配置对象传入 `access_key_id/access_key_secret/region_id/endpoint`。
 - 在 SSE（HTTP）模式下，可按需在上层网关增加请求级别的 AK 头部注入；如未注入，则回退环境凭证。具体头部键名可按网关---
 
-## 🛠️ 如何参与开发
+## 🛠️ 4. 如何参与开发
 
-### 🏗️ 架构设计
-
-系统采用微服务架构，主服务器通过 FastMCP 代理挂载机制集成多个子服务器：
-
-- 主服务器: `src/main_server.py` - 统一入口、服务挂载
-- ACK 管理: `src/ack_cluster_handler.py` - 集群管理、节点池操作
-- Kubernetes: `src/kubectl_handler.py` - kubectl 命令执行
-- 可观测性: `src/ack_prometheus_handler.py` 等
+### 🏗️ 4.1 工程架构设计
 
 **技术栈**: Python 3.12+ + FastMCP 2.12.2+ + 阿里云SDK + Kubernetes Client
 
 详细架构设计参见 [`DESIGN.md`](DESIGN.md)。
 
-### 📋 开发环境搭建
+### 📋 4.2 开发环境搭建
 
 ```bash
 # 克隆项目
@@ -228,6 +237,20 @@ vim .env
 make install
 make run
 ```
+
+
+### 👥 4.3 项目维护机制与贡献者
+
+#### 🤝 如何贡献
+
+1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)
+2. **功能请求**: 通过 [Discussions](https://github.com/aliyun/alibabacloud-cs-mcp-server/discussions)
+3. **代码贡献**: Fork → 功能分支 → Pull Request
+4. **文档改进**: API 文档、教程编写
+
+### 💬 社区交流
+- GitHub Discussions: 技术讨论、问答
+- 钉钉群: 日常交流、快速支持
 
 ---
 
@@ -261,46 +284,20 @@ cd benchmarks
 ## 🗺️ 演进计划 & Roadmap
 
 ### 🎯 近期计划
-- 支持更多 AI 代理（Cursor, Claude）
-- Web UI 界面开发
+- 支持ACK 集群、节点、功能承载组件(addon)的全生命周期资源运维
+- 以benchmark效果作为基线目标，持续优化核心场景在通用三方Agent、LLM model中的效果，提升核心运维场景的效果成功率
+- 持续补充benchmark的核心运维场景case，覆盖ACK大部分运维场景，如有需求，欢迎提issue
 - 性能优化与缓存改进
 
 ### 🚀 中长期目标
-- 多云支持（AWS, 腾讯云, 华为云）
+- 覆盖容器场景的[卓越架构的五大支柱](https://help.aliyun.com/product/2362200.html)：安全、稳定、成本、效率、性能(高可靠性等)的能力，对复杂场景、业务场景的运维场景，提供更优秀的体验。
+- - 集群成本的洞察与治理
+- - 集群弹性伸缩的最佳实践
+- - 集群的安全漏洞发现与治理
+- - ……
 - 企业级特性（RBAC, 安全扫描）
 - AI 自动化运维能力
 
----
-
-## 👥 项目维护机制与贡献者
-
-### 🤝 如何贡献
-
-1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)
-2. **功能请求**: 通过 [Discussions](https://github.com/aliyun/alibabacloud-cs-mcp-server/discussions)
-3. **代码贡献**: Fork → 功能分支 → Pull Request
-4. **文档改进**: API 文档、教程编写
-
-### 💬 社区交流
-- GitHub Discussions: 技术讨论、问答
-- 钉钉群: 日常交流、快速支持
-
----
-
-## 认证与凭证注入
-
-- 默认走环境凭证（ACCESS_KEY_ID/ACCESS_KEY_SECRET）
-- 支持请求级 AK 注入（SSE 模式）
-- 内部统一凭证管理机制
-
-## 子服务一览
-
-主服务挂载的子 MCP Server：
-- `ack-cluster`: ACK 集群管理与诊断
-- `kubernetes`: Kubernetes 客户端操作
-- `observability-prometheus`: PromQL 指标查询
-- `observability-sls`: SLS 日志查询与分析
-- `audit-log`: Kubernetes 审计日志
 
 ## 测试
 

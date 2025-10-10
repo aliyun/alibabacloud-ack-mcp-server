@@ -39,6 +39,9 @@ dev-setup: install ## Set up development environment
 run: ## Run the MCP server in development mode
 	PYTHONPATH=src python -m src.main_server
 
+run-http: ## Run the MCP server with Streaming HTTP transport
+	PYTHONPATH=src python -m src.main_server --transport http --host 0.0.0.0 --port 8000
+
 run-sse: ## Run the MCP server with SSE transport
 	PYTHONPATH=src python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
 

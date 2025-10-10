@@ -69,8 +69,8 @@ results:
 
 - [kubectl-ai](https://github.com/GoogleCloudPlatform/kubectl-ai/blob/main/pkg/mcp/README.md#local-stdio-based-server-configuration)
 - [QWen Code](https://qwenlm.github.io/qwen-code-docs/zh/tools/mcp-server/#%E4%BD%BF%E7%94%A8-qwen-mcp-%E7%AE%A1%E7%90%86-mcp-%E6%9C%8D%E5%8A%A1%E5%99%A8)
-- Later [Claude Code]()
-- Later [Cursor]()
+- Later [Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/mcp)
+- Later [Cursor](https://cursor.com/cn/docs/context/mcp/directory)
 - Later [Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson)
 - Later [VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server)
 
