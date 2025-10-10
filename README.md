@@ -27,15 +27,16 @@
 - 集群升级 (Later)
 - 集群资源运维任务查询 (Later)
 
-**Kubernetes 原生操作**
+**Kubernetes 原生操作** (`ack_kubectl`)
 - 执行 `kubectl` 类操作（读写权限可控）
 - 获取日志、事件，资源的增删改查
 - 支持所有标准 Kubernetes API
 
-**全方位可观测性**
-- **Prometheus**: 支持ACK集群对应的阿里云Prometheus、自建Prometheus的指标查询、自然语言转 PromQL
-- **集群控制面日志查询**: 支持ACK集群的控制面SLS 日志的查询，包括SLS SQL 查询、自然语言转 SLS-SQL
-- **审计日志**: Kubernetes 操作审计追踪
+**AI原生的容器场景可观测性**
+- **Prometheus**: 支持ACK集群对应的阿里云Prometheus、自建Prometheus的指标查询、自然语言转 PromQL (`query_prometheus` / `query_prometheus_metric_guidance`)
+- **集群控制面日志查询**: 支持ACK集群的控制面SLS 日志的查询，包括SLS SQL 查询、自然语言转 SLS-SQL (`query_controlplane_logs`)
+- **审计日志**: Kubernetes 操作审计追踪 (`query_audit_log`)
+- …… (更多[容器可观测能力](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/observability-best-practices) ing)
 
 **阿里云 ACK 诊断、巡检**
 - 集群资源诊断 (`diagnose_resource`)
