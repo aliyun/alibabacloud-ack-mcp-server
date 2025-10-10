@@ -80,20 +80,61 @@
 
 ## 🚀 2. 如何使用 & 部署
 
-### 💻 2.1 环境准备
+### 💻 2.1 阿里云认证、权限准备
 
-**构建环境要求**
-- Python 3.12+
-- 阿里云账号及 AccessKey、AccessSecretKey，所需权限集
+建议为ack-mcp-server配置的阿里云账号认证为一个主账号的子账号，并遵循最小权限原则，为此子账号赋予如下权限策略集。
+
+**所需RAM权限策略集**
+  
+如何为阿里云账号的RAM账号添加所需权限，参考文档：[RAM 权限策略](https://help.aliyun.com/zh/ram/user-guide/policy-overview)  
+当前ack-mcp-server所需只读权限集为：
+- 容器服务cs 所有只读权限
+- 日志服务log 所有只读权限
+- 阿里云prometheus(arms) 实例只读权限
+- ……后续追加资源变更权限以支持资源全生命周期管理
+
+```json
+{
+  "Version": "1",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cs:Check*",
+        "cs:Describe*",
+        "cs:Get*",
+        "cs:List*",
+        "cs:Query*",
+        "cs:RunClusterCheck",
+        "cs:RunClusterInspect"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "arms:GetPrometheusInstance",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "log:Describe*",
+        "log:Get*",
+        "log:List*"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+### 💻 2.2 （可选）创建ACK集群
+
 - 阿里云账号中已创建的 ACK 集群
 - ACK集群开启公网访问的kubeconfig or ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
 
-#####  阿里云账号认证与所需ram权限策略集
 
-// TODO
-
-
-### 📍 2.3 运行ack-mcp-server
+### 📍 2.3 部署运行ack-mcp-server
 
 #### 2.3.1 部署方式1 - 使用 Helm 部署在k8s集群内
 
@@ -107,9 +148,13 @@ cd alibabacloud-cs-mcp-server
 # 使用 Helm 部署
 helm install ack-mcp-server ./deploy/helm\ chart/ \
   --set config.accessKeyId="your-access-key-id" \
-  --set config.accessKeySecret="your-access-key-secret" \
-  --set config.regionId="cn-hangzhou"
+  --set config.accessKeySecret="your-access-key-secret" 
 ```
+
+**参数说明**
+- `config.accessKeyId`: 阿里云账号的 AccessKeyId
+- `config.accessKeySecret`: 阿里云账号的 AccessKeySecret
+- `config.regionId`: 可选，启动ack-mcp-server阿里云账号的区域ID，默认为cn-hangzhou，容器服务开服region可[参考文档](https://help.aliyun.com/zh/ack/product-overview/supported-regions)
 
 #### 2.3.2 部署方式2 - 📦 使用 Docker 镜像部署ack-mcp-server
 
@@ -130,7 +175,7 @@ docker run -d \
 
 #### 2.3.3 部署方式3 - 💻 使用 Binary 方式启动部署
 
-下载预编译的二进制文件：
+下载预编译的二进制文件 或 本地构建二进制文件后运行：
 
 ```bash
 # 构建二进制文件（本地构建）
@@ -142,7 +187,6 @@ make build-binary
 
 ## 🎯 3 如何本地开发运行
 
-
 ### 💻 3.1 环境准备
 
 **构建环境要求**
@@ -153,8 +197,6 @@ make build-binary
 
 
 ### 📋 3.2 开发环境搭建
-
-
 
 ```bash
 # 克隆项目
