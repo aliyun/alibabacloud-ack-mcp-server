@@ -311,7 +311,6 @@ make test
 
 - **未配置 AK**: 请检查 ACCESS_KEY_ID/ACCESS_KEY_SECRET 环境变量
 - **ACK集群未开公网kubeconfig**: ack-mcp-server无法执行kubectl tool，需要ACK集群开启公网访问的kubeconfig 或者 ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
-- **SSE 模式鉴权**: 在外层网关做统一鉴权
 
 ## 许可证
 
