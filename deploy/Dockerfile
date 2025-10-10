@@ -1,20 +1,36 @@
-# Stage 1: Builder - Install dependencies
-FROM --platform=$TARGETPLATFORM python:3.12-slim
-
 # multi arch build
 ARG TARGETPLATFORM
 ARG BUILDPLATFORM
 ARG BUILDARCH
 ARG TARGETARCH
+# Stage 1: Builder - Install dependencies
+FROM --platform=$TARGETPLATFORM python:3.12-slim as builder
 RUN echo "I am running on $BUILDPLATFORM $BUILDARCH, building for $TARGETPLATFORM $TARGETARCH"
 
 # Set working directory
 WORKDIR /app
+# Copy dependency definition files
+COPY requirements.txt pyproject.toml ./
 
 # Copy the application source code
 COPY ./* ./
 
-RUN pip install --no-cache-dir -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+# Install dependencies using requirements.txt
+# This leverages Docker's layer caching, so dependencies are only re-installed
+# if the requirements.txt changes.
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Final image - Create the production image
+FROM --platform=$TARGETPLATFORM python:3.12-slim
+
+# Set working directory
+WORKDIR /app
+# Copy the application source code
+COPY ./* ./
+
+# Copy installed dependencies from the builder stage
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Create a non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
