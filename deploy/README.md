@@ -1,3 +1,20 @@
+# 通过Helm Chart在Kubernetes集群中部署ack-mcp-server
+
+1. 通过 helm install部署ack-mcp-server至集群中，配置 accessKey、accessKeySecret
+```shell
+helm install \
+--set accessKeyId=<your-access-key-id> \
+--set accessKeySecret=<your-access-key-secret> \
+--set transport=sse \
+ack-mcp-server \
+./deploy/helm \
+-n kube-system
+```
+
+2. 通过透出service的端口，访问ack-mcp-server 
+
+可通过命令``` kubectl get --raw "/api/v1/namespaces/kube-system/services/ack-mcp-server/proxy/sse" ``` 查看mcp server是否已经启动。
+
 # Docker 构建部署指南
 
 本文档介绍如何使用 Docker 部署阿里云容器服务 MCP 服务器。

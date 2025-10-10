@@ -1,4 +1,4 @@
 Your ack-mcp-server can be access from services:
 kubectl -get service ack-mcp-server -n {{ .Release.Namespace }}
 You can check the mcp server available from:
-kubectl get --raw "/api/v1/namespaces/kube-system/services/ack-mcp-server/proxy/mcp" --v=10
+kubectl get --raw "/api/v1/namespaces/kube-system/services/ack-mcp-server/proxy/{{ .Values.transport }}" --v=10
