@@ -133,7 +133,6 @@
 - 阿里云账号中已创建的 ACK 集群
 - ACK集群开启公网访问的kubeconfig or ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
 
-
 ### 📍 2.3 部署运行ack-mcp-server
 
 #### 2.3.1 部署方式1 - 使用 Helm 部署在k8s集群内
