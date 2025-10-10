@@ -13,7 +13,10 @@ ack-mcp-server \
 
 2. 通过透出service的端口，访问ack-mcp-server 
 
+以sse transport 为例，
 可通过命令``` kubectl get --raw "/api/v1/namespaces/kube-system/services/ack-mcp-server/proxy/sse" ``` 查看mcp server是否已经启动。
+
+3. 推荐通过为Service配置负载均衡提供外网访问，对接AI Agent 或其他系统使用。
 
 # Docker 构建部署指南
 
