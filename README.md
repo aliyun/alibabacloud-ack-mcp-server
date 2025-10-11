@@ -209,6 +209,9 @@ cd alibabacloud-cs-mcp-server
 # 安装依赖
 uv sync
 
+# 激活虚拟环境(Bash)
+source .venv/bin/activate
+
 # 配置环境
 cp .env.example .env
 vim .env
@@ -222,6 +225,7 @@ make run
 使用 `uv`（推荐）：
 ```bash
 uv sync
+source .venv/bin/activate
 ```
 
 或使用 `pip`：
