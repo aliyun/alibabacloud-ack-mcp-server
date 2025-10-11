@@ -59,25 +59,15 @@ class QueryPrometheusMetricGuidanceOutput(BaseModel):
 # ACK Diagnose Models
 class DiagnoseResourceInput(BaseModel):
     cluster_id: str = Field(..., description="ACK 集群 clusterId")
-    region_id: str = Field(..., description="集群所在的 regionId")
-    resource_type: str = Field(..., description="诊断的目标资源类型：node/ingress/cluster/memory/pod/service/network")
-    resource_target: str = Field(..., description="用于指定诊断对象的参数，JSON 字符串格式")
-
-
-class DiagnoseResourceOutput(BaseModel):
-    diagnose_task_id: Optional[str] = None
-    result: Optional[str] = None
-    status: Optional[str] = None
-    finished_time: Optional[str] = None
-    resource_type: Optional[str] = None
-    resource_target: Optional[str] = None
-    error: Optional[ErrorModel] = None
-
-
-class GetDiagnoseResourceResultInput(BaseModel):
-    cluster_id: str = Field(..., description="ACK 集群 clusterId")
-    region_id: str = Field(..., description="集群所在的 regionId")
-    diagnose_task_id: str = Field(..., description="生成的异步诊断任务id")
+    resource_type: str = Field(..., description="诊断的目标资源类型，枚举值：node|ingress|memory|pod|service|network")
+    resource_target: str = Field(..., description="""用于指定诊断对象的参数，参数必须为合法 JSON 字符串（键和值均用双引号），不得输出多余文字。不同类型示例：
+                node: {"name": "cn-shanghai.10.10.10.107"}，其中name为k8s节点的名称
+                pod: {"namespace": "kube-system", "name": "csi-plugin-2cg9f"}， 其中namespace为pod所在的命名空间，name为pod的名称
+                network: {"src": "10.10.10.108", "dst": "10.11.247.16", "dport": "80", "protocol":"tcp"}， 其中src为源地址，dst为目标地址，dport为目标端口，protocol为协议
+                ingress: {"url": "https://example.com"}，其中url为ingress的URL地址
+                memory: {"node":"cn-hangzhou.172.16.9.240"}，其中node为k8s节点的名称
+                service: {"namespace": "kube-system", "name": "nginx-ingress-lb"}，其中namespace为service所在的命名空间，name为service的名称
+            """)
 
 
 class DiagnosisStatusEnum(Enum):

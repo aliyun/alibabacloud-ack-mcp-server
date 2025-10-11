@@ -233,13 +233,16 @@ class KubectlHandler:
             server: FastMCP server instance
             settings: Optional settings dictionary
         """
+        self.settings = settings or {}
         if server is None:
             return
         self.server = server
-        self.settings = settings or {}
-        
+
         # 超时配置
         self.kubectl_timeout = self.settings.get("kubectl_timeout", 30)
+
+        # 是否可写变更配置
+        self.allow_write = self.settings.get("allow_write", False)
         
         self._register_tools()
 
@@ -266,6 +269,50 @@ class KubectlHandler:
                 logger.warning("cs_client not available in lifespan context")
         except Exception as e:
             logger.error(f"Failed to setup CS client: {e}")
+
+    def is_write_command(self, command: str) -> tuple[bool, Optional[str]]:
+        """检查是否为可写命令
+        所有kubectl command operations: https://kubernetes.io/docs/reference/kubectl/
+
+        Args:
+            command: kubectl 命令字符串
+
+        Returns:
+            (是否为可写命令, 错误信息)
+        """
+        # 定义只读命令列表
+        readonly_commands = {
+            "api-resources",
+            "api-versions", 
+            "cluster-info",
+            "describe",
+            "diff",
+            "events",
+            "explain",
+            "get",
+            "kustomize",
+            "logs",
+            "options",
+            "top",
+            "version"
+        }
+        
+        # 提取命令的第一个参数（主命令）
+        command_parts = command.strip().split()
+        if not command_parts:
+            return True, "Empty command not allowed"
+            
+        main_command = command_parts[0]
+        
+        # 检查是否为只读命令
+        if main_command in readonly_commands:
+            return False, None
+        
+        # 所有其他命令都视为写命令
+        return True, f"Write command '{main_command}' not allowed in read-only mode. Only read-only commands are permitted: {', '.join(sorted(readonly_commands))}"
+
+
+
 
     def is_interactive_command(self, command: str) -> tuple[bool, Optional[str]]:
         """检查是否为交互式 kubectl 命令
@@ -465,6 +512,17 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
             try:
                 # 设置CS客户端
                 self._setup_cs_client(ctx)
+
+                # 检查是否为只读模式
+                if not self.allow_write:
+                    is_write_command, not_allow_write_error = self.is_write_command(command)
+                    if is_write_command:
+                        return KubectlOutput(
+                            command=command,
+                            stdout="",
+                            stderr=not_allow_write_error,
+                            exit_code=1
+                        )
 
                 # 检查是否为交互式命令
                 is_interactive, interactive_error = self.is_interactive_command(command)
