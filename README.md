@@ -241,7 +241,6 @@ pip install -r requirements.txt
 # 阿里云凭证与地域
 ACCESS_KEY_ID=your-access-key-id
 ACCESS_KEY_SECRET=your-access-key-secret
-REGION_ID=cn-hangzhou
 
 # 缓存配置
 CACHE_TTL=300
