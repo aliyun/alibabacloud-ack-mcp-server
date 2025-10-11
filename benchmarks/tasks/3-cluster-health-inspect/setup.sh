@@ -62,18 +62,7 @@ kubectl patch deployment coredns -n kube-system -p '{
             }
           }
         },
-        "topologySpreadConstraints": [
-          {
-            "labelSelector": {
-              "matchLabels": {
-                "k8s-app": "kube-dns"
-              }
-            },
-            "maxSkew": 2,
-            "topologyKey": "topology.kubernetes.io/zone",
-            "whenUnsatisfiable": "DoNotSchedule"
-          }
-        ],
+        "topologySpreadConstraints": null,
         "nodeSelector": {
           "kubernetes.io/hostname": "'$SELECTED_NODE'",
           "kubernetes.io/os": "linux"
@@ -82,6 +71,9 @@ kubectl patch deployment coredns -n kube-system -p '{
     }
   }
 }'
+
+kubectl scale deployment coredns -n kube-system --replicas=0
+kubectl scale deployment coredns -n kube-system --replicas=2
 
 # 等待coredns deployment状态更新成功
 echo "Waiting for coredns deployment to be updated..."
