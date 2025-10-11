@@ -4,7 +4,7 @@
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.12.2+-green.svg)](https://github.com/jlowin/fastmcp)
 
-阿里云容器服务MCP Server工具集 ack-mcp-server。   
+阿里云容器服务MCP Server工具集: ack-mcp-server。   
 将 ACK 集群/资源管理、Kubernetes 原生操作与容器场景的可观测性能力、安全审计、诊断巡检等运维能力统一为AI原生的标准化工具集。   
 本工具集的能力被[阿里云容器服务智能助手功能](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/use-container-ai-assistant-for-troubleshooting-and-intelligent-q-a)集成。也可支持三方AI Agent ([kubectl-ai](https://github.com/GoogleCloudPlatform/kubectl-ai/blob/main/pkg/mcp/README.md#local-stdio-based-server-configuration)、[QWen Code](https://qwenlm.github.io/qwen-code-docs/zh/tools/mcp-server/#%E4%BD%BF%E7%94%A8-qwen-mcp-%E7%AE%A1%E7%90%86-mcp-%E6%9C%8D%E5%8A%A1%E5%99%A8)、[Claude Code](https://docs.claude.com/zh-CN/docs/claude-code/mcp)、[Cursor](https://cursor.com/cn/docs/context/mcp/directory)、[Gemini CLI](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#configure-the-mcp-server-in-settingsjson)、[VS Code](https://code.visualstudio.com/docs/copilot/chat/mcp-servers#_add-an-mcp-server)等)或自动化系统调用集成，基于 [MCP（Model Context Protocol）](https://modelcontextprotocol.io/docs/getting-started/intro)协议。  
 实现支持通过自然语言与 AI 助手交互，完成复杂的容器运维任务。帮助构建用户自己的容器场景AIOps运维体系。
@@ -21,7 +21,7 @@
 
 ### 🎬 1.1 演示效果
 
-// TODO 插入B站视频
+https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 
 ### 🎯 1.2 核心功能
 
@@ -319,7 +319,7 @@ make test
 
 ### 💬 社区交流
 - GitHub Discussions: 技术讨论、问答
-- 钉钉群: 日常交流、快速支持。 搜索钉钉群号： 70080006301
+- 钉钉群: 日常交流、答疑支持、社区共建。 搜索钉钉群号： 70080006301
 
 ---
 
