@@ -92,6 +92,10 @@ kubectl patch deployment coredns -n kube-system -p '{
   }
 }'
 
+kubectl scale deployment coredns -n kube-system --replicas=0
+kubectl rollout status deployment/coredns -n kube-system --timeout=15s || true
+kubectl scale deployment coredns -n kube-system --replicas=2
+
 # 等待coredns deployment恢复正常
 echo "Waiting for coredns deployment to be restored..."
 kubectl rollout status deployment/coredns -n kube-system --timeout=60s || true
