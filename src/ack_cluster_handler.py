@@ -7,23 +7,13 @@ from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 from pydantic import Field
 import json
-
-try:
-    from .models import (
-        ListClustersInput,
-        ListClustersOutput,
-        ClusterInfo,
-        ErrorModel,
-        ClusterErrorCodes
-    )
-except ImportError:
-    from models import (
-        ListClustersInput,
-        ListClustersOutput,
-        ClusterInfo,
-        ErrorModel,
-        ClusterErrorCodes
-    )
+from models import (
+    ListClustersInput,
+    ListClustersOutput,
+    ClusterInfo,
+    ErrorModel,
+    ClusterErrorCodes
+)
 
 
 def _serialize_sdk_object(obj):
@@ -116,10 +106,12 @@ class ACKClusterHandler:
             allow_write: Whether to allow write operations
             settings: Configuration settings
         """
+        self.settings = settings or {}
         if server is None:
             return
         self.server = server
-        self.allow_write = settings.get("allow_write", True)
+        # 是否可写变更配置
+        self.allow_write = self.settings.get("allow_write", False)
         self.settings = settings or {}
 
         # Register tools
@@ -127,6 +119,8 @@ class ACKClusterHandler:
             name="list_clusters",
             description="获取所有region下所有ACK集群列表，默认返回最多10个集群"
         )(self.list_clusters)
+
+        # TODO for extend 后续添加其他工具，需要按是否可变更资源 allow_write 区分
 
         logger.info("ACK Addon Management Handler initialized")
 

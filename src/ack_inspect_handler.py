@@ -5,23 +5,13 @@ from pydantic import Field
 from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 import asyncio
-
-try:
-    from .models import (
-        ErrorModel,
-        QueryInspectReportInput,
-        QueryInspectReportOutput,
-        InspectSummary,
-        CheckItemResult,
-    )
-except ImportError:
-    from models import (
-        ErrorModel,
-        QueryInspectReportInput,
-        QueryInspectReportOutput,
-        InspectSummary,
-        CheckItemResult,
-    )
+from models import (
+    ErrorModel,
+    QueryInspectReportInput,
+    QueryInspectReportOutput,
+    InspectSummary,
+    CheckItemResult,
+)
 
 
 def _serialize_sdk_object(obj):
@@ -65,10 +55,10 @@ class InspectHandler:
     """Handler for ACK inspect report operations."""
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
+        self.settings = settings or {}
         if server is None:
             return
         self.server = server
-        self.settings = settings or {}
         self.allow_write = self.settings.get("allow_write", True)
         self.server.tool(
             name="query_inspect_report",

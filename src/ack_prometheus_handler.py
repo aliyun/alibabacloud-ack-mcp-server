@@ -5,39 +5,26 @@ from pydantic import Field
 import httpx
 import os
 from datetime import datetime
-
-try:
-    from .models import (
-        ErrorModel,
-        QueryPrometheusInput,
-        QueryPrometheusSeriesPoint,
-        QueryPrometheusOutput,
-        QueryPrometheusMetricGuidanceInput,
-        QueryPrometheusMetricGuidanceOutput,
-        MetricDefinition,
-        PromQLSample,
-    )
-except ImportError:
-    from models import (
-        ErrorModel,
-        QueryPrometheusInput,
-        QueryPrometheusSeriesPoint,
-        QueryPrometheusOutput,
-        QueryPrometheusMetricGuidanceInput,
-        QueryPrometheusMetricGuidanceOutput,
-        MetricDefinition,
-        PromQLSample,
-    )
+from models import (
+    ErrorModel,
+    QueryPrometheusInput,
+    QueryPrometheusSeriesPoint,
+    QueryPrometheusOutput,
+    QueryPrometheusMetricGuidanceInput,
+    QueryPrometheusMetricGuidanceOutput,
+    MetricDefinition,
+    PromQLSample,
+)
 
 
 class PrometheusHandler:
     """ACK Prometheus 查询与指标指引 Handler。"""
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
+        self.settings = settings or {}
         if server is None:
             return
         self.server = server
-        self.settings = settings or {}
         self.allow_write = self.settings.get("allow_write", True)
 
         self.server.tool(name="query_prometheus", description="查询一个ACK集群的阿里云Prometheus数据")(

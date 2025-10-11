@@ -9,25 +9,14 @@ import re
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 from alibabacloud_tea_util import models as util_models
-
-try:
-    from .models import (
-        QueryControlPlaneLogsInput,
-        QueryControlPlaneLogsOutput,
-        ControlPlaneLogEntry,
-        ErrorModel,
-        ControlPlaneLogErrorCodes,
-        ControlPlaneLogConfig
-    )
-except ImportError:
-    from models import (
-        QueryControlPlaneLogsInput,
-        QueryControlPlaneLogsOutput,
-        ControlPlaneLogEntry,
-        ErrorModel,
-        ControlPlaneLogErrorCodes,
-        ControlPlaneLogConfig
-    )
+from models import (
+    QueryControlPlaneLogsInput,
+    QueryControlPlaneLogsOutput,
+    ControlPlaneLogEntry,
+    ErrorModel,
+    ControlPlaneLogErrorCodes,
+    ControlPlaneLogConfig
+)
 
 
 def _get_sls_client(ctx: Context, region_id: str):
@@ -237,11 +226,11 @@ class ACKControlPlaneLogHandler:
             server: FastMCP server instance
             settings: Configuration settings
         """
+        self.settings = settings or {}
         if server is None:
             return
         self.server = server
         self.allow_write = settings.get("allow_write", True) if settings else True
-        self.settings = settings or {}
 
         # Register tools
         self.server.tool(
