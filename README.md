@@ -280,16 +280,14 @@ python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
 
 **常用参数**
 
-| 参数 | 说明 | 默认值                |
-|-----|-----|--------------------|
-| `--region, -r` | 阿里云地域 | cn-hangzhou        |
-| `--access-key-id` | AccessKey ID | 环境变量               |
-| `--access-key-secret` | AccessKey Secret | 环境变量               |
-| `--default-cluster-id` | 默认集群 ID | 无                  |
-| `--allow-write` | 启用写入操作 | 默认不启动              |
-| `--transport` | 传输模式 | stdio / sse / http |
-| `--host` | 绑定主机 | localhost          |
-| `--port` | 端口号 | 8000               |
+| 参数 | 说明               | 默认值                |
+|-----|------------------|--------------------|
+| `--access-key-id` | AccessKey ID     | 阿里云账号凭证AK          |
+| `--access-key-secret` | AccessKey Secret | 阿里云账号凭证SK          |
+| `--allow-write` | 启用写入操作           | 默认不启动              |
+| `--transport` | 传输模式             | stdio / sse / http |
+| `--host` | 绑定主机             | localhost          |
+| `--port` | 端口号              | 8000               |
 
 
 ### 3.5. 功能测试UT
