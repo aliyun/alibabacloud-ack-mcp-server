@@ -214,7 +214,6 @@ cp .env.example .env
 vim .env
 
 # 运行开发服务
-make install
 make run
 ```
 
