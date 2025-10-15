@@ -35,8 +35,12 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Create a non-root user for security
-RUN groupadd -r -g 1001 appuser && useradd -r -u 1001 -g appuser appuser
-RUN chown -R appuser:appuser /app
+# Create user with home directory and proper permissions
+RUN groupadd -r -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser -m -d /home/appuser appuser && \
+    mkdir -p /home/appuser/.kube && \
+    chown -R appuser:appuser /app /home/appuser
+
 USER appuser
 
 # Set Python path to include src directory
