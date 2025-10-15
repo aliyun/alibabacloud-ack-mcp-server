@@ -477,6 +477,7 @@ IMPORTANT: Do not use interactive commands. Instead:
 - Use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply' instead of 'kubectl edit'
 - Use 'kubectl exec' with specific commands instead of 'kubectl exec -it'
 - Use service types like NodePort or LoadBalancer instead of 'kubectl port-forward'
+- When using kubectl, if you need to modify certain fields, do not generate a complete YAML file for the update; instead, use the patch operation to modify the specific fields.
 
 Response Format:
 The tool returns a KubectlOutput object with the following fields:
