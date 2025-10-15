@@ -1,6 +1,6 @@
 
 # Stage 1: Builder - Install dependencies
-FROM --platform=$TARGETPLATFORM python:3.12-slim as builder
+FROM --platform=$TARGETPLATFORM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim as builder
 
 # multi arch build
 ARG TARGETPLATFORM
@@ -23,7 +23,7 @@ COPY ./* ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final image - Create the production image
-FROM --platform=$TARGETPLATFORM python:3.12-slim
+FROM --platform=$TARGETPLATFORM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim
 
 # Set working directory
 WORKDIR /app
@@ -35,7 +35,7 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Create a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+RUN groupadd -r -g 1001 appuser && useradd -r -u 1001 -g appuser appuser
 RUN chown -R appuser:appuser /app
 USER appuser
 
