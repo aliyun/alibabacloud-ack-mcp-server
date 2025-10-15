@@ -25,6 +25,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Stage 2: Final image - Create the production image
 FROM --platform=$TARGETPLATFORM registry.ap-southeast-1.aliyuncs.com/keyofspectator/fsc-self-sg:python-312-slim
 
+# multi arch build
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG BUILDARCH
+ARG TARGETARCH
+
 # Set working directory
 WORKDIR /app
 # Copy the application source code
@@ -34,14 +40,45 @@ COPY ./* ./
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
+# Install kubectl and other required tools
+# Install wget and other dependencies needed for kubectl
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    wget \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install kubectl with multi-arch support
+RUN set -ex; \
+    # Determine architecture for kubectl download
+    case "${TARGETARCH}" in \
+        amd64) KUBECTL_ARCH="amd64" ;; \
+        arm64) KUBECTL_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac; \
+    # Download and install kubectl
+    KUBECTL_VERSION=$(wget -qO- https://dl.k8s.io/release/stable.txt) && \
+    wget -O kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${KUBECTL_ARCH}/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/ && \
+    # Verify kubectl installation
+    kubectl version --client
+
 # Create a non-root user for security
 # Create user with home directory and proper permissions
 RUN groupadd -r -g 1001 appuser && \
     useradd -r -u 1001 -g appuser -m -d /home/appuser appuser && \
-    mkdir -p /home/appuser/.kube && \
+    mkdir -p /home/appuser/.kube /home/appuser/.cache && \
     chown -R appuser:appuser /app /home/appuser
 
+# Ensure kubectl is executable by appuser
+# kubectl is installed in /usr/local/bin which is already in PATH
+# No additional permissions needed as it's already chmod +x in previous step
+
 USER appuser
+
+# Set environment variables for kubectl cache and config
+ENV KUBECONFIG=/home/appuser/.kube/config
+ENV KUBECTL_CACHE_DIR=/home/appuser/.cache/kubectl
 
 # Set Python path to include src directory
 ENV PYTHONPATH=/app/src:$PYTHONPATH
