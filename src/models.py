@@ -129,8 +129,7 @@ class QueryInspectReportOutput(BaseModel):
 
 # ACK Cluster Management Models
 class ListClustersInput(BaseModel):
-    region_id: str = Field(..., description="区域ID，例如 cn-hangzhou")
-    page_size: Optional[int] = Field(500, description="查询每个region集群列表的一页大小，默认500")
+    page_size: Optional[int] = Field(10, description="查询每个region集群列表的一页大小，默认10")
     page_num: Optional[int] = Field(1, description="查询每个region集群列表的分页页码，默认1")
 
 
