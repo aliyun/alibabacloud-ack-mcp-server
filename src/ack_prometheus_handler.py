@@ -7,10 +7,8 @@ import os
 from datetime import datetime
 from models import (
     ErrorModel,
-    QueryPrometheusInput,
     QueryPrometheusSeriesPoint,
     QueryPrometheusOutput,
-    QueryPrometheusMetricGuidanceInput,
     QueryPrometheusMetricGuidanceOutput,
     MetricDefinition,
     PromQLSample,
@@ -45,7 +43,6 @@ class PrometheusHandler:
             集群所在的region
         """
         try:
-            from alibabacloud_cs20151215 import models as cs_models
 
             # 调用DescribeClusterDetail API获取集群详情
             detail_response = cs_client.describe_cluster_detail(cluster_id)

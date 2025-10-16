@@ -133,7 +133,7 @@ def main():
             print(f"  {status} {server:<45} {coverage}")
 
     if failed_servers:
-        print(f"\n❌ 需要完善测试的服务器:")
+        print("\n❌ 需要完善测试的服务器:")
         for server in failed_servers:
             print(f"  • {server}")
 
