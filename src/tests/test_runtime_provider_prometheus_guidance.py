@@ -2,8 +2,7 @@ import json
 import os
 import sys
 import tempfile
-import pytest
-from unittest.mock import patch, mock_open
+from unittest.mock import patch
 
 # 添加 src 目录到路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))

@@ -2,9 +2,6 @@
 使用 Pydantic 进行强类型配置管理，并提供日志记录器实例。
 """
 
-import logging
-import sys
-from functools import lru_cache
 from typing import Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict

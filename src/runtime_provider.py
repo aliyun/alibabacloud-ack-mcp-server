@@ -3,7 +3,7 @@
 import os
 import json
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Dict, Any, List, Optional
+from typing import AsyncIterator, Dict, Any, List
 from loguru import logger
 from fastmcp import FastMCP
 from alibabacloud_cs20151215.client import Client as CS20151215Client
@@ -66,7 +66,7 @@ class ACKClusterRuntimeProvider(RuntimeProvider):
 
                 # 如果传入的 target_region = "CENTER"，则使用中心化endpoint
                 if target_region == "CENTER":
-                    cs_config.endpoint = f"cs.aliyuncs.com"
+                    cs_config.endpoint = "cs.aliyuncs.com"
                 else:
                     cs_config.region_id = target_region or effective_cfg.get("region_id") or config.get("region_id")
                     cs_config.endpoint = f"cs.{cs_config.region_id}.aliyuncs.com"

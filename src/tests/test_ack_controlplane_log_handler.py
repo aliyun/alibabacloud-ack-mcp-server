@@ -1,7 +1,7 @@
 import pytest
 import sys
 import os
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 from datetime import datetime, timedelta
 
 # 添加 src 目录到 Python 路径
@@ -11,9 +11,7 @@ import ack_controlplane_log_handler as module_under_test
 from models import (
     QueryControlPlaneLogsOutput, 
     ControlPlaneLogEntry, 
-    ErrorModel, 
-    ControlPlaneLogErrorCodes,
-    ControlPlaneLogConfig
+    ControlPlaneLogErrorCodes
 )
 
 

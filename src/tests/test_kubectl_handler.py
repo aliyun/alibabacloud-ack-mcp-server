@@ -1,6 +1,4 @@
-import types
 import pytest
-import tempfile
 import os
 import sys
 
