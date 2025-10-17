@@ -18,11 +18,7 @@ try:
     )
 except ImportError:
     from models import (
-        QueryAuditLogsInput,
-        QueryAuditLogsOutput,
-        AuditLogEntry,
         ErrorModel,
-        AuditLogErrorCodes,
         GetCurrentTimeOutput
     )
 
@@ -322,7 +318,6 @@ class ACKAuditLogHandler:
             集群所在的region
         """
         try:
-            from alibabacloud_cs20151215 import models as cs_models
 
             # 调用DescribeClusterDetail API获取集群详情
             detail_response = cs_client.describe_cluster_detail(cluster_id)
@@ -440,7 +435,7 @@ class ACKAuditLogHandler:
 
     def _parse_single_time(self, time_str: str, default_hours: int = 24) -> datetime:
         """解析时间字符串，支持相对时间和ISO 8601格式"""
-        from datetime import datetime, timedelta
+        from datetime import datetime
         
         if not time_str:
             return datetime.now() - timedelta(hours=default_hours)

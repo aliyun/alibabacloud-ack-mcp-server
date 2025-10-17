@@ -1,6 +1,6 @@
 """ACK Cluster Handler - Alibaba Cloud Container Service Cluster Management."""
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
@@ -8,7 +8,6 @@ from alibabacloud_tea_util import models as util_models
 from pydantic import Field
 import json
 from models import (
-    ListClustersInput,
     ListClustersOutput,
     ClusterInfo,
     ErrorModel,

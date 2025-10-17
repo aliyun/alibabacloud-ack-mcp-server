@@ -1,6 +1,6 @@
 """ACK Control Plane Log Handler - Alibaba Cloud Container Service Control Plane Log Management."""
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from fastmcp import FastMCP, Context
 from loguru import logger
 from pydantic import Field
@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock
 from alibabacloud_tea_util import models as util_models
 from models import (
-    QueryControlPlaneLogsInput,
     QueryControlPlaneLogsOutput,
     ControlPlaneLogEntry,
     ErrorModel,
@@ -90,7 +89,7 @@ def _parse_time(time_str: str) -> int:
     try:
         # 检查是否包含时区信息
         if not ('Z' in time_str or '+' in time_str or time_str.count('-') > 2):
-            raise ValueError(f"ISO 8601 format must include timezone information (Z, +HH:MM, or -HH:MM)")
+            raise ValueError("ISO 8601 format must include timezone information (Z, +HH:MM, or -HH:MM)")
 
         # 处理 Z 后缀（UTC时间）
         if time_str.endswith('Z'):
@@ -187,7 +186,6 @@ def _get_controlplane_log_config(ctx: Context, cluster_id: str, region_id: str) 
     # try get from openAPI
     try:
         cs_client = _get_cs_client(ctx, region_id)
-        from alibabacloud_cs20151215 import models as cs_models
 
         # 调用 CheckControlPlaneLogEnable API 获取控制面日志配置 https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/developer-reference/api-cs-2015-12-15-checkcontrolplanelogenable
         # 注意：这里需要根据实际的 API 调用方式调整
@@ -251,7 +249,6 @@ class ACKControlPlaneLogHandler:
             集群所在的region
         """
         try:
-            from alibabacloud_cs20151215 import models as cs_models
 
             # 调用DescribeClusterDetail API获取集群详情
             detail_response = cs_client.describe_cluster_detail(cluster_id)
