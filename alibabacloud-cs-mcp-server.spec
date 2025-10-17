@@ -39,7 +39,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='alibabacloud-cs-mcp-server',
+    name='alibabacloud-ack-mcp-server',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

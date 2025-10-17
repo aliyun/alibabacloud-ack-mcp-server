@@ -141,8 +141,8 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 
 ```bash
 # 克隆代码仓库
-git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
-cd alibabacloud-cs-mcp-server
+git clone https://github.com/aliyun/alibabacloud-ack-mcp-server
+cd alibabacloud-ack-mcp-server
 
 # 使用 Helm 部署
 helm install \
@@ -203,8 +203,8 @@ make build-binary
 
 ```bash
 # 克隆项目
-git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
-cd alibabacloud-cs-mcp-server
+git clone https://github.com/aliyun/alibabacloud-ack-mcp-server
+cd alibabacloud-ack-mcp-server
 
 # 安装依赖
 uv sync
@@ -312,8 +312,7 @@ make test
 
 #### 🤝 如何贡献
 
-1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)
-2. **功能请求**: 通过 [Discussions](https://github.com/aliyun/alibabacloud-cs-mcp-server/discussions)
+1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues)
 3. **代码贡献**: Fork → 功能分支 → Pull Request
 4. **文档改进**: API 文档、教程编写
 

@@ -3,14 +3,14 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "alibabacloud-cs-mcp-server"
+name = "alibabacloud-ack-mcp-server"
 version = "1.0.0"
-description = "AlibabaCloud Container Service MCP Server"
+description = "AlibabaCloud Container Service MCP Server (ack-mcp-server)"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "AlibabaCloud", email = "support@alibabacloud.com"}
+    {name = "AlibabaCloud", email = "KeyOfSpectator@zju.edu.cn"}
 ]
 keywords = ["mcp", "kubernetes", "alibabacloud", "container-service"]
 classifiers = [
@@ -18,7 +18,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Systems Administration",
@@ -50,6 +49,7 @@ build = [
     "pyinstaller>=6.0.0",
     "setuptools>=61.0",
     "wheel>=0.40.0",
+    "build>=1.3.0"
 ]
 dev = [
     "pytest>=8.0.0",
@@ -62,7 +62,7 @@ dev = [
 ]
 
 [project.scripts]
-alibabacloud-cs-mcp-server = "main_server:main"
+alibabacloud-ack-mcp-server = "main_server:main"
 
 [project.urls]
 Homepage = "https://github.com/aliyun/alibabacloud-ack-mcp-server"
