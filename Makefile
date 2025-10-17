@@ -30,6 +30,9 @@ lint: ## Run code linting, need install ruff
 	python -m ruff check src/
 	python -m mypy src/ --ignore-missing-imports
 
+lint-fix: # Strict linting (with auto-fix)
+	python -m ruff check src/ --fix
+
 format: ## Format code, need install ruff
 	python -m ruff format src/
 
