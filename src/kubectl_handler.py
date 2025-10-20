@@ -241,12 +241,14 @@ class KubectlHandler:
 
         @self.server.tool(
             name="ack_kubectl",
-            description="Execute kubectl command using local kubeconfig file."
+            description="Execute kubectl command with intelligent context management for ACK clusters. You MUST use this tool when accessing ACK clusters. Using external shells or any other kubectl entrypoints is NOT allowed. Supports cluster_id for automatic context switching and creation."
         )
         async def ack_kubectl(
                 ctx: Context,
                 command: str = Field(
-                    ..., description="""Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix. 
+                    ..., description="""IMPORTANT POLICY: When accessing ACK clusters, you MUST use this tool. Do NOT invoke kubectl via shell or any external mechanism.
+
+Arguments after 'kubectl', e.g. 'get pods -A', 'config get-contexts', 'config use-context <name>'. Don't include the kubectl prefix. 
 
 IMPORTANT: Do not use interactive commands. Instead:
 - Use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply' instead of 'kubectl edit'
