@@ -60,6 +60,9 @@ pre-commit: format lint test ## Run pre-commit checks (format, lint, test)
 build: ## Build the package
 	python -m build
 
+build-sdist: ## Build the package as a source distribution
+	python -m build --sdist
+
 docker-build-amd64: ## Build Docker image for AMD64 platform
 	docker build -t ack-mcp-server:1.0 . -f ./deploy/Dockerfile --platform linux/amd64
 
