@@ -1,7 +1,7 @@
 apiVersion: v2
 name: ack-mcp-server
 description: A Helm chart for ACK (Container Service for Kubernetes) MCP Server.
-version: 0.1.0
+version: 1.0.0
 appVersion: "1.0.0"
 maintainers:
   - email: shichun.fsc@alibaba-inc.com
