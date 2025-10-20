@@ -34,7 +34,6 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 - 集群资源运维任务查询 (Later)
 
 **Kubernetes 原生操作** (`ack_kubectl`)
-- 【注意⚠️】`ack_kubectl`会在`~/.kube`下生成和管理临时 kubeconfig，并在工具内部自动切换至正确上下文；它不会修改全局默认上下文或用户的`KUBECONFIG`。为避免与其他入口（如 shell 中的 `kubectl`）产生集群不一致，请在访问 ACK 集群时仅使用该工具，不要从外部直接执行 `kubectl`。
 - 执行 `kubectl` 类操作（读写权限可控）
 - 获取日志、事件，资源的增删改查
 - 支持所有标准 Kubernetes API
@@ -142,8 +141,8 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 
 ```bash
 # 克隆代码仓库
-git clone https://github.com/aliyun/alibabacloud-ack-mcp-server
-cd alibabacloud-ack-mcp-server
+git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
+cd alibabacloud-cs-mcp-server
 
 # 使用 Helm 部署
 helm install \
@@ -204,8 +203,8 @@ make build-binary
 
 ```bash
 # 克隆项目
-git clone https://github.com/aliyun/alibabacloud-ack-mcp-server
-cd alibabacloud-ack-mcp-server
+git clone https://github.com/aliyun/alibabacloud-cs-mcp-server
+cd alibabacloud-cs-mcp-server
 
 # 安装依赖
 uv sync
@@ -313,7 +312,8 @@ make test
 
 #### 🤝 如何贡献
 
-1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues)
+1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)
+2. **功能请求**: 通过 [Discussions](https://github.com/aliyun/alibabacloud-cs-mcp-server/discussions)
 3. **代码贡献**: Fork → 功能分支 → Pull Request
 4. **文档改进**: API 文档、教程编写
 
