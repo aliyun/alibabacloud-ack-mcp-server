@@ -44,70 +44,51 @@ def _get_cs_client(ctx: Context, region_id: str):
     return cs_client_factory(region_id, config)
 
 
-def _parse_time(time_str: str) -> int:
-    """解析时间字符串为 Unix 时间戳（秒级）。
-    
-    支持格式：
-    - ISO 8601: "2025-09-16T08:09:44Z" 或 "2025-09-16T08:09:44+08:00"
-    - 相对时间: "30m", "1h", "24h", "7d"
-    - Unix 时间戳: "1758037055" (秒级) 或 "1758037055000" (毫秒级，自动转换为秒级)
+def _parse_single_time(time_str: Optional[str], default_hours: int = 24) -> datetime:
+    """参考 ack_audit_log_handler 的实现：
+    支持相对时间后缀（s/m/h/d/w）与 ISO 8601（允许 Z），返回 datetime。
+    兼容纯数字的 unix 秒/毫秒。
     """
+    from datetime import datetime
+
     if not time_str:
-        return int(datetime.now().timestamp())
+        return datetime.now() - timedelta(hours=default_hours)
 
-    # 检查是否是纯数字（Unix 时间戳）
-    if time_str.isdigit():
-        timestamp = int(time_str)
-        # 如果是毫秒级时间戳（13位数字），转换为秒级
-        if timestamp > 1e12:  # 大于 2001-09-09 的时间戳，可能是毫秒级
-            return timestamp // 1000
-        else:
-            return timestamp
+    ts = str(time_str).strip()
+    if ts.isdigit():
+        iv = int(ts)
+        if iv > 1e12:  # 毫秒
+            iv //= 1000
+        return datetime.fromtimestamp(iv)
 
-    # 处理相对时间格式
-    relative_pattern = r'^(\d+)([smhd])$'
-    match = re.match(relative_pattern, time_str.lower())
-    if match:
-        value = int(match.group(1))
-        unit = match.group(2)
-        now = datetime.now()
+    ts_lower = ts.lower()
+    if ts_lower.endswith('h'):
+        return datetime.now() - timedelta(hours=int(ts_lower[:-1]))
+    if ts_lower.endswith('d'):
+        return datetime.now() - timedelta(days=int(ts_lower[:-1]))
+    if ts_lower.endswith('m'):
+        return datetime.now() - timedelta(minutes=int(ts_lower[:-1]))
+    if ts_lower.endswith('s'):
+        return datetime.now() - timedelta(seconds=int(ts_lower[:-1]))
+    if ts_lower.endswith('w'):
+        return datetime.now() - timedelta(weeks=int(ts_lower[:-1]))
 
-        if unit == 's':  # 秒
-            delta = timedelta(seconds=value)
-        elif unit == 'm':  # 分钟
-            delta = timedelta(minutes=value)
-        elif unit == 'h':  # 小时
-            delta = timedelta(hours=value)
-        elif unit == 'd':  # 天
-            delta = timedelta(days=value)
-        else:
-            raise ValueError(f"Unsupported time unit: {unit}")
-
-        return int((now - delta).timestamp())
-
-    # ISO 8601 格式
     try:
-        # 检查是否包含时区信息
-        if not ('Z' in time_str or '+' in time_str or time_str.count('-') > 2):
-            raise ValueError("ISO 8601 format must include timezone information (Z, +HH:MM, or -HH:MM)")
+        iso_str = ts
+        if iso_str.endswith('Z'):
+            iso_str = iso_str.replace('Z', '+00:00')
+        return datetime.fromisoformat(iso_str)
+    except ValueError:
+        return datetime.now() - timedelta(hours=default_hours)
 
-        # 处理 Z 后缀（UTC时间）
-        if time_str.endswith('Z'):
-            time_str = time_str[:-1] + '+00:00'
 
-        dt = datetime.fromisoformat(time_str)
-        # 确保转换为UTC时间戳
-        if dt.tzinfo is None:
-            # 如果没有时区信息，假设为UTC
-            dt = dt.replace(tzinfo=None)
-            return int(dt.timestamp())
-        else:
-            return int(dt.timestamp())
-    except ValueError as e:
-        if "timezone information" in str(e):
-            raise e
-        raise ValueError(
-            f"Invalid time format: {time_str}. Expected ISO 8601 format (e.g., 2025-09-16T08:09:44Z), relative time (e.g., 24h), or Unix timestamp.")
+def _parse_time_params(start_time: Optional[str], end_time: Optional[str]) -> tuple[int, int]:
+    """与审计日志对齐：返回秒级 unix，确保开始时间 < 结束时间。"""
+    start_dt = _parse_single_time(start_time or "24h", default_hours=24)
+    end_dt = _parse_single_time(end_time, default_hours=0) if end_time else datetime.now()
+    if start_dt >= end_dt:
+        end_dt = datetime.now()
+    return int(start_dt.timestamp()), int(end_dt.timestamp())
 
 
 def _build_controlplane_log_query(
@@ -233,7 +214,19 @@ class ACKControlPlaneLogHandler:
         # Register tools
         self.server.tool(
             name="query_controlplane_logs",
-            description="查询ACK集群的控制面组件日志。先查询控制面日志配置，验证组件是否启用，然后查询对应的SLS日志。"
+            description="""Query ACK cluster control plane component logs.
+
+    Function Description:
+    - Queries control plane component logs from ACK clusters.
+    - Supports multiple time formats (ISO 8601 and relative time).
+    - Supports additional filter patterns for log filtering.
+    - Validates component availability before querying.
+    - Provides detailed parameter validation and error messages.
+
+    Usage Suggestions:
+    - You can use the list_clusters() tool to view available clusters and their IDs.
+    - By default, it queries the control plane logs for the last 24 hours. The number of returned records is limited to 10 by default.
+    - Supported components: apiserver, kcm, scheduler, ccm, etcd, kubelet, kube-proxy, kube-scheduler, kube-controller-manager, kube-apiserver."""
         )(self.query_controlplane_logs)
 
         logger.info("ACK Control Plane Log Handler initialized")
@@ -272,14 +265,39 @@ class ACKControlPlaneLogHandler:
     async def query_controlplane_logs(
             self,
             ctx: Context,
-            cluster_id: str = Field(..., description="集群ID，例如 cxxxxx"),
-            component_name: str = Field(..., description="控制面组件的名称，如 apiserver, kcm, scheduler, ccm"),
-            filter_pattern: Optional[str] = Field(None, description="额外过滤条件"),
-            start_time: Optional[str] = Field("24h",
-                                              description="查询开始时间，支持格式为 ISO 8601 (如: 2025-09-16T08:09:44Z)"),
-            end_time: Optional[str] = Field(None,
-                                            description="查询结束时间，支持格式为 ISO 8601 (如: 2025-09-16T08:09:44Z)"),
-            limit: Optional[int] = Field(10, description="结果限制，默认10，最大100"),
+            cluster_id: str = Field(..., description="集群ID"),
+            component_name: str = Field(..., description="""控制面组件的名称，枚举值： 
+                apiserver: API Server组件
+                kcm: KCM组件
+                scheduler: Scheduler组件
+                ccm: CCM组件
+                """),
+            filter_pattern: Optional[str] = Field(None, description="""(Optional) Additional filter pattern.
+        Example: 
+        - 查询pod相关的日志： "coredns-8bd9456cc-wck2l"
+        Defaults to '*' (all logs)."""
+                                                  ),
+            start_time: str = Field(
+                "24h",
+                description="""(Optional) Query start time. 
+        Formats:
+        - ISO 8601: "2024-01-01T10:00:00Z"
+        - Relative: "30m", "1h", "24h", "7d"
+        Defaults to 24h."""
+            ),
+            end_time: Optional[str] = Field(
+                None,
+                description="""(Optional) Query end time.
+        Formats:
+        - ISO 8601: "2024-01-01T10:00:00Z"
+        - Relative: "30m", "1h", "24h", "7d"
+        Defaults to current time."""
+            ),
+            limit: int = Field(
+                10,
+                ge=1, le=100,
+                description="(Optional) Result limit, defaults to 10. Maximum is 100."
+            ),
     ) -> QueryControlPlaneLogsOutput:
         """查询ACK集群的控制面组件日志
 
@@ -430,9 +448,8 @@ class ACKControlPlaneLogHandler:
                                                                                        'annotation') else "24h"
             end_time_str = end_time if isinstance(end_time, str) and not hasattr(end_time, 'annotation') else None
 
-            # SLS API 需要秒级时间戳
-            start_timestamp_s = _parse_time(start_time_str)
-            end_timestamp_s = _parse_time(end_time_str) if end_time_str else int(datetime.now().timestamp())
+            # SLS API 需要秒级时间戳（与审计日志时间解析策略对齐）
+            start_timestamp_s, end_timestamp_s = _parse_time_params(start_time_str, end_time_str)
 
             # 步骤4: 构建SLS查询语句
             logger.info(f"Step 4: Building SLS query for component {component_name}")
