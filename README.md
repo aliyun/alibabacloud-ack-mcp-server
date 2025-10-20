@@ -34,6 +34,7 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 - 集群资源运维任务查询 (Later)
 
 **Kubernetes 原生操作** (`ack_kubectl`)
+- 【注意⚠️】`ack_kubectl`会在`~/.kube`下生成和管理临时 kubeconfig，并在工具内部自动切换至正确上下文；它不会修改全局默认上下文或用户的`KUBECONFIG`。为避免与其他入口（如 shell 中的 `kubectl`）产生集群不一致，请在访问 ACK 集群时仅使用该工具，不要从外部直接执行 `kubectl`。
 - 执行 `kubectl` 类操作（读写权限可控）
 - 获取日志、事件，资源的增删改查
 - 支持所有标准 Kubernetes API
