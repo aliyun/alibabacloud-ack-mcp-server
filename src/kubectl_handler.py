@@ -4,223 +4,8 @@ from pydantic import Field
 import os
 import subprocess
 from typing import Dict, Optional
-from cachetools import TTLCache
 from loguru import logger
-from ack_cluster_handler import parse_master_url
 from models import KubectlOutput
-
-
-class KubectlContextManager(TTLCache):
-    """基于 TTL+LRU 缓存的 kubeconfig 文件管理器"""
-
-    def __init__(self, ttl_minutes: int = 60):
-        """初始化上下文管理器
-        
-        Args:
-            ttl_minutes: kubeconfig有效期（分钟），默认60分钟
-        """
-        # 初始化 TTL+LRU 缓存
-        super().__init__(maxsize=50, ttl=ttl_minutes * 60)  # TTL 以秒为单位，提前5min
-
-        self._cs_client = None  # CS客户端实例
-
-        # 使用 .kube 目录存储 kubeconfig 文件
-        self._kube_dir = os.path.expanduser("~/.kube")
-        os.makedirs(self._kube_dir, exist_ok=True)
-
-        self._setup_cleanup_handlers()
-
-    def _setup_cleanup_handlers(self):
-        """设置清理处理器"""
-        import atexit
-        import signal
-
-        def cleanup_contexts():
-            """清理所有上下文"""
-            try:
-                context_manager = get_context_manager()
-                if context_manager:
-                    context_manager.cleanup()
-                else:
-                    self.cleanup_all_mcp_files()
-            except Exception as e:
-                logger.error(f"Cleanup failed: {e}")
-                raise e
-
-        def signal_handler(signum, frame):
-            """信号处理器"""
-            cleanup_contexts()
-            exit(0)
-
-        atexit.register(cleanup_contexts)
-        signal.signal(signal.SIGINT, signal_handler)
-        signal.signal(signal.SIGTERM, signal_handler)
-
-    def cleanup_all_mcp_files(self):
-        """类方法：清理所有MCP创建的kubeconfig文件（安全清理）"""
-        try:
-            kube_dir = os.path.expanduser("~/.kube")
-            if not os.path.exists(kube_dir):
-                return
-
-            removed_count = 0
-            for filename in os.listdir(kube_dir):
-                if filename.startswith("mcp-kubeconfig-") and filename.endswith(".yaml"):
-                    file_path = os.path.join(kube_dir, filename)
-                    try:
-                        os.remove(file_path)
-                        removed_count += 1
-                    except Exception:
-                        pass
-
-            if removed_count > 0:
-                print(f"Cleaned up {removed_count} MCP kubeconfig files")
-        except Exception:
-            pass
-
-    def _get_or_create_kubeconfig_file(self, cluster_id: str) -> str:
-        """获取或创建集群的 kubeconfig 文件
-        
-        Args:
-            cluster_id: 集群ID
-            
-        Returns:
-            kubeconfig 文件路径
-        """
-        # 检查缓存中是否已存在
-        if cluster_id in self:
-            logger.debug(f"Found cached kubeconfig for cluster {cluster_id}")
-            return self[cluster_id]
-
-        # 创建新的 kubeconfig 文件
-        kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id, int(self.ttl / 60))  # 转换为分钟
-        if not kubeconfig_content:
-            raise ValueError(f"Failed to get kubeconfig for cluster {cluster_id}")
-
-        # 创建 kubeconfig 文件
-        kubeconfig_path = os.path.join(self._kube_dir, f"mcp-kubeconfig-{cluster_id}.yaml")
-
-        # 确保目录存在
-        os.makedirs(os.path.dirname(kubeconfig_path), exist_ok=True)
-
-        with open(kubeconfig_path, 'w') as f:
-            f.write(kubeconfig_content)
-
-        # 添加到缓存
-        self[cluster_id] = kubeconfig_path
-        return kubeconfig_path
-
-    def popitem(self):
-        """重写 popitem 方法，在驱逐缓存项时清理 kubeconfig 文件"""
-        key, path = super().popitem()
-        # 删除 kubeconfig 文件
-        if path and os.path.exists(path):
-            try:
-                os.remove(path)
-                logger.debug(f"Removed cached kubeconfig file: {path}")
-            except Exception as e:
-                logger.warning(f"Failed to remove cached kubeconfig file {path}: {e}")
-
-        return key, path
-
-    def cleanup(self):
-        """清理资源，删除所有 MCP 创建的 kubeconfig 文件和缓存"""
-        removed_count = 0
-        for key, path in list(self.items()):
-            if path and os.path.exists(path):
-                try:
-                    os.remove(path)
-                    removed_count += 1
-                except Exception:
-                    pass
-        self.clear()
-        print(f"Cleaned up {removed_count} kubeconfig files")
-
-    def set_cs_client(self, cs_client):
-        """设置CS客户端
-
-        Args:
-            cs_client: CS客户端实例
-        """
-        self._cs_client = cs_client
-
-    def _get_cs_client(self):
-        """获取CS客户端"""
-        if not self._cs_client:
-            raise ValueError("CS client not set")
-        return self._cs_client
-
-    def _get_kubeconfig_from_ack(self, cluster_id: str, ttl_minutes: int = 60) -> Optional[str]:
-        """通过ACK API获取kubeconfig配置
-        
-        Args:
-            cluster_id: 集群ID
-            ttl_minutes: kubeconfig有效期（分钟），默认60分钟
-        """
-        try:
-            # 获取CS客户端
-            cs_client = self._get_cs_client()
-            from alibabacloud_cs20151215 import models as cs_models
-
-            # 先检查集群详情，确认是否有公网端点
-            detail_response = cs_client.describe_cluster_detail(cluster_id)
-
-            if not detail_response or not detail_response.body:
-                raise ValueError(f"Failed to get cluster details for {cluster_id}")
-
-            cluster_info = detail_response.body
-            # 检查是否有公网API Server端点
-            master_url_str = getattr(cluster_info, 'master_url', '')
-            master_url = parse_master_url(master_url_str)
-            if not master_url["api_server_endpoint"]:
-                raise ValueError(f"Cluster {cluster_id} does not have public endpoint access, "
-                                 f"Please enable public endpoint access setting first.")
-
-            # 调用DescribeClusterUserKubeconfig API
-            request = cs_models.DescribeClusterUserKubeconfigRequest(
-                private_ip_address=False,  # 获取公网连接配置
-                temporary_duration_minutes=ttl_minutes,  # 使用传入的TTL
-            )
-
-            response = cs_client.describe_cluster_user_kubeconfig(cluster_id, request)
-
-            if response and response.body and response.body.config:
-                logger.info(f"Successfully fetched kubeconfig for cluster {cluster_id} (TTL: {ttl_minutes} minutes)")
-                return response.body.config
-            else:
-                logger.warning(f"No kubeconfig found for cluster {cluster_id}")
-                return None
-
-        except Exception as e:
-            logger.error(f"Failed to fetch kubeconfig for cluster {cluster_id}: {e}")
-            raise e
-
-    def get_kubeconfig_path(self, cluster_id: str) -> str:
-        """获取集群的 kubeconfig 文件路径
-        
-        Args:
-            cluster_id: 集群ID
-            
-        Returns:
-            kubeconfig 文件路径
-        """
-        return self._get_or_create_kubeconfig_file(cluster_id)
-
-
-# 全局上下文管理器实例
-_context_manager: Optional[KubectlContextManager] = None
-
-
-def get_context_manager(ttl_minutes: int = 60) -> KubectlContextManager:
-    """获取全局上下文管理器实例
-    
-    Args:
-        ttl_minutes: kubeconfig有效期（分钟），默认60分钟
-    """
-    global _context_manager
-    if _context_manager is None:
-        _context_manager = KubectlContextManager(ttl_minutes=ttl_minutes)
-    return _context_manager
 
 
 class KubectlHandler:
@@ -246,29 +31,20 @@ class KubectlHandler:
         
         self._register_tools()
 
-    def _setup_cs_client(self, ctx: Context):
-        """设置CS客户端（仅在需要时）"""
-        try:
-            # 检查是否已经设置过
-            if hasattr(get_context_manager(), '_cs_client') and get_context_manager()._cs_client:
-                return
-
-            lifespan_context = ctx.request_context.lifespan_context
-            if isinstance(lifespan_context, dict):
-                providers = lifespan_context.get("providers", {})
-            else:
-                providers = getattr(lifespan_context, "providers", {})
-
-            cs_client_factory = providers.get("cs_client_factory")
-            if cs_client_factory:
-                # 传入统一签名所需的 config
-                config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
-                get_context_manager().set_cs_client(cs_client_factory("CENTER", config))
-                logger.debug("CS client factory set successfully")
-            else:
-                logger.warning("cs_client not available in lifespan context")
-        except Exception as e:
-            logger.error(f"Failed to setup CS client: {e}")
+    def _get_kubeconfig_path(self) -> str:
+        """获取本机kubeconfig文件路径"""
+        # 优先使用KUBECONFIG环境变量
+        kubeconfig_path = os.environ.get('KUBECONFIG')
+        if kubeconfig_path and os.path.exists(kubeconfig_path):
+            return kubeconfig_path
+        
+        # 使用默认路径
+        default_path = os.path.expanduser("~/.kube/config")
+        if os.path.exists(default_path):
+            return default_path
+        
+        # 如果都不存在，返回默认路径让kubectl处理
+        return default_path
 
     def is_write_command(self, command: str) -> tuple[bool, Optional[str]]:
         """检查是否为可写命令
@@ -465,8 +241,7 @@ class KubectlHandler:
 
         @self.server.tool(
             name="ack_kubectl",
-            description="Execute kubectl command with intelligent context management. Supports cluster_id for "
-                        "automatic context switching and creation."
+            description="Execute kubectl command using local kubeconfig file."
         )
         async def ack_kubectl(
                 ctx: Context,
@@ -503,17 +278,9 @@ example drop a exist nodeSelector kubernetes.io/hostname key: kubectl patch depl
 user: I need to execute a command in the pod
 assistant: exec my-pod -- /bin/sh -c "your command here"""
                 ),
-                cluster_id: str = Field(
-                    ..., description="The ID of the Kubernetes cluster to query. If specified, will auto find/create "
-                                     "and switch to appropriate context. If you are not sure of cluster id, "
-                                     "please use the list_clusters tool to get it first."
-                ),
         ) -> KubectlOutput:
 
             try:
-                # 设置CS客户端
-                self._setup_cs_client(ctx)
-
                 # 检查是否为只读模式
                 if not self.allow_write:
                     is_write_command, not_allow_write_error = self.is_write_command(command)
@@ -535,9 +302,8 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                         exit_code=1
                     )
 
-                # 获取 kubeconfig 文件路径
-                context_manager = get_context_manager()
-                kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id)
+                # 获取本机 kubeconfig 文件路径
+                kubeconfig_path = self._get_kubeconfig_path()
 
                 # 检查是否为流式命令
                 is_streaming, stream_type = self.is_streaming_command(command)
