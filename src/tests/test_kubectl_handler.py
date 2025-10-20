@@ -59,34 +59,8 @@ async def test_kubectl_tool_success(monkeypatch):
 
     _, tool = make_handler_and_tool()
     
-    # 创建一个带有cs_client_factory的lifespan_context
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://test.example.com:6443"
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    class SimpleLifespanContext:
-        def __init__(self):
-            self.config = {"region_id": "cn-hangzhou"}
-            self.providers = {"cs_client_factory": FakeCSClientFactory()}
-    
-    ctx = FakeContext(SimpleLifespanContext())
-    result = await tool(ctx, command="version --client", cluster_id="test-cluster")
+    ctx = FakeContext()
+    result = await tool(ctx, command="version --client")
 
     assert result.exit_code == 0
     assert result.stdout == "ok"
@@ -103,34 +77,8 @@ async def test_kubectl_tool_error(monkeypatch):
 
     _, tool = make_handler_and_tool()
     
-    # 创建一个带有cs_client_factory的lifespan_context
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://test.example.com:6443"
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    class SimpleLifespanContext:
-        def __init__(self):
-            self.config = {"region_id": "cn-hangzhou"}
-            self.providers = {"cs_client_factory": FakeCSClientFactory()}
-    
-    ctx = FakeContext(SimpleLifespanContext())
-    result = await tool(ctx, command="get pods -A", cluster_id="test-cluster")
+    ctx = FakeContext()
+    result = await tool(ctx, command="get pods -A")
 
     assert result.exit_code == 1
     assert result.stderr == "boom"
@@ -143,42 +91,8 @@ def test_handler_registers_tool():
 
 
 @pytest.mark.asyncio
-async def test_kubectl_with_cluster_id_success(monkeypatch):
-    """测试使用 cluster_id 成功获取 kubeconfig 并执行命令"""
-    
-    # 清理全局缓存
-    module_under_test._context_manager = None
-    
-    # Mock CS 客户端和响应
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://test.example.com:6443"
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    # Mock providers
-    fake_providers = {
-        "cs_client_factory": FakeCSClientFactory()
-    }
-    
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
+async def test_kubectl_with_local_kubeconfig(monkeypatch):
+    """测试使用本地kubeconfig文件执行命令"""
     
     def fake_run(*args, **kwargs):
         cmd = args[0] if args else None
@@ -191,200 +105,35 @@ async def test_kubectl_with_cluster_id_success(monkeypatch):
     monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
     
     _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
-    result = await tool(ctx, command="get pods", cluster_id="c123456")
+    ctx = FakeContext()
+    result = await tool(ctx, command="get pods")
     
     assert result.exit_code == 0
     assert result.stdout == "pods found"
 
 
 @pytest.mark.asyncio
-async def test_kubectl_with_cluster_id_no_kubeconfig(monkeypatch):
-    """测试使用 cluster_id 但获取不到 kubeconfig 的情况"""
-    
-    # 清理全局缓存
-    module_under_test._context_manager = None
-    
-    # Mock CS 客户端返回空响应
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = None
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    # Mock providers
-    fake_providers = {
-        "cs_client_factory": FakeCSClientFactory()
-    }
-    
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
-    
-    _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
-    result = await tool(ctx, command="get pods", cluster_id="c123456")
-    
-    assert result.exit_code == 1
-    assert "Failed to get kubeconfig" in result.stderr
-
-
-@pytest.mark.asyncio
-async def test_kubectl_without_cluster_id(monkeypatch):
-    """测试使用有效的 cluster_id 的情况（使用ACK API获取 kubeconfig）"""
-    
-    # 清理全局缓存
-    module_under_test._context_manager = None
-    
-    def fake_run(*args, **kwargs):
-        cmd = args[0] if args else None
-        if isinstance(cmd, str):
-            assert "kubectl" in cmd
-        elif isinstance(cmd, list):
-            assert cmd[0] == "kubectl"
-        return DummyCompleted(returncode=0, stdout="cluster pods", stderr="")
-    
-    monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
-    
-    # Mock CS 客户端
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://test.example.com:6443"
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    # Mock providers
-    fake_providers = {
-        "cs_client_factory": FakeCSClientFactory()
-    }
-    
-    class SimpleLifespanContext:
-        def __init__(self):
-            self.config = {"region_id": "cn-hangzhou"}
-            self.providers = fake_providers
-    
-    _, tool = make_handler_and_tool()
-    ctx = FakeContext(SimpleLifespanContext())
-    result = await tool(ctx, command="get pods", cluster_id="test-cluster")
-    
-    assert result.exit_code == 0
-    assert result.stdout == "cluster pods"
-
-
-@pytest.mark.asyncio
-async def test_kubectl_cs_client_factory_not_available(monkeypatch):
-    """测试 CS 客户端工厂不可用的情况"""
-    
-    # 清理全局缓存
-    module_under_test._context_manager = None
-    
-    # Mock providers 中没有 cs_client_factory
-    fake_providers = {}
-    
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
-    
-    _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
-    result = await tool(ctx, command="get pods", cluster_id="c123456")
-    
-    assert result.exit_code == 1
-    assert "CS client not set" in result.stderr
-
-
-@pytest.mark.asyncio
-async def test_kubectl_temp_file_cleanup(monkeypatch):
-    """测试临时 kubeconfig 文件被正确清理"""
-    
-    temp_files_created = []
-    
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://test.example.com:6443"
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    # Mock providers
-    fake_providers = {
-        "cs_client_factory": FakeCSClientFactory()
-    }
-    
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
+async def test_kubectl_kubeconfig_path_resolution(monkeypatch):
+    """测试kubeconfig路径解析逻辑"""
     
     def fake_run(*args, **kwargs):
         return DummyCompleted(returncode=0, stdout="success", stderr="")
     
-    # Mock tempfile.NamedTemporaryFile
-    def mock_named_temporary_file(*args, **kwargs):
-        class MockFile:
-            def __init__(self):
-                self.name = f"/tmp/test_kubeconfig_{len(temp_files_created)}.yaml"
-                temp_files_created.append(self.name)
-            
-            def write(self, content):
-                pass
-            
-            def __enter__(self):
-                return self
-            
-            def __exit__(self, *args):
-                pass
-        
     monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
     
-    _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
-    result = await tool(ctx, command="get pods", cluster_id="c123456")
+    handler, tool = make_handler_and_tool()
     
-    assert result.exit_code == 0
+    # 测试默认路径
+    default_path = handler._get_kubeconfig_path()
+    assert default_path == os.path.expanduser("~/.kube/config")
+    
+    # 测试环境变量路径
+    test_kubeconfig_path = "/tmp/test-kubeconfig"
+    monkeypatch.setenv("KUBECONFIG", test_kubeconfig_path)
+    monkeypatch.setattr(os.path, "exists", lambda path: path == test_kubeconfig_path)
+    
+    resolved_path = handler._get_kubeconfig_path()
+    assert resolved_path == test_kubeconfig_path
 
 
 def test_is_write_command_readonly_commands():
@@ -501,36 +250,10 @@ async def test_write_command_blocked_in_readonly_mode(monkeypatch):
     handler = module_under_test.KubectlHandler(server, {"allow_write": False})
     tool = server.tools["ack_kubectl"]
     
-    # Mock CS 客户端
-    class FakeCSClient:
-        def describe_cluster_detail(self, cluster_id):
-            class FakeResponse:
-                class FakeBody:
-                    def __init__(self):
-                        self.master_url = '{"api_server_endpoint": "https://test.example.com:6443", "intranet_api_server_endpoint": "https://internal.test.com:6443"}'
-                body = FakeBody()
-            return FakeResponse()
-            
-        def describe_cluster_user_kubeconfig(self, cluster_id, request):
-            class FakeResponse:
-                class FakeBody:
-                    config = "apiVersion: v1\nclusters:\n- cluster:\n    server: https://test.example.com:6443"
-                body = FakeBody()
-            return FakeResponse()
-    
-    class FakeCSClientFactory:
-        def __call__(self, region_id, config=None):
-            return FakeCSClient()
-    
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = {"cs_client_factory": FakeCSClientFactory()}
-            self.config = {"region_id": "cn-hangzhou"}
-    
-    ctx = FakeContext(FakeLifespanContext())
+    ctx = FakeContext()
     
     # 测试写命令被阻止
-    result = await tool(ctx, command="apply -f deployment.yaml", cluster_id="test-cluster")
+    result = await tool(ctx, command="apply -f deployment.yaml")
     assert result.exit_code == 1
     assert "not allowed in read-only mode" in result.stderr
     
@@ -540,7 +263,7 @@ async def test_write_command_blocked_in_readonly_mode(monkeypatch):
     
     monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
     
-    result = await tool(ctx, command="get pods", cluster_id="test-cluster")
+    result = await tool(ctx, command="get pods")
     assert result.exit_code == 0
     assert result.stdout == "pods found"
 
