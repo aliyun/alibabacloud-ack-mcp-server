@@ -313,12 +313,12 @@ make test
 #### 🤝 如何贡献
 
 1. **问题反馈**: 通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)
-2. **功能请求**: 通过 [Discussions](https://github.com/aliyun/alibabacloud-cs-mcp-server/discussions)
+2. **功能请求**: 通过 即时通信钉钉群： 70080006301 讨论沟通
 3. **代码贡献**: Fork → 功能分支 → Pull Request
 4. **文档改进**: API 文档、教程编写
 
 ### 💬 社区交流
-- GitHub Discussions: 技术讨论、问答
+- GitHub Discussions through Issues: 技术讨论、问答
 - 钉钉群: 日常交流、答疑支持、社区共建。 搜索钉钉群号： 70080006301
 
 ---
