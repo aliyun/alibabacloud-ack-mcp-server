@@ -96,7 +96,7 @@ class KubectlContextManager(TTLCache):
         if kubeconfig_mode == "LOCAL":
             # 使用本地 kubeconfig 文件
             if not kubeconfig_path or not os.path.exists(kubeconfig_path):
-                raise ValueError("Local kubeconfig path is not set or does not exist")
+                raise ValueError(f"Local kubeconfig path is not set or file {kubeconfig_path} does not exist")
             logger.debug(f"Using local kubeconfig for cluster {cluster_id} from {kubeconfig_path}")
             self[cluster_id] = kubeconfig_path
             return kubeconfig_path
