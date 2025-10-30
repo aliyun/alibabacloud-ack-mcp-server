@@ -200,7 +200,7 @@ class KubectlContextManager(TTLCache):
 
             # 调用DescribeClusterUserKubeconfig API
             request = cs_models.DescribeClusterUserKubeconfigRequest(
-                private_ip_address=private_ip_address,  # 获取公网连接配置
+                private_ip_address=private_ip_address,
                 temporary_duration_minutes=ttl_minutes,  # 使用传入的TTL
             )
 
