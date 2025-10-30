@@ -95,6 +95,7 @@ class KubectlContextManager(TTLCache):
             return self[cluster_id]
         if kubeconfig_mode == "LOCAL":
             # 使用本地 kubeconfig 文件
+            kubeconfig_path = os.path.abspath(kubeconfig_path)
             self.donot_cleanup_file = kubeconfig_path
             if not kubeconfig_path or not os.path.exists(kubeconfig_path):
                 raise ValueError(f"Local kubeconfig path is not set or file {kubeconfig_path} does not exist")
