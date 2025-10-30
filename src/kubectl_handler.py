@@ -78,12 +78,14 @@ class KubectlContextManager(TTLCache):
         except Exception:
             pass
 
-    def _get_or_create_kubeconfig_file(self, cluster_id: str) -> str:
+    def _get_or_create_kubeconfig_file(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str) -> str:
         """获取或创建集群的 kubeconfig 文件
 
         Args:
             cluster_id: 集群ID
-
+            kubeconfig_mode: 获取kubeconfig的模式，支持 "ACK_PUBLIC", "ACK_PRIVATE", "LOCAL"
+            kubeconfig_path: 本地kubeconfig文件路径（仅在模式为LOCAL时使用）
+            
         Returns:
             kubeconfig 文件路径
         """
@@ -91,9 +93,19 @@ class KubectlContextManager(TTLCache):
         if cluster_id in self:
             logger.debug(f"Found cached kubeconfig for cluster {cluster_id}")
             return self[cluster_id]
+        if kubeconfig_mode == "LOCAL":
+            # 使用本地 kubeconfig 文件
+            if not kubeconfig_path or not os.path.exists(kubeconfig_path):
+                raise ValueError("Local kubeconfig path is not set or does not exist")
+            logger.debug(f"Using local kubeconfig for cluster {cluster_id} from {kubeconfig_path}")
+            self[cluster_id] = kubeconfig_path
+            return kubeconfig_path
+
+        # 从 ACK 获取 kubeconfig
+        private_ip_address = kubeconfig_mode == "ACK_PRIVATE"
 
         # 创建新的 kubeconfig 文件
-        kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id, int(self.ttl / 60))  # 转换为分钟
+        kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id, private_ip_address, int(self.ttl / 60))  # 转换为分钟
         if not kubeconfig_content:
             raise ValueError(f"Failed to get kubeconfig for cluster {cluster_id}")
 
@@ -150,11 +162,12 @@ class KubectlContextManager(TTLCache):
             raise ValueError("CS client not set")
         return self._cs_client
 
-    def _get_kubeconfig_from_ack(self, cluster_id: str, ttl_minutes: int = 60) -> Optional[str]:
+    def _get_kubeconfig_from_ack(self, cluster_id: str, private_ip_address: bool = False, ttl_minutes: int = 60) -> Optional[str]:
         """通过ACK API获取kubeconfig配置
 
         Args:
             cluster_id: 集群ID
+            private_ip_address: 是否获取内网连接配置
             ttl_minutes: kubeconfig有效期（分钟），默认60分钟
         """
         try:
@@ -172,13 +185,22 @@ class KubectlContextManager(TTLCache):
             # 检查是否有公网API Server端点
             master_url_str = getattr(cluster_info, 'master_url', '')
             master_url = parse_master_url(master_url_str)
-            if not master_url["api_server_endpoint"]:
-                raise ValueError(f"Cluster {cluster_id} does not have public endpoint access, "
-                                 f"Please enable public endpoint access setting first.")
+            if private_ip_address:
+                if not master_url["intranet_api_server_endpoint"]:
+                    raise ValueError(
+                        f"Cluster {cluster_id} does not have intranet endpoint access, "
+                        f"Please enable intranet endpoint access setting first."
+                    )
+            else:
+                if not master_url["api_server_endpoint"]:
+                    raise ValueError(
+                        f"Cluster {cluster_id} does not have public endpoint access, "
+                        f"Please enable public endpoint access setting first."
+                    )
 
             # 调用DescribeClusterUserKubeconfig API
             request = cs_models.DescribeClusterUserKubeconfigRequest(
-                private_ip_address=False,  # 获取公网连接配置
+                private_ip_address=private_ip_address,  # 获取公网连接配置
                 temporary_duration_minutes=ttl_minutes,  # 使用传入的TTL
             )
 
@@ -195,16 +217,18 @@ class KubectlContextManager(TTLCache):
             logger.error(f"Failed to fetch kubeconfig for cluster {cluster_id}: {e}")
             raise e
 
-    def get_kubeconfig_path(self, cluster_id: str) -> str:
+    def get_kubeconfig_path(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str) -> str:
         """获取集群的 kubeconfig 文件路径
 
         Args:
             cluster_id: 集群ID
-
+            kubeconfig_mode: 获取kubeconfig的模式，支持 "ACK_PUBLIC", "ACK_PRIVATE", "LOCAL"
+            kubeconfig_path: 本地kubeconfig文件路径（仅在模式为LOCAL时使用）
+            
         Returns:
             kubeconfig 文件路径
         """
-        return self._get_or_create_kubeconfig_file(cluster_id)
+        return self._get_or_create_kubeconfig_file(cluster_id, kubeconfig_mode, kubeconfig_path)
 
 
 # 全局上下文管理器实例
@@ -538,7 +562,7 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
 
                 # 获取 kubeconfig 文件路径
                 context_manager = get_context_manager()
-                kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id)
+                kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id, self.settings.get("kubeconfig_mode"), self.settings.get("kubeconfig_path"))
 
                 # 检查是否为流式命令
                 is_streaming, stream_type = self.is_streaming_command(command)
