@@ -95,6 +95,7 @@ class KubectlContextManager(TTLCache):
             return self[cluster_id]
         if kubeconfig_mode == "LOCAL":
             # 使用本地 kubeconfig 文件
+            self.donot_cleanup_file = kubeconfig_path
             if not kubeconfig_path or not os.path.exists(kubeconfig_path):
                 raise ValueError(f"Local kubeconfig path is not set or file {kubeconfig_path} does not exist")
             logger.debug(f"Using local kubeconfig for cluster {cluster_id} from {kubeconfig_path}")
@@ -126,7 +127,7 @@ class KubectlContextManager(TTLCache):
         """重写 popitem 方法，在驱逐缓存项时清理 kubeconfig 文件"""
         key, path = super().popitem()
         # 删除 kubeconfig 文件
-        if path and os.path.exists(path):
+        if path and os.path.exists(path) and os.path.abspath(path) != os.path.abspath(self.donot_cleanup_file):
             try:
                 os.remove(path)
                 logger.debug(f"Removed cached kubeconfig file: {path}")
@@ -140,6 +141,8 @@ class KubectlContextManager(TTLCache):
         removed_count = 0
         for key, path in list(self.items()):
             if path and os.path.exists(path):
+                if os.path.abspath(path) == os.path.abspath(self.donot_cleanup_file):
+                    continue
                 try:
                     os.remove(path)
                     removed_count += 1
