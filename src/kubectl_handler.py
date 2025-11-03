@@ -9,7 +9,6 @@ from loguru import logger
 from ack_cluster_handler import parse_master_url
 from models import KubectlOutput
 
-
 class KubectlContextManager(TTLCache):
     """基于 TTL+LRU 缓存的 kubeconfig 文件管理器"""
 
@@ -252,7 +251,13 @@ def get_context_manager(ttl_minutes: int = 60) -> KubectlContextManager:
 
 
 class KubectlHandler:
-    """Handler for running kubectl commands via a FastMCP tool."""
+    """
+        Handler for running kubectl commands via a FastMCP tool.
+
+        Design:
+            kubeconfig management policy: https://github.com/aliyun/alibabacloud-ack-mcp-server/issues/1
+
+    """
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
         """Initialize the kubectl handler.

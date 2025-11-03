@@ -124,6 +124,44 @@ ack-mcp-server 采用分层架构，遵循以下设计原则：
 
 每个 Handler 实现特定领域的 MCP 工具和资源：
 
+## 鉴权方案策略 / 集群Kubeconfig证书管理
+
+ack-mcp-server中tools所需权限分为：
+- 访问Kubernetes集群rbac权限，通过集群证书访问
+- 访问阿里云服务权限，通过阿里云OpenAPI访问，通过阿里云Ram鉴权体系鉴权
+- 访问可观测数据，如Prometheus指标、日志系统数据
+
+### Kubernetes集群访问策略
+
+通过配置ack-mcp-server参数：
+```shell
+KUBECONFIG_MODE = ACK_PUBLIC(默认，通过ACK OpenAPI获取公网kubeconfig访问) / ACK_PRIVATE （通过ACK OpenAPI获取内网kubeconfig访问） / LOCAL(本地kubeconfig)
+
+KUBECONFIG_PATH = xxx (Optional参数，只有当KUBECONFIG_MODE = LOCAL 时生效，指定本地kubeconfig文件路径)
+```
+
+注意：本地测试使用公网访问集群kubeconfig需在[对应ACK开启公网访问kubeconfig](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/obtain-the-kubeconfig-file-of-a-cluster-and-use-kubectl-to-connect-to-the-cluster#a4bbf3452azq5)。
+
+推荐生产使用时，打通集群网络内网访问后，推荐使用KUBECONFIG_MODE = ACK_PRIVATE，通过阿里云OpenAPI获取内网kubeconfig访问，避免公网暴露kubeconfig。
+
+### 访问阿里云服务权限
+
+通过[阿里云Ram鉴权体系](https://help.aliyun.com/zh/sdk/developer-reference/v2-manage-python-access-credentials)。
+
+推荐生产使用，推荐通过子账号控制授权策略，满足安全最小使用权限范围最佳实践。
+
+### 访问可观测数据
+
+优先访问ACK集群对应的阿里云Prometheus服务数据，如没有对应服务，通过env参数寻找可观测数据的访问地址。
+通过配置可指定[Prometheus Read HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/)。
+
+当该集群没有阿里云Prometheus对应实例数据，ack-mcp-server将按按如下优先级寻找={prometheus_http_api_url}访问可观测数据。
+```shell
+env参数配置：
+PROMETHEUS_HTTP_API_{cluster_id}={prometheus_http_api_url}
+PROMETHEUS_HTTP_API={prometheus_http_api_url}
+```
+
 ## 包命名和版本管理
 
 ### 项目命名
