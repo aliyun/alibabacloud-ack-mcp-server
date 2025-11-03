@@ -140,7 +140,7 @@ KUBECONFIG_MODE = ACK_PUBLIC(默认，通过ACK OpenAPI获取公网kubeconfig访
 KUBECONFIG_PATH = xxx (Optional参数，只有当KUBECONFIG_MODE = LOCAL 时生效，指定本地kubeconfig文件路径)
 ```
 
-注意：本地测试使用公网访问集群kubeconfig需在[对应ACK开启公网访问kubeconfig](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/obtain-the-kubeconfig-file-of-a-cluster-and-use-kubectl-to-connect-to-the-cluster#a4bbf3452azq5)。
+注意：本地测试使用公网访问集群kubeconfig需在[对应ACK开启公网访问kubeconfig](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/control-public-access-to-the-api-server-of-a-cluster)。
 
 默认配置为通过阿里云OpenAPI获取公网kubeconfig访问，默认ttl=1h。
 

@@ -197,7 +197,7 @@ make build-binary
 - 阿里云账号及 AccessKey、AccessSecretKey，所需权限集
 - 阿里云账号中已创建的 ACK 集群
 - 配置ACK集群可被ack-mcp-server本地网络可访问的kubeconfig配置，参考[配置方式](./DESIGN.md#kubernetes集群访问策略)。
-  - 注：推荐在生产环境建议打通集群网络后，通过配置KUBECONFIG_MODE = ACK_PRIVATE，通过内网访问集群。本地测试使用公网访问集群kubeconfig需在[对应ACK开启公网访问kubeconfig](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/obtain-the-kubeconfig-file-of-a-cluster-and-use-kubectl-to-connect-to-the-cluster#a4bbf3452azq5)。
+  - 注：推荐在生产环境建议打通集群网络后，通过配置KUBECONFIG_MODE = ACK_PRIVATE，通过内网访问集群。本地测试使用公网访问集群kubeconfig需在[对应ACK开启公网访问kubeconfig](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/control-public-access-to-the-api-server-of-a-cluster)。
 
 ### 📋 3.2 开发环境搭建
 
