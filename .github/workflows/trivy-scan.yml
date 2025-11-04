@@ -1,0 +1,48 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker Image (Example - replace with your actual build steps)
+        run: docker build -t alibabacloud-ack-mcp-server:1.0 . -f ./deploy/Dockerfile # Replace with your image build command
+
+      - name: Run Trivy vulnerability scanner on Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'alibabacloud-ack-mcp-server:1.0' # Reference to the built Docker image
+          format: 'sarif' # Output format for GitHub Code Scanning
+          output: 'trivy-results.sarif' # File to save SARIF results
+          severity: 'CRITICAL,HIGH' # Scan for Critical and High severity vulnerabilities
+          ignore-unfixed: true # Ignore vulnerabilities that don't have a fix available
+          exit-code: '0' # Temporarily set to 0 to see vulnerability status
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: 'trivy-results.sarif'

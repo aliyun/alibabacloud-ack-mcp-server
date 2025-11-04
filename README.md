@@ -376,6 +376,10 @@ cd benchmarks
 - **未配置 AK**: 请检查 ACCESS_KEY_ID/ACCESS_KEY_SECRET 环境变量
 - **ACK集群未开公网kubeconfig**: ack-mcp-server无法执行kubectl tool，需要ACK集群开启公网访问的kubeconfig 或者 ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
 
+## 8. 安全
+
+- 请发送邮件到 **kubernetes-security@service.aliyun.com** 报告安全漏洞。详细信息请参阅 [SECURITY.md](./SECURITY.md) 文件。
+
 ## 许可证
 
 Apache-2.0。详见 [`LICENSE`](LICENSE)。
