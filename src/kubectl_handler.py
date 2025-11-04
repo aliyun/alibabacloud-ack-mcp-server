@@ -93,6 +93,14 @@ class KubectlContextManager(TTLCache):
         if cluster_id in self:
             logger.debug(f"Found cached kubeconfig for cluster {cluster_id}")
             return self[cluster_id]
+
+        if kubeconfig_mode == "INCLUSTER":
+            # 使用集群内配置
+            logger.debug(f"Using in-cluster kubeconfig for cluster {cluster_id}")
+            kubeconfig_path = self._construct_incluster_kubeconfig()
+            self[cluster_id] = kubeconfig_path
+            return kubeconfig_path
+
         if kubeconfig_mode == "LOCAL":
             # 使用本地 kubeconfig 文件
             # 检查路径是否为空
@@ -226,6 +234,40 @@ class KubectlContextManager(TTLCache):
         except Exception as e:
             logger.error(f"Failed to fetch kubeconfig for cluster {cluster_id}: {e}")
             raise e
+
+    def _construct_incluster_kubeconfig(self) -> str:
+        """构造集群内 kubeconfig 文件路径
+        
+        Returns:
+            kubeconfig 文件路径
+        """
+        tokenFile = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+        rootCAFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+        host, port = os.getenv("KUBERNETES_SERVICE_HOST"), os.getenv("KUBERNETES_SERVICE_PORT")
+        if not host or not port:
+            raise ValueError("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined")
+        
+        kubeconfig_path = os.path.join(self._kube_dir, "config.incluster")
+        with open(kubeconfig_path, 'w') as f:
+            f.write(f"""apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: {rootCAFile}
+    server: https://{host}:{port}
+  name: in-cluster
+contexts:
+- context:
+    cluster: in-cluster
+    user: in-cluster
+  name: in-cluster
+current-context: in-cluster
+kind: Config
+users:
+- name: in-cluster
+  user:
+    tokenFile: {tokenFile}
+""")
+        return kubeconfig_path
 
     def get_kubeconfig_path(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str) -> str:
         """获取集群的 kubeconfig 文件路径

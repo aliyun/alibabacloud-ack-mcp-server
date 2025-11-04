@@ -225,7 +225,7 @@ def main():
     parser.add_argument(
         "--kubeconfig-mode",
         type=str,
-        choices=["ACK_PUBLIC", "ACK_PRIVATE", "LOCAL"],
+        choices=["ACK_PUBLIC", "ACK_PRIVATE", "INCLUSTER", "LOCAL"],
         help="Mode to obtain kubeconfig for ACK clusters (default: from env KUBECONFIG_MODE)"
     )
     parser.add_argument(
