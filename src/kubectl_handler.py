@@ -22,6 +22,7 @@ class KubectlContextManager(TTLCache):
         super().__init__(maxsize=50, ttl=ttl_minutes * 60)  # TTL 以秒为单位，提前5min
 
         self._cs_client = None  # CS客户端实例
+        self.do_not_cleanup_file = None  # 本地kubeconfig文件路径，不需要清理
 
         # 使用 .kube 目录存储 kubeconfig 文件
         self._kube_dir = os.path.expanduser("~/.kube")
@@ -94,10 +95,13 @@ class KubectlContextManager(TTLCache):
             return self[cluster_id]
         if kubeconfig_mode == "LOCAL":
             # 使用本地 kubeconfig 文件
-            kubeconfig_path = os.path.abspath(kubeconfig_path)
+            # 检查路径是否为空
+            if not kubeconfig_path:
+                raise ValueError(f"Local kubeconfig path is not set")
+            kubeconfig_path = os.path.abspath(os.path.expanduser(kubeconfig_path))
+            if not os.path.exists(kubeconfig_path):
+                raise ValueError(f"File {kubeconfig_path} does not exist")
             self.do_not_cleanup_file = kubeconfig_path
-            if not kubeconfig_path or not os.path.exists(kubeconfig_path):
-                raise ValueError(f"Local kubeconfig path is not set or file {kubeconfig_path} does not exist")
             logger.debug(f"Using local kubeconfig for cluster {cluster_id} from {kubeconfig_path}")
             self[cluster_id] = kubeconfig_path
             return kubeconfig_path
@@ -127,7 +131,9 @@ class KubectlContextManager(TTLCache):
         """重写 popitem 方法，在驱逐缓存项时清理 kubeconfig 文件"""
         key, path = super().popitem()
         # 删除 kubeconfig 文件
-        if path and os.path.exists(path) and os.path.abspath(path) != os.path.abspath(self.do_not_cleanup_file):
+        if (path and os.path.exists(path) and 
+            self.do_not_cleanup_file and 
+            os.path.abspath(path) != os.path.abspath(self.do_not_cleanup_file)):
             try:
                 os.remove(path)
                 logger.debug(f"Removed cached kubeconfig file: {path}")
@@ -141,7 +147,8 @@ class KubectlContextManager(TTLCache):
         removed_count = 0
         for key, path in list(self.items()):
             if path and os.path.exists(path):
-                if os.path.abspath(path) == os.path.abspath(self.do_not_cleanup_file):
+                # 只有当do_not_cleanup_file存在且路径不同时才清理
+                if self.do_not_cleanup_file and os.path.abspath(path) == os.path.abspath(self.do_not_cleanup_file):
                     continue
                 try:
                     os.remove(path)

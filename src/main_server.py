@@ -287,7 +287,7 @@ def main():
 
         # ACK kubectl 配置
         "kubeconfig_mode": args.kubeconfig_mode or os.getenv("KUBECONFIG_MODE", "ACK_PUBLIC"),
-        "kubeconfig_path": args.kubeconfig_path or os.getenv("KUBECONFIG_PATH"),
+        "kubeconfig_path": args.kubeconfig_path or os.getenv("KUBECONFIG_PATH", "~/.kube/config"),
     }
     
     # 验证必要的配置
