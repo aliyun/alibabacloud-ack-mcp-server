@@ -139,9 +139,10 @@ class KubectlContextManager(TTLCache):
         """重写 popitem 方法，在驱逐缓存项时清理 kubeconfig 文件"""
         key, path = super().popitem()
         # 删除 kubeconfig 文件
-        if (path and os.path.exists(path) and 
-            self.do_not_cleanup_file and 
-            os.path.abspath(path) != os.path.abspath(self.do_not_cleanup_file)):
+        if path and os.path.exists(path):
+            if self.do_not_cleanup_file and os.path.samefile(path, self.do_not_cleanup_file):
+                logger.debug(f"Skipped removal of protected kubeconfig file: {path}")
+                return
             try:
                 os.remove(path)
                 logger.debug(f"Removed cached kubeconfig file: {path}")
@@ -156,7 +157,7 @@ class KubectlContextManager(TTLCache):
         for key, path in list(self.items()):
             if path and os.path.exists(path):
                 # 只有当do_not_cleanup_file存在且路径不同时才清理
-                if self.do_not_cleanup_file and os.path.abspath(path) == os.path.abspath(self.do_not_cleanup_file):
+                if self.do_not_cleanup_file and os.path.samefile(path, self.do_not_cleanup_file):
                     continue
                 try:
                     os.remove(path)
