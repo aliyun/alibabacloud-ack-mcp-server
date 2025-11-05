@@ -223,6 +223,17 @@ def main():
         help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)"
     )
     parser.add_argument(
+        "--kubeconfig-mode",
+        type=str,
+        choices=["ACK_PUBLIC", "ACK_PRIVATE", "INCLUSTER", "LOCAL"],
+        help="Mode to obtain kubeconfig for ACK clusters (default: from env KUBECONFIG_MODE)"
+    )
+    parser.add_argument(
+        "--kubeconfig-path",
+        type=str,
+        help="Path to local kubeconfig file when KUBECONFIG_MODE is LOCAL (default: from env KUBECONFIG_PATH)"
+    )
+    parser.add_argument(
         "--audit-config",
         "-c",
         type=str,
@@ -273,6 +284,10 @@ def main():
         # 兼容性配置
         "access_secret_key": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),  # 兼容旧字段名
         "original_settings": Configs(vars(args)),
+
+        # ACK kubectl 配置
+        "kubeconfig_mode": args.kubeconfig_mode or os.getenv("KUBECONFIG_MODE", "ACK_PUBLIC"),
+        "kubeconfig_path": args.kubeconfig_path or os.getenv("KUBECONFIG_PATH", "~/.kube/config"),
     }
     
     # 验证必要的配置
