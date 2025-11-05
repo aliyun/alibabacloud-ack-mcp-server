@@ -131,7 +131,7 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 ### 💻 2.2 （可选）创建ACK集群
 
 - 阿里云账号中已创建的 ACK 集群
-- ACK集群开启公网访问的kubeconfig or ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
+- 需要生成的集群网络可访问的情况下，配置对应的Kubernetes集群访问凭证，参考[配置方式](./DESIGN.md#kubernetes集群访问策略)，在生产环境建议打通集群网络后，通过配置KUBECONFIG_MODE = ACK_PRIVATE，通过内网访问集群。
 
 ### 📍 2.3 部署运行ack-mcp-server
 
@@ -196,8 +196,8 @@ make build-binary
 - Python 3.12+
 - 阿里云账号及 AccessKey、AccessSecretKey，所需权限集
 - 阿里云账号中已创建的 ACK 集群
-- ACK集群开启公网访问的kubeconfig or ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
-
+- 配置ACK集群可被ack-mcp-server本地网络可访问的kubeconfig配置，参考[配置方式](./DESIGN.md#kubernetes集群访问策略)。
+  - 注：推荐在生产环境建议打通集群网络后，通过配置KUBECONFIG_MODE = ACK_PRIVATE，通过内网访问集群。本地测试使用公网访问集群kubeconfig需在[对应ACK开启公网访问kubeconfig](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/control-public-access-to-the-api-server-of-a-cluster)。
 
 ### 📋 3.2 开发环境搭建
 
@@ -374,7 +374,7 @@ cd benchmarks
 ## 7. 常见问题
 
 - **未配置 AK**: 请检查 ACCESS_KEY_ID/ACCESS_KEY_SECRET 环境变量
-- **ACK集群未开公网kubeconfig**: ack-mcp-server无法执行kubectl tool，需要ACK集群开启公网访问的kubeconfig 或者 ack-mcp-server本地网络可访问的kubeconfig配置（置于.kube/config中）
+- **ACK集群网络不可访问**: 当ack-mcp-server使用 KUBECONFIG_MODE = ACK_PUBLIC 公网方式访问集群kubeconfig，需要ACK集群开启公网访问的kubeconfig，在生产环境中推荐打通集群网络，并使用 ACK_PRIVATE 私网方式访问集群kubeconfig，以遵守生产安全最佳实践。
 
 ## 8. 安全
 
