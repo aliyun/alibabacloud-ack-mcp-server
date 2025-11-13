@@ -13,7 +13,7 @@ allowWrite: true
 
 image:
   registry: registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server
-  tag: "latest"
+  tag: "v1.0.0-73a8c94-aliyun"
   pullPolicy: Always
 
 # Probes (disabled as per requirements)
