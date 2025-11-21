@@ -123,12 +123,6 @@ class ACKAuditLogHandler:
 
         logger.info("ACK Audit Log Handler initialized")
 
-    async def get_current_time(self, ctx: Context) -> Dict[str, Any]:
-        # Set per-request context from handler setting
-        enable_execution_log_ctx.set(self.enable_execution_log)
-        
-        # Initialize execution log
-
     async def query_audit_logs(self,
                                ctx: Context,
                                cluster_id: str = Field(
@@ -263,6 +257,7 @@ class ACKAuditLogHandler:
             GetCurrentTimeOutput: 包含当前时间的 ISO 8601 格式和 Unix 时间戳格式
         """
         # Initialize execution log
+        enable_execution_log_ctx.set(self.enable_execution_log)
         execution_log = ExecutionLog(
             tool_call_id=f"get_current_time_{int(time.time() * 1000)}",
             start_time=datetime.utcnow().isoformat() + "Z"
