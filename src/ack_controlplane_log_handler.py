@@ -6,6 +6,7 @@ from loguru import logger
 from pydantic import Field
 import json
 import re
+import time
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 from alibabacloud_tea_util import models as util_models
@@ -14,7 +15,9 @@ from models import (
     ControlPlaneLogEntry,
     ErrorModel,
     ControlPlaneLogErrorCodes,
-    ControlPlaneLogConfig
+    ControlPlaneLogConfig,
+    ExecutionLog,
+    enable_execution_log_ctx
 )
 
 
@@ -49,12 +52,17 @@ def _parse_single_time(time_str: Optional[str], default_hours: int = 24) -> date
     支持相对时间后缀（s/m/h/d/w）与 ISO 8601（允许 Z），返回 datetime。
     兼容纯数字的 unix 秒/毫秒。
     """
-    from datetime import datetime
+    # Using module-level datetime import
 
     if not time_str:
         return datetime.now() - timedelta(hours=default_hours)
 
     ts = str(time_str).strip()
+    
+    # Handle "now" alias
+    if ts.lower() == "now":
+        return datetime.now()
+    
     if ts.isdigit():
         iv = int(ts)
         if iv > 1e12:  # 毫秒
@@ -161,38 +169,44 @@ _get_controlplane_log_config
 1. 配置中明确指定
 2. 通过OpenAPI CheckControlPlaneLogEnable 检查控制面日志功能是否开启，并获取project等配置
 """
-def _get_controlplane_log_config(ctx: Context, cluster_id: str, region_id: str) -> ControlPlaneLogConfig:
-    """获取控制面日志配置信息。"""
-
-    # try get from openAPI
+def _get_controlplane_log_config(ctx: Context, cluster_id: str, region_id: str) -> tuple[Optional[ControlPlaneLogConfig], Optional[str], Optional[str]]:
+    """获取控制面日志配置信息。
+    
+    Returns:
+        tuple: (config, request_id, error_message)
+    """
+    request_id = None
     try:
         cs_client = _get_cs_client(ctx, region_id)
-
-        # 调用 CheckControlPlaneLogEnable API 获取控制面日志配置 https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/developer-reference/api-cs-2015-12-15-checkcontrolplanelogenable
-        # 注意：这里需要根据实际的 API 调用方式调整
-        # 根据文档，API 路径是 GET /clusters/{ClusterId}/controlplanelog
 
         logger.info(f"Getting control plane log config for cluster {cluster_id}")
 
         runtime = util_models.RuntimeOptions()
         headers = {}
         response = cs_client.check_control_plane_log_enable_with_options(cluster_id, headers, runtime)
+        
+        # 提取 request_id
+        if hasattr(response, 'headers') and response.headers:
+            request_id = response.headers.get('x-acs-request-id', 'N/A')
+        
         # 提取project
         components = getattr(response.body, 'components', []) if response.body else []
         if not components:
-            raise Exception(f"This cluster not enable controlplane log function, please enable it. Failed to get control plane log config components from OpenAPI. response: {str(response)}")
+            return None, request_id, "This cluster not enable controlplane log function, please enable it in Log Center's ControlPlane log tab. Failed to get control plane log config components from OpenAPI."
         controlplane_project = getattr(response.body, 'log_project', None) if response.body else None
         if not controlplane_project:
-            raise Exception(f"Failed to get control plane log config from OpenAPI. response: {str(response)}")
-        return ControlPlaneLogConfig(
+            return None, request_id, "Failed to get control plane log config from OpenAPI."
+        
+        config = ControlPlaneLogConfig(
             log_project=controlplane_project,
             log_ttl="30",
             components=components
         )
+        return config, request_id, None
 
     except Exception as e:
         logger.error(f"Failed to get control plane log config for cluster {cluster_id}: {e}")
-        raise
+        return None, request_id, str(e)
 
 
 class ACKControlPlaneLogHandler:
@@ -206,10 +220,14 @@ class ACKControlPlaneLogHandler:
             settings: Configuration settings
         """
         self.settings = settings or {}
+        self.allow_write = settings.get("allow_write", True) if settings else True
+
+        # Per-handler toggle
+        self.enable_execution_log = self.settings.get("enable_execution_log", False)
+
         if server is None:
             return
         self.server = server
-        self.allow_write = settings.get("allow_write", True) if settings else True
 
         # Register tools
         self.server.tool(
@@ -231,7 +249,7 @@ class ACKControlPlaneLogHandler:
 
         logger.info("ACK Control Plane Log Handler initialized")
 
-    def _get_cluster_region(self, cs_client, cluster_id: str) -> str:
+    def _get_cluster_region(self, cs_client, cluster_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
         """通过DescribeClusterDetail获取集群的region信息
 
         Args:
@@ -239,28 +257,32 @@ class ACKControlPlaneLogHandler:
             cluster_id: 集群ID
 
         Returns:
-            集群所在的region
+            tuple: (region_id, request_id, error_message)
         """
+        request_id = None
         try:
-
             # 调用DescribeClusterDetail API获取集群详情
             detail_response = cs_client.describe_cluster_detail(cluster_id)
+            
+            # 提取 request_id
+            if hasattr(detail_response, 'headers') and detail_response.headers:
+                request_id = detail_response.headers.get('x-acs-request-id', 'N/A')
 
             if not detail_response or not detail_response.body:
-                raise ValueError(f"Failed to get cluster details for {cluster_id}")
+                return None, request_id, f"Failed to get cluster details for {cluster_id}"
 
             cluster_info = detail_response.body
             # 获取集群的region信息
             region = getattr(cluster_info, 'region_id', '')
 
             if not region:
-                raise ValueError(f"Could not determine region for cluster {cluster_id}")
+                return None, request_id, f"Could not determine region for cluster {cluster_id}"
 
-            return region
+            return region, request_id, None
 
         except Exception as e:
             logger.error(f"Failed to get cluster region for {cluster_id}: {e}")
-            raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
+            return None, request_id, str(e)
 
     async def query_controlplane_logs(
             self,
@@ -283,6 +305,7 @@ class ACKControlPlaneLogHandler:
         Formats:
         - ISO 8601: "2024-01-01T10:00:00Z"
         - Relative: "30m", "1h", "24h", "7d"
+        - Current time: "now"
         Defaults to 24h."""
             ),
             end_time: Optional[str] = Field(
@@ -291,6 +314,7 @@ class ACKControlPlaneLogHandler:
         Formats:
         - ISO 8601: "2024-01-01T10:00:00Z"
         - Relative: "30m", "1h", "24h", "7d"
+        - Current time: "now"
         Defaults to current time."""
             ),
             limit: int = Field(
@@ -320,6 +344,16 @@ class ACKControlPlaneLogHandler:
         Returns:
             QueryControlPlaneLogsOutput: 包含控制面日志条目和错误信息的输出
         """
+        # Set per-request context from handler setting
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        
+        # Initialize execution log
+        start_ms = int(time.time() * 1000)
+        execution_log = ExecutionLog(
+            tool_call_id=f"query_controlplane_logs_{cluster_id}_{component_name}_{start_ms}",
+            start_time=datetime.utcnow().isoformat() + "Z"
+        )
+        
         try:
             # 验证参数
             if not cluster_id:
@@ -350,59 +384,136 @@ class ACKControlPlaneLogHandler:
             region_id = config.get("region_id", "cn-hangzhou")
 
             # 步骤1: 先查询控制面日志配置信息
+            execution_log.messages.append(f"Getting control plane log config for cluster {cluster_id}")
             logger.info(f"Step 1: Getting control plane log config for cluster {cluster_id}")
-            try:
-                # cluster's region_id
-                cs_client = _get_cs_client(ctx, "CENTER")
-                region_id = self._get_cluster_region(cs_client, cluster_id)
+            
+            # cluster's region_id
+            cs_client = _get_cs_client(ctx, "CENTER")
+            
+            # Get cluster region with execution logging
+            api_start_region = int(time.time() * 1000)
+            region_id, region_request_id, region_error = self._get_cluster_region(cs_client, cluster_id)
+            api_duration_region = int(time.time() * 1000) - api_start_region
+            
+            if region_error:
+                execution_log.api_calls.append({
+                    "api": "DescribeClusterDetail",
+                    "cluster_id": cluster_id,
+                    "request_id": region_request_id,
+                    "duration_ms": api_duration_region,
+                    "status": "failed",
+                    "error": region_error
+                })
+                execution_log.messages.append(f"Failed to get cluster region: {region_error}")
+                execution_log.error = region_error
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "ClusterRegionError",
+                    "failure_stage": "get_cluster_region"
+                }
+                return QueryControlPlaneLogsOutput(
+                    error=ErrorModel(
+                        error_code=ControlPlaneLogErrorCodes.CLUSTER_NOT_FOUND,
+                        error_message=region_error
+                    ),
+                    execution_log=execution_log
+                )
+            
+            execution_log.api_calls.append({
+                "api": "DescribeClusterDetail",
+                "cluster_id": cluster_id,
+                "request_id": region_request_id,
+                "duration_ms": api_duration_region,
+                "status": "success",
+                "region_id": region_id
+            })
+            execution_log.messages.append(f"Cluster region: {region_id}, requestId: {region_request_id}")
 
-                controlplane_config = _get_controlplane_log_config(ctx, cluster_id, region_id)
-
-                # 检查控制面日志功能是否启用
-                if not controlplane_config.components:
-                    error_message = f"Control plane logging is not enabled for cluster {cluster_id}"
-                    logger.warning(error_message)
-                    return QueryControlPlaneLogsOutput(
-                        error=ErrorModel(
-                            error_code=ControlPlaneLogErrorCodes.CONTROLPLANE_LOG_NOT_ENABLED,
-                            error_message=error_message
-                        )
-                    )
-
-                logger.info(
-                    f"Control plane logging enabled for cluster {cluster_id}, available components: {controlplane_config.components}")
-                logger.info(f"SLS project: {controlplane_config.log_project}, TTL: {controlplane_config.log_ttl} days")
-
-            except Exception as e:
-                logger.error(f"Failed to get control plane log config for cluster {cluster_id}: {e}")
-                error_message = str(e)
+            api_start = int(time.time() * 1000)
+            controlplane_config, request_id, error = _get_controlplane_log_config(ctx, cluster_id, region_id)
+            api_duration = int(time.time() * 1000) - api_start
+            
+            if error:
+                execution_log.api_calls.append({
+                    "api": "CheckControlPlaneLogEnable",
+                    "cluster_id": cluster_id,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "failed",
+                    "error": error
+                })
+                execution_log.messages.append(f"Failed to get control plane log config: {error}")
+                execution_log.error = error
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "ControlPlaneLogConfigError",
+                    "failure_stage": "get_controlplane_log_config"
+                }
+                
+                # Determine error code
                 error_code = ControlPlaneLogErrorCodes.CLUSTER_NOT_FOUND
-
-                # 根据错误信息判断具体的错误码
-                if "not found" in error_message.lower() or "does not exist" in error_message.lower():
+                if "not found" in error.lower() or "does not exist" in error.lower():
                     error_code = ControlPlaneLogErrorCodes.CLUSTER_NOT_FOUND
-                elif ("not enable" in error_message.lower() or 
-                      "control plane" in error_message.lower() and "disabled" in error_message.lower() or
-                      "controlplane log function" in error_message.lower()):
+                elif ("not enable" in error.lower() or 
+                      "control plane" in error.lower() and "disabled" in error.lower() or
+                      "controlplane log function" in error.lower()):
                     error_code = ControlPlaneLogErrorCodes.CONTROLPLANE_LOG_NOT_ENABLED
-
+                
                 return QueryControlPlaneLogsOutput(
                     error=ErrorModel(
                         error_code=error_code,
-                        error_message=error_message
-                    )
+                        error_message=error
+                    ),
+                    execution_log=execution_log
                 )
+            
+            execution_log.api_calls.append({
+                "api": "CheckControlPlaneLogEnable",
+                "cluster_id": cluster_id,
+                "request_id": request_id,
+                "duration_ms": api_duration,
+                "status": "success",
+                "components": controlplane_config.components if controlplane_config else []
+            })
+            execution_log.messages.append(f"Control plane logging enabled, components: {controlplane_config.components}, requestId: {request_id}")
+
+            # 检查控制面日志功能是否启用
+            if not controlplane_config or not controlplane_config.components:
+                error_message = f"Control plane logging is not enabled for cluster {cluster_id}"
+                logger.warning(error_message)
+                execution_log.error = error_message
+                execution_log.messages.append(error_message)
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                return QueryControlPlaneLogsOutput(
+                    error=ErrorModel(
+                        error_code=ControlPlaneLogErrorCodes.CONTROLPLANE_LOG_NOT_ENABLED,
+                        error_message=error_message
+                    ),
+                    execution_log=execution_log
+                )
+
+            logger.info(
+                f"Control plane logging enabled for cluster {cluster_id}, available components: {controlplane_config.components}")
+            logger.info(f"SLS project: {controlplane_config.log_project}, TTL: {controlplane_config.log_ttl} days")
 
             # 步骤2: 检查请求的组件是否在启用的组件列表中
             logger.info(f"Step 2: Validating component {component_name} against enabled components")
             if component_name not in controlplane_config.components:
                 error_message = f"Component '{component_name}' is not enabled for control plane logging. Available components: {controlplane_config.components}"
                 logger.warning(error_message)
+                execution_log.error = error_message
+                execution_log.messages.append(error_message)
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
                 return QueryControlPlaneLogsOutput(
                     error=ErrorModel(
                         error_code=ControlPlaneLogErrorCodes.INVALID_COMPONENT,
                         error_message=error_message
-                    )
+                    ),
+                    execution_log=execution_log
                 )
 
             # 步骤3: 获取 SLS 项目名称和构建 logstore 名称
@@ -410,15 +521,21 @@ class ACKControlPlaneLogHandler:
             if not sls_project_name:
                 error_message = f"SLS project name not found for cluster {cluster_id}"
                 logger.warning(error_message)
+                execution_log.error = error_message
+                execution_log.messages.append(error_message)
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
                 return QueryControlPlaneLogsOutput(
                     error=ErrorModel(
                         error_code=ControlPlaneLogErrorCodes.LOGSTORE_NOT_FOUND,
                         error_message=error_message
-                    )
+                    ),
+                    execution_log=execution_log
                 )
 
             # 构建 logstore 名称: {component_name}-{cluster_id}
             logstore_name = f"{component_name}-{cluster_id}"
+            execution_log.messages.append(f"Using SLS project '{sls_project_name}', logstore '{logstore_name}'")
             logger.info(f"Step 3: Using SLS project '{sls_project_name}' and logstore '{logstore_name}'")
 
             # 获取 SLS 客户端
@@ -436,11 +553,21 @@ class ACKControlPlaneLogHandler:
                         "sls_client_factory not available" in error_message.lower()):
                     error_code = ControlPlaneLogErrorCodes.SLS_CLIENT_INIT_AK_ERROR
 
+                execution_log.error = error_message
+                execution_log.messages.append(f"Failed to get SLS client: {error_message}")
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": type(e).__name__,
+                    "failure_stage": "get_sls_client"
+                }
+                
                 return QueryControlPlaneLogsOutput(
                     error=ErrorModel(
                         error_code=error_code,
                         error_message=error_message
-                    )
+                    ),
+                    execution_log=execution_log
                 )
 
             # 解析时间
@@ -450,30 +577,51 @@ class ACKControlPlaneLogHandler:
 
             # SLS API 需要秒级时间戳（与审计日志时间解析策略对齐）
             start_timestamp_s, end_timestamp_s = _parse_time_params(start_time_str, end_time_str)
+            execution_log.messages.append(f"Query time range: {start_timestamp_s} to {end_timestamp_s}")
 
             # 步骤4: 构建SLS查询语句
             logger.info(f"Step 4: Building SLS query for component {component_name}")
             query = _build_controlplane_log_query(
                 filter_pattern=filter_pattern
             )
+            execution_log.messages.append(f"SLS query: {query}")
             logger.info(f"SLS query: {query}")
 
             # 步骤5: 调用 SLS API 查询日志
+            execution_log.messages.append(f"Querying SLS logs from project '{sls_project_name}', logstore '{logstore_name}'")
             logger.info(f"Step 5: Querying SLS logs from project '{sls_project_name}', logstore '{logstore_name}'")
+            
+            from alibabacloud_sls20201230 import models as sls_models
+
+            request = sls_models.GetLogsRequest(
+                from_=start_timestamp_s,
+                to=end_timestamp_s,
+                query=query,
+                offset=0,
+                line=limit_value,
+                reverse=False
+            )
+
+            # Call SLS API with execution logging
+            api_start = int(time.time() * 1000)
+            request_id = None
             try:
-                from alibabacloud_sls20201230 import models as sls_models
-
-                request = sls_models.GetLogsRequest(
-                    from_=start_timestamp_s,
-                    to=end_timestamp_s,
-                    query=query,
-                    offset=0,
-                    line=limit_value,
-                    reverse=False
-                )
-
-                # 尝试不同的 API 调用方式
                 response = sls_client.get_logs(sls_project_name, logstore_name, request)
+                api_duration = int(time.time() * 1000) - api_start
+                
+                # Extract request_id
+                if hasattr(response, 'headers') and response.headers:
+                    request_id = response.headers.get('x-log-requestid', 'N/A')
+                
+                execution_log.api_calls.append({
+                    "api": "SLS.GetLogs",
+                    "project": sls_project_name,
+                    "logstore": logstore_name,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "success"
+                })
+                
                 logger.info(f"SLS API response type: {type(response)}")
                 if hasattr(response, 'body'):
                     logger.info(f"Response body type: {type(response.body)}")
@@ -484,6 +632,16 @@ class ACKControlPlaneLogHandler:
                 else:
                     logger.info(f"Response attributes: {dir(response)}")
             except Exception as api_error:
+                api_duration = int(time.time() * 1000) - api_start
+                execution_log.api_calls.append({
+                    "api": "SLS.GetLogs",
+                    "project": sls_project_name,
+                    "logstore": logstore_name,
+                    "duration_ms": api_duration,
+                    "status": "failed",
+                    "error": str(api_error)
+                })
+                
                 # 如果 SLS API 调用失败，返回模拟数据用于测试
                 logger.warning(f"SLS API call failed, using mock data: {api_error}")
                 # 在测试环境中，尝试从 sls_client 获取模拟数据
@@ -523,10 +681,15 @@ class ACKControlPlaneLogHandler:
                         logger.warning(f"Failed to parse control plane log entry: {e}")
                         continue
 
+            execution_log.messages.append(f"Retrieved {len(entries)} log entries")
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+
             return QueryControlPlaneLogsOutput(
                 query=query,
                 entries=entries,
-                total=len(entries)
+                total=len(entries),
+                execution_log=execution_log
             )
 
         except Exception as e:
@@ -538,9 +701,19 @@ class ACKControlPlaneLogHandler:
             if "client initialization" in error_message.lower() or "access key" in error_message.lower():
                 error_code = ControlPlaneLogErrorCodes.SLS_CLIENT_INIT_AK_ERROR
 
+            execution_log.error = error_message
+            execution_log.messages.append(f"Operation failed: {error_message}")
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+            execution_log.metadata = {
+                "error_type": type(e).__name__,
+                "failure_stage": "query_controlplane_logs"
+            }
+
             return QueryControlPlaneLogsOutput(
                 error=ErrorModel(
                     error_code=error_code,
                     error_message=error_message
-                )
+                ),
+                execution_log=execution_log
             )

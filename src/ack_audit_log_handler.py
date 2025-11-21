@@ -4,7 +4,8 @@ from fastmcp import FastMCP, Context
 from loguru import logger
 from pydantic import Field
 import json
-from datetime import datetime, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 from alibabacloud_tea_util import models as util_models
 
 try:
@@ -14,12 +15,15 @@ try:
         AuditLogEntry,
         ErrorModel,
         AuditLogErrorCodes,
-        GetCurrentTimeOutput
+        GetCurrentTimeOutput,
+        ExecutionLog
     )
 except ImportError:
     from models import (
         ErrorModel,
-        GetCurrentTimeOutput
+        GetCurrentTimeOutput,
+        ExecutionLog,
+        enable_execution_log_ctx
     )
 
 
@@ -89,6 +93,8 @@ class ACKAuditLogHandler:
             "sts": "statefulsets",
             "ing": "ingresses",
         }
+        # Per-handler toggle
+        self.enable_execution_log = self.settings.get("enable_execution_log", False)
         if server is None:
             return
         self.server = server
@@ -195,7 +201,10 @@ class ACKAuditLogHandler:
         """Query Kubernetes audit logs."""
         if not cluster_id:
             raise ValueError("cluster_id is required")
-
+        
+        # Set per-request context from handler setting
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        
         # 预处理参数：将JSON字符串转换为列表
         processed_verbs = self._parse_list_param(verbs)
         processed_resource_types = self._parse_list_param(resource_types)
@@ -247,9 +256,18 @@ class ACKAuditLogHandler:
         Returns:
             GetCurrentTimeOutput: 包含当前时间的 ISO 8601 格式和 Unix 时间戳格式
         """
+        # Initialize execution log
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        execution_log = ExecutionLog(
+            tool_call_id=f"get_current_time_{int(time.time() * 1000)}",
+            start_time=datetime.utcnow().isoformat() + "Z"
+        )
+        start_ms = int(time.time() * 1000)
+        
         try:
-            from datetime import datetime, timezone
+            # Using module-level datetime and timezone imports
 
+            execution_log.messages.append("Fetching current time")
             # 获取当前 UTC 时间
             current_time = datetime.now(timezone.utc)
 
@@ -258,14 +276,27 @@ class ACKAuditLogHandler:
 
             # 转换为 Unix 时间戳（秒级）
             current_time_unix = int(current_time.timestamp())
+            
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
 
             return GetCurrentTimeOutput(
                 current_time_iso=current_time_iso,
                 current_time_unix=current_time_unix,
-                timezone="UTC"
+                timezone="UTC",
+                execution_log=execution_log
             )
 
         except Exception as e:
+            execution_log.error = str(e)
+            execution_log.messages.append(f"Failed to get current time: {str(e)}")
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+            execution_log.metadata = {
+                "error_code": "TIME_FETCH_ERROR",
+                "failure_stage": "get_current_time_operation"
+            }
+            
             return GetCurrentTimeOutput(
                 current_time_iso="",
                 current_time_unix=0,
@@ -273,7 +304,8 @@ class ACKAuditLogHandler:
                 error=ErrorModel(
                     error_code="TIME_FETCH_ERROR",
                     error_message=f"Failed to get current time: {str(e)}"
-                )
+                ),
+                execution_log=execution_log
             )
 
     def _normalize_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -307,7 +339,7 @@ class ACKAuditLogHandler:
 
         return params
 
-    def _get_cluster_region(self, cs_client, cluster_id: str) -> str:
+    def _get_cluster_region(self, cs_client, cluster_id: str) -> tuple[Optional[str], Optional[str], Optional[str]]:
         """通过DescribeClusterDetail获取集群的region信息
 
         Args:
@@ -315,28 +347,40 @@ class ACKAuditLogHandler:
             cluster_id: 集群ID
 
         Returns:
-            集群所在的region
+            tuple: (region_id, request_id, error_message)
+                - region_id: 集群所在的region，失败时为None
+                - request_id: API请求的request_id，用于追踪
+                - error_message: 错误信息，成功时为None
         """
+        request_id = None
         try:
-
             # 调用DescribeClusterDetail API获取集群详情
             detail_response = cs_client.describe_cluster_detail(cluster_id)
+            
+            # 提取request_id
+            if hasattr(detail_response, 'headers') and detail_response.headers:
+                request_id = detail_response.headers.get('x-acs-request-id', 'N/A')
 
             if not detail_response or not detail_response.body:
-                raise ValueError(f"Failed to get cluster details for {cluster_id}")
+                error_msg = f"Failed to get cluster details for {cluster_id}"
+                logger.error(error_msg)
+                return None, request_id, error_msg
 
             cluster_info = detail_response.body
             # 获取集群的region信息
             region = getattr(cluster_info, 'region_id', '')
 
             if not region:
-                raise ValueError(f"Could not determine region for cluster {cluster_id}")
+                error_msg = f"Could not determine region for cluster {cluster_id}"
+                logger.error(error_msg)
+                return None, request_id, error_msg
 
-            return region
+            return region, request_id, None
 
         except Exception as e:
-            logger.error(f"Failed to get cluster region for {cluster_id}: {e}")
-            raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
+            error_msg = f"Failed to get cluster region for {cluster_id}: {str(e)}"
+            logger.error(error_msg)
+            return None, request_id, error_msg
 
     def _parse_list_param(self, param: Optional[str]) -> Optional[List[str]]:
         """解析列表参数，将JSON字符串转换为Python列表
@@ -376,6 +420,13 @@ class ACKAuditLogHandler:
             cluster_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Query Kubernetes audit logs (synchronous version)."""
+        # Initialize execution log
+        execution_log = ExecutionLog(
+            tool_call_id=f"query_audit_log_{int(time.time() * 1000)}",
+            start_time=datetime.utcnow().isoformat() + "Z"
+        )
+        start_ms = int(time.time() * 1000)
+        
         # Collect parameters into a dict
         params = {
             "namespace": namespace,
@@ -388,57 +439,132 @@ class ACKAuditLogHandler:
             "limit": limit,
             "cluster_id": cluster_id
         }
-        if self.cs_client is None:
-            cs_client = _get_cs_client(ctx, "CENTER")
-            self.cs_client = cs_client
-        region_id = self._get_cluster_region(self.cs_client, cluster_id)
-        self.sls_client = _get_sls_client(ctx, region_id)
-
-        # Normalize parameters
-        normalized_params = self._normalize_params(params)
-
+        
         try:
+            if self.cs_client is None:
+                cs_client = _get_cs_client(ctx, "CENTER")
+                self.cs_client = cs_client
+            
+            # Get cluster region
+            execution_log.messages.append("Fetching cluster region")
+            api_start = int(time.time() * 1000)
+            region_id, request_id, error = self._get_cluster_region(self.cs_client, cluster_id)
+            api_duration = int(time.time() * 1000) - api_start
+            
+            if error:
+                # Failed to get cluster region
+                execution_log.api_calls.append({
+                    "api": "DescribeClusterDetail",
+                    "cluster_id": cluster_id,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "failed",
+                    "error": error
+                })
+                execution_log.messages.append(f"Failed to get cluster region: {error}")
+                raise ValueError(error)
+            else:
+                # Successfully got cluster region
+                execution_log.api_calls.append({
+                    "api": "DescribeClusterDetail",
+                    "cluster_id": cluster_id,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "success",
+                    "region": region_id
+                })
+                execution_log.messages.append(f"Cluster region retrieved: {region_id} in {api_duration}ms, requestId: {request_id}")
+            
+            self.sls_client = _get_sls_client(ctx, region_id)
+
+            # Normalize parameters
+            normalized_params = self._normalize_params(params)
+
             # Query the audit logs using the provider (sync version)
             query = self._build_query(normalized_params)
+            execution_log.messages.append(f"Building SLS query, query: {query}")
 
             # Parse time parameters
-            start_time, end_time = self._parse_time_params(normalized_params)
+            start_time_ts, end_time_ts = self._parse_time_params(normalized_params)
+            execution_log.messages.append(f"Query time range: {start_time_ts} to {end_time_ts}")
 
+            if not self.sls_client:
+                execution_log.warnings.append(f"sls client is None")
+                raise RuntimeError("SLS client not properly initialized")
+
+            # Get audit SLS project and logstore
+            api_start = int(time.time() * 1000)
+            audit_sls_project, audit_sls_logstore, request_id, error = self._get_audit_sls_project_and_logstore(cluster_id)
+            api_duration = int(time.time() * 1000) - api_start
+            if error:
+                execution_log.api_calls.append({
+                    "api": "GetClusterAuditProject",
+                    "cluster_id": cluster_id,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "failed",
+                    "error": error
+                })
+                execution_log.messages.append(f"Failed to get audit project: {error}")
+                raise ValueError(error)
+            else:
+                execution_log.api_calls.append({
+                    "api": "GetClusterAuditProject",
+                    "cluster_id": cluster_id,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "success",
+                    "project": audit_sls_project,
+                    "logstore": audit_sls_logstore
+                })
+                execution_log.messages.append(f"Audit project: {audit_sls_project}, logstore: {audit_sls_logstore}, requestId: {request_id}")
+
+            # Use real SLS client - 直接调用同步方法
+            execution_log.messages.append(f"Querying SLS logs with query: {query}")
             try:
-                if not self.sls_client:
-                    raise RuntimeError("SLS client not properly initialized")
-
-                # 一个集群的审计日志 sls project、logstore 需要从OpenAPI中调用后获取 or 能通过配置自定义
-                # https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/developer-reference/api-cs-2015-12-15-getclusterauditproject?spm=a2c4g.11186623.0.i5#undefined
-                audit_sls_project, audit_sls_logstore = self._get_audit_sls_project_and_logstore(cluster_id)
-
-                # Use real SLS client - 直接调用同步方法
-                return self._query_logs(audit_sls_project, audit_sls_logstore, query, start_time, end_time,
-                                        normalized_params)
-
+                result = self._query_logs(audit_sls_project, audit_sls_logstore, query, start_time_ts, end_time_ts,
+                                        normalized_params, execution_log)
+                
+                execution_log.messages.append(f"Retrieved {result.get('total', 0)} log entries")
+                
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                
+                # Add execution_log to result
+                result["execution_log"] = execution_log
+                return result
+                
             except Exception as e:
                 logger.error(f"Failed to query audit logs: {e}")
-                return {
-                    "provider_query": query,
-                    "entries": [],
-                    "total": 0,
-                    "params": normalized_params,
-                    "error": str(e)
-                }
+                raise
 
         except Exception as e:
             # Return error message in the expected format
+            execution_log.error = str(e)
+            execution_log.messages.append(f"Operation failed: {str(e)}")
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+            execution_log.metadata = {
+                "error_type": type(e).__name__,
+                "failure_stage": "query_audit_log_operation"
+            }
+            
             return {
                 "error": str(e),
-                "params": normalized_params
+                "params": params,
+                "execution_log": execution_log
             }
 
     def _parse_single_time(self, time_str: str, default_hours: int = 24) -> datetime:
         """解析时间字符串，支持相对时间和ISO 8601格式"""
-        from datetime import datetime
+        # Using module-level datetime import
         
         if not time_str:
             return datetime.now() - timedelta(hours=default_hours)
+        
+        # Handle "now" alias
+        if time_str.lower() == "now":
+            return datetime.now()
             
         # 相对时间格式
         if time_str.endswith('h'):
@@ -472,7 +598,7 @@ class ACKAuditLogHandler:
         return int(start_time.timestamp()), int(end_time.timestamp())
 
     def _query_logs(self, project: str, logstore: str, query: str, start_time: int, end_time: int,
-                    params: Dict[str, Any]) -> Dict[str, Any]:
+                    params: Dict[str, Any], execution_log: Optional[ExecutionLog] = None) -> Dict[str, Any]:
         """Query using real SLS client with get_logs API."""
         try:
             from alibabacloud_sls20201230 import models as sls_models
@@ -488,7 +614,25 @@ class ACKAuditLogHandler:
             )
 
             # 调用SLS API - 使用get_logs方法
+            api_start = int(time.time() * 1000)
             response = self.sls_client.get_logs(project, logstore, request)
+            api_duration = int(time.time() * 1000) - api_start
+            
+            # 提取 request_id
+            request_id = None
+            if hasattr(response, 'headers') and response.headers:
+                request_id = response.headers.get('x-log-requestid', 'N/A')
+            
+            # 记录到 ExecutionLog
+            if execution_log is not None:
+                execution_log.api_calls.append({
+                    "api": "SLS.GetLogs",
+                    "project": project,
+                    "logstore": logstore,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "success"
+                })
             
             # Parse response - get_logs 返回的是 GetLogsResponse 对象
             entries = []
@@ -568,16 +712,27 @@ class ACKAuditLogHandler:
 
                         entries.append(log_data)
             except Exception as e:
-                logger.warning(f"Failed to parse response body: {e}")
+                execution_log.messages.append(f"Failed to parse response body, response: {response}, error: {e}")
+                logger.warning(f"Failed to parse response body, response: {response}, error: {e}")
 
             return {
                 "provider_query": query,
                 "entries": entries,
                 "total": len(entries),
-                "params": params
+                "params": params,
+                "request_id": request_id
             }
 
         except Exception as e:
+            # 记录到 ExecutionLog（失败）
+            if execution_log is not None:
+                execution_log.api_calls.append({
+                    "api": "SLS.GetLogs",
+                    "project": project,
+                    "logstore": logstore,
+                    "status": "failed",
+                    "error": str(e)
+                })
             logger.error(f"SLS query failed: {e}")
             raise
 
@@ -611,20 +766,23 @@ class ACKAuditLogHandler:
 
         return query
 
-    def _get_audit_sls_project_and_logstore(self, cluster_id):
+    def _get_audit_sls_project_and_logstore(self, cluster_id) -> tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
         runtime = util_models.RuntimeOptions()
         headers = {}
+        request_id = None
         try:
             response = self.cs_client.get_cluster_audit_project_with_options(cluster_id, headers, runtime)
             logger.info(f"_get_audit_sls_project_and_logstore response type: {type(response)}")
+            # 提取 request_id
+            if hasattr(response, 'headers') and response.headers:
+                request_id = response.headers.get('x-acs-request-id', 'N/A')
             if hasattr(response, 'body'):
                 if hasattr(response.body, 'sls_project_name'):
                     if response.body.audit_enabled:
                         # get and return
-                        return response.body.sls_project_name, f"audit-{cluster_id}"
+                        return response.body.sls_project_name, f"audit-{cluster_id}", request_id, None
             # 此集群没有开启审计日志功能
-            raise Exception("此集群没有开启审计日志功能")
+            return None, None, request_id, "Audit logging is not enabled for this cluster. Please enable it in the cluster console by navigating to Security → Audit on the left sidebar."
         except Exception as error:
             logger.error(error)
-            raise
-
+            return None, None, request_id, str(error)

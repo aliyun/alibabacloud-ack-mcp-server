@@ -27,6 +27,8 @@ from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from fastmcp import FastMCP
 
+from models import ExecutionLog
+
 from ack_audit_log_handler import ACKAuditLogHandler
 from ack_controlplane_log_handler import ACKControlPlaneLogHandler
 
@@ -234,6 +236,18 @@ def main():
         help="Path to local kubeconfig file when KUBECONFIG_MODE is LOCAL (default: from env KUBECONFIG_PATH)"
     )
     parser.add_argument(
+        "--prometheus-endpoint-mode",
+        type=str,
+        choices=["ARMS_PUBLIC", "ARMS_PRIVATE", "LOCAL"],
+        help="Prometheus endpoint resolution mode: 'ARMS_PUBLIC' (use ARMS API to get public endpoint, default), 'ARMS_PRIVATE' (use ARMS API to get private endpoint), or 'LOCAL' (use static config/env vars) (default: from env PROMETHEUS_ENDPOINT_MODE or ARMS_PUBLIC)"
+    )
+    parser.add_argument(
+        "--enable-execution-log",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Enable ExecutionLog in tool responses for detailed execution tracking (default: false)"
+    )
+    parser.add_argument(
         "--audit-config",
         "-c",
         type=str,
@@ -259,6 +273,9 @@ def main():
         "transport": args.transport,
         "host": args.host,
         "port": args.port,
+        
+        # ExecutionLog 配置
+        "enable_execution_log": args.enable_execution_log or os.getenv("ENABLE_EXECUTION_LOG", "false").lower() == "true",
         
         # 阿里云认证配置
         "region_id": args.region or os.getenv("REGION_ID", "cn-hangzhou"),
@@ -288,6 +305,9 @@ def main():
         # ACK kubectl 配置
         "kubeconfig_mode": args.kubeconfig_mode or os.getenv("KUBECONFIG_MODE", "ACK_PUBLIC"),
         "kubeconfig_path": args.kubeconfig_path or os.getenv("KUBECONFIG_PATH", "~/.kube/config"),
+        
+        # Prometheus 配置
+        "prometheus_endpoint_mode": args.prometheus_endpoint_mode or os.getenv("PROMETHEUS_ENDPOINT_MODE", "ARMS_PUBLIC"),
     }
     
     # 验证必要的配置
