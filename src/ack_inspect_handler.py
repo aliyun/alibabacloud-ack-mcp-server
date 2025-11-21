@@ -6,7 +6,7 @@ from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 import asyncio
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from models import (
     ErrorModel,
@@ -280,7 +280,6 @@ class InspectHandler:
         Returns:
             巡检报告结果，当状态为completed或failed时返回最终结果
         """
-        from datetime import timedelta
         start_time = datetime.now()
         max_end_time = start_time + timedelta(seconds=max_wait_time)
         poll_count = 0
