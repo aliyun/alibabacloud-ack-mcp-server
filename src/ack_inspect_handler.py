@@ -60,11 +60,11 @@ class InspectHandler:
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
         self.settings = settings or {}
+        self.allow_write = self.settings.get("allow_write", True)
+        self.enable_execution_log = self.settings.get("enable_execution_log", False)
         if server is None:
             return
         self.server = server
-        self.allow_write = self.settings.get("allow_write", True)
-        self.enable_execution_log = self.settings.get("enable_execution_log", False)
         self.server.tool(
             name="query_inspect_report",
             description="即可生成并查询一个ACK集群最近的健康巡检报告"
