@@ -154,15 +154,124 @@ KUBECONFIG_PATH = xxx (Optional参数，只有当KUBECONFIG_MODE = LOCAL 时生�
 
 ### 访问可观测数据
 
-优先访问ACK集群对应的阿里云Prometheus服务数据，如没有对应服务，通过env参数寻找可观测数据的访问地址。
-通过配置可指定[Prometheus Read HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/)。
+#### Prometheus 端点解析策略
 
-当该集群没有阿里云Prometheus对应实例数据，ack-mcp-server将按按如下优先级寻找={prometheus_http_api_url}访问可观测数据。
-```shell
-env参数配置：
-PROMETHEUS_HTTP_API_{cluster_id}={prometheus_http_api_url}
-PROMETHEUS_HTTP_API={prometheus_http_api_url}
+ack-mcp-server 支持三种 Prometheus 端点解析模式，通过 `prometheus_endpoint_mode` 参数配置：
+
+**1. ARMS_PUBLIC（默认模式）**
+
+通过阿里云 ARMS API 自动获取集群对应的 Prometheus 实例公网端点，失败时回退到本地配置：
+
+```bash
+# 命令行参数
+--prometheus-endpoint-mode ARMS_PUBLIC
+
+# 环境变量
+export PROMETHEUS_ENDPOINT_MODE=ARMS_PUBLIC
 ```
+
+- 调用 ARMS GetPrometheusInstance API 获取 `http_api_inter_url`（公网访问地址）
+- 适用于 ack-mcp-server 部署在集群外部的场景
+- ARMS API 失败时自动回退到本地配置
+
+**2. ARMS_PRIVATE（内网模式）**
+
+通过阿里云 ARMS API 自动获取集群对应的 Prometheus 实例内网端点：
+
+```bash
+# 命令行参数
+--prometheus-endpoint-mode ARMS_PRIVATE
+
+# 环境变量
+export PROMETHEUS_ENDPOINT_MODE=ARMS_PRIVATE
+```
+
+- 调用 ARMS GetPrometheusInstance API 获取 `http_api_intra_url`（内网访问地址）
+- 适用于 ack-mcp-server 部署在集群内部或与阿里云 VPC 内网打通的场景
+- **要求**：ack-mcp-server 所在部署环境需与对应 region 阿里云 VPC 内网网域打通
+- ARMS API 失败时自动回退到本地配置
+
+**3. LOCAL（本地配置模式）**
+
+仅使用本地静态配置或环境变量，不调用 ARMS API：
+
+```bash
+# 命令行参数
+--prometheus-endpoint-mode LOCAL
+
+# 环境变量
+export PROMETHEUS_ENDPOINT_MODE=LOCAL
+```
+
+- 不调用任何 ARMS API
+- 适用于使用自建 Prometheus 或开发测试环境
+- 必须通过环境变量或静态配置指定 Prometheus 端点
+
+#### Prometheus 端点配置
+
+当使用 `LOCAL` 模式或 ARMS API 回退时，按如下优先级查找 Prometheus HTTP API 端点：
+
+```shell
+# 1. 集群特定配置（优先级最高）
+PROMETHEUS_HTTP_API_{cluster_id}={prometheus_http_api_url}
+
+# 2. 全局默认配置
+PROMETHEUS_HTTP_API={prometheus_http_api_url}
+
+# 示例
+export PROMETHEUS_HTTP_API_c1234567890="https://prometheus-cluster1.example.com"
+export PROMETHEUS_HTTP_API="https://prometheus-default.example.com"
+```
+
+#### ExecutionLog 可观测性
+
+所有 Prometheus 端点解析过程都记录在 `ExecutionLog` 中，包括：
+
+- **mode**: 使用的解析模式（`ARMS_PUBLIC`、`ARMS_PRIVATE` 或 `LOCAL`）
+- **source**: 端点来源（`arms_api`、`static_config` 或 `env_var:XXX`）
+- **endpoint_type**: 端点类型（`public` 或 `private`，仅 ARMS 模式）
+- **request_id**: ARMS API 调用的请求 ID（如适用）
+- **duration_ms**: API 调用耗时（如适用）
+- **endpoint**: 最终解析的端点地址
+
+示例 ExecutionLog（ARMS_PUBLIC 模式）：
+
+```json
+{
+  "api_calls": [
+    {
+      "api": "GetPrometheusInstance",
+      "source": "arms_api",
+      "mode": "ARMS_PUBLIC",
+      "cluster_id": "c1234567890",
+      "region_id": "cn-hangzhou",
+      "request_id": "B8A0D7C3-...",
+      "duration_ms": 245,
+      "status": "success",
+      "endpoint_type": "public"
+    }
+  ]
+}
+```
+
+示例 ExecutionLog（LOCAL 模式）：
+
+```json
+{
+  "api_calls": [
+    {
+      "api": "GetPrometheusEndpoint",
+      "source": "env_var:PROMETHEUS_HTTP_API_c1234567890",
+      "mode": "LOCAL",
+      "cluster_id": "c1234567890",
+      "endpoint": "https://prometheus-cluster1.example.com",
+      "status": "success"
+    }
+  ]
+}
+```
+
+通过配置可指定[Prometheus Read HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/)。
 
 ## 包命名和版本管理
 
@@ -403,6 +512,253 @@ async def query_prometheus_tool(
 ## 资源和工具
 
 MCP 服务器实现两种主要类型的端点：
+
+### 执行日志追踪 (ExecutionLog)
+
+#### 设计目标
+
+所有 ack-mcp-server 工具调用都实现完整的执行日志追踪，记录工具执行的全生命周期，包括：
+- 工具调用的起止时间和总耗时
+- 所有外部 API 调用（ACK、ARMS、SLS 等）的详细信息
+- 执行过程中的警告信息
+- 错误信息和异常元数据
+
+这些日志用于审计、性能监控、问题诊断和系统可观测性。
+
+#### ExecutionLog 数据结构
+
+```python
+class ExecutionLog(BaseModel):
+    """执行日志模型"""
+    tool_call_id: str = Field(..., description="工具调用的唯一标识符")
+    start_time: str = Field(..., description="执行开始时间（ISO 8601格式）")
+    end_time: Optional[str] = Field(None, description="执行结束时间（ISO 8601格式）")
+    duration_ms: Optional[int] = Field(None, description="总执行时长（毫秒）")
+    messages: List[str] = Field(default_factory=list, description="执行过程中的消息")
+    api_calls: List[Dict[str, Any]] = Field(default_factory=list, description="API 调用记录列表")
+    warnings: List[str] = Field(default_factory=list, description="警告信息列表")
+    error: Optional[str] = Field(None, description="错误信息")
+    metadata: Optional[Dict[str, Any]] = Field(None, description="额外的元数据信息")
+```
+
+#### 实现原则
+
+**1. 成功场景 - 精简日志**
+
+正常成功的执行保持日志精简，仅记录关键信息：
+- API 调用名称、请求 ID、耗时、状态
+- 避免冗余的描述性消息
+- 不填充 metadata 字段
+
+```python
+execution_log.api_calls.append({
+    "api": "DescribeClusterDetail",
+    "cluster_id": cluster_id,
+    "request_id": "B8A0D7C3-...",
+    "duration_ms": 234,
+    "status": "success"
+})
+```
+
+**2. 错误场景 - 详细日志**
+
+错误场景记录完整的诊断信息：
+- 错误类型、错误码、失败阶段
+- 详细的错误消息和堆栈信息
+- 上下文元数据（请求参数、状态等）
+
+```python
+execution_log.error = "Cluster endpoint not available"
+execution_log.metadata = {
+    "error_type": "ValueError",
+    "error_code": "EndpointNotFound",
+    "failure_stage": "kubeconfig_acquisition",
+    "cluster_id": cluster_id,
+    "kubeconfig_mode": "ACK_PRIVATE"
+}
+```
+
+**3. 外部调用追踪**
+
+所有外部 API 调用都必须记录：
+- **阿里云 OpenAPI**：记录 request_id、duration_ms、http_status
+- **Prometheus HTTP API**：记录 response_size_bytes、endpoint
+- **Kubectl 命令**：记录 command、exit_code、type (normal/streaming)
+- **Kubeconfig 获取**：记录 source (cache/ack_api/local_file/incluster)
+
+#### 使用示例
+
+**工具初始化执行日志**
+
+```python
+@mcp.tool(name='query_prometheus')
+async def query_prometheus(
+    ctx: Context,
+    query: str = Field(..., description="PromQL 查询语句"),
+    cluster_id: str = Field(..., description="集群 ID"),
+) -> QueryPrometheusOutput:
+    # 初始化执行日志
+    start_ms = int(time.time() * 1000)
+    execution_log = ExecutionLog(
+        tool_call_id=f"query_prometheus_{cluster_id}_{start_ms}",
+        start_time=datetime.utcnow().isoformat() + "Z"
+    )
+    
+    try:
+        # ... 执行业务逻辑 ...
+        
+        # 记录结束时间
+        execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+        execution_log.duration_ms = int(time.time() * 1000) - start_ms
+        
+        return QueryPrometheusOutput(
+            resultType="matrix",
+            result=results,
+            execution_log=execution_log
+        )
+    except Exception as e:
+        execution_log.error = str(e)
+        execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+        execution_log.duration_ms = int(time.time() * 1000) - start_ms
+        execution_log.metadata = {
+            "error_type": type(e).__name__,
+            "failure_stage": "prometheus_query"
+        }
+        return {
+            "error": ErrorModel(error_code="QueryFailed", error_message=str(e)).model_dump(),
+            "execution_log": execution_log
+        }
+```
+
+**API 调用追踪**
+
+```python
+# ACK OpenAPI 调用
+api_start = int(time.time() * 1000)
+response = await cs_client.describe_cluster_detail_with_options_async(
+    cluster_id, request, headers, runtime
+)
+api_duration = int(time.time() * 1000) - api_start
+
+# 提取 request_id
+request_id = None
+if hasattr(response, 'headers') and response.headers:
+    request_id = response.headers.get('x-acs-request-id', 'N/A')
+
+execution_log.api_calls.append({
+    "api": "DescribeClusterDetail",
+    "cluster_id": cluster_id,
+    "request_id": request_id,
+    "duration_ms": api_duration,
+    "status": "success"
+})
+```
+
+**轮询场景 - 合并中间日志**
+
+对于需要轮询的异步操作（如诊断任务、巡检任务），需要合并中间轮询调用的执行日志：
+
+```python
+# 提取轮询调用的 ExecutionLog
+if isinstance(result, dict) and "execution_log" in result:
+    poll_execution_log = result.get("execution_log")
+elif hasattr(result, 'execution_log'):
+    poll_execution_log = result.execution_log
+
+# 合并到主执行日志
+if poll_execution_log:
+    if hasattr(poll_execution_log, 'api_calls'):
+        execution_log.api_calls.extend(poll_execution_log.api_calls)
+    if hasattr(poll_execution_log, 'warnings') and poll_execution_log.warnings:
+        execution_log.warnings.extend(poll_execution_log.warnings)
+```
+
+#### 输出模型标准
+
+所有工具的输出模型必须继承 `BaseOutputModel` 以包含 `execution_log` 字段：
+
+```python
+class BaseOutputModel(BaseModel):
+    """所有输出模型的基类"""
+    execution_log: ExecutionLog = Field(
+        default_factory=lambda: ExecutionLog(
+            tool_call_id="",
+            start_time=datetime.utcnow().isoformat() + "Z"
+        ),
+        description="执行日志"
+    )
+
+class QueryPrometheusOutput(BaseOutputModel):
+    """Prometheus 查询输出"""
+    resultType: str = Field(..., description="结果类型")
+    result: List[QueryPrometheusSeriesPoint] = Field(..., description="查询结果")
+    # execution_log 自动继承
+```
+
+#### 完整示例日志
+
+**成功场景**：
+```json
+{
+  "tool_call_id": "query_prometheus_c1234567890_1763624189",
+  "start_time": "2025-01-19T10:23:09Z",
+  "end_time": "2025-01-19T10:23:10Z",
+  "duration_ms": 1245,
+  "api_calls": [
+    {
+      "api": "GetPrometheusInstance",
+      "source": "arms_api",
+      "mode": "ARMS_PUBLIC",
+      "cluster_id": "c1234567890",
+      "region_id": "cn-hangzhou",
+      "request_id": "B8A0D7C3-1D2E-4F5A-9B8C-7D6E5F4A3B2C",
+      "duration_ms": 245,
+      "status": "success",
+      "endpoint_type": "public"
+    },
+    {
+      "api": "PrometheusQuery",
+      "endpoint": "https://prometheus.cn-hangzhou.aliyuncs.com/api/v1/query_range",
+      "cluster_id": "c1234567890",
+      "duration_ms": 856,
+      "status": "success",
+      "http_status": 200,
+      "response_size_bytes": 3456
+    }
+  ],
+  "warnings": [],
+  "error": null,
+  "metadata": null
+}
+```
+
+**错误场景**：
+```json
+{
+  "tool_call_id": "ack_kubectl_c1234567890_1763624289",
+  "start_time": "2025-01-19T10:24:49Z",
+  "end_time": "2025-01-19T10:24:50Z",
+  "duration_ms": 567,
+  "api_calls": [
+    {
+      "api": "DescribeClusterDetail",
+      "cluster_id": "c1234567890",
+      "request_id": "A7B2C6D4-...",
+      "duration_ms": 234,
+      "status": "failed",
+      "error": "No intranet endpoint"
+    }
+  ],
+  "warnings": [],
+  "error": "Cluster c1234567890 does not have intranet endpoint access",
+  "metadata": {
+    "error_type": "ValueError",
+    "failure_stage": "kubeconfig_acquisition",
+    "kubeconfig_mode": "ACK_PRIVATE",
+    "cluster_id": "c1234567890"
+  }
+}
+```
 
 ### 资源定义
 

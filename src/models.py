@@ -1,6 +1,76 @@
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 from enum import Enum
+from typing import Optional, List, Dict, Any
+from loguru import logger
+import contextvars
+
+# Context variable to control execution_log output per request/handler
+enable_execution_log_ctx = contextvars.ContextVar('enable_execution_log', default=False)
+
+
+class ExecutionLog(BaseModel):
+    """
+    ExecutionLog records the detailed execution process of tool invocations.
+    Provides comprehensive tracking of request flow, timing, and operational details.
+    """
+    tool_call_id: Optional[str] = Field(None, description="Unique identifier for tracking this tool call execution")
+    start_time: Optional[str] = Field(None, description="Execution start time in ISO 8601 format")
+    end_time: Optional[str] = Field(None, description="Execution end time in ISO 8601 format")
+    duration_ms: Optional[int] = Field(None, description="Total execution duration in milliseconds")
+    messages: List[str] = Field(default_factory=list, description="Step-by-step execution log messages")
+    api_calls: List[Dict[str, Any]] = Field(default_factory=list, description="Record of external API calls made during execution")
+    warnings: List[str] = Field(default_factory=list, description="Non-fatal warnings encountered during execution")
+    error: Optional[str] = Field(None, description="Error message if execution failed")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional context-specific metadata")
+
+    def log_to_logger(self):
+        """Log ExecutionLog details to logger for monitoring and debugging"""
+        # Build complete log data with all fields
+        log_data = {
+            "tool_call_id": self.tool_call_id,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "duration_ms": self.duration_ms,
+            "messages": self.messages,
+            "api_calls": self.api_calls,
+            "warnings": self.warnings,
+            "error": self.error,
+            "metadata": self.metadata
+        }
+        
+        # Choose log level based on execution status
+        if self.error:
+            logger.error(f"ExecutionLog [ERROR]: {log_data}")
+        elif self.warnings:
+            logger.warning(f"ExecutionLog [WARNING]: {log_data}")
+        else:
+            logger.info(f"ExecutionLog [SUCCESS]: {log_data}")
+
+
+class BaseOutputModel(BaseModel):
+    """
+    Base class for all Output models.
+    Automatically includes execution_log field for tracking execution process.
+    """
+    execution_log: ExecutionLog = Field(default_factory=ExecutionLog, description="Execution process log")
+
+    @model_serializer(mode='wrap', when_used='always')
+    def _serialize_model(self, serializer, info):
+        """Custom serializer that conditionally excludes execution_log"""
+        # Log the execution log
+        if hasattr(self, 'execution_log') and self.execution_log:
+            self.execution_log.log_to_logger()
+        
+        # Get the standard serialization
+        data = serializer(self)
+        
+        # Check if execution_log should be excluded
+        enable_execution_log = enable_execution_log_ctx.get()
+        if not enable_execution_log and isinstance(data, dict) and 'execution_log' in data:
+            del data['execution_log']
+        
+        return data
 
 
 class ErrorModel(BaseModel):
@@ -21,7 +91,7 @@ class QueryPrometheusSeriesPoint(BaseModel):
     values: List[Any] = Field(default_factory=list)
 
 
-class QueryPrometheusOutput(BaseModel):
+class QueryPrometheusOutput(BaseOutputModel):
     resultType: str
     result: List[QueryPrometheusSeriesPoint]
 
@@ -50,7 +120,7 @@ class PromQLSample(BaseModel):
     labels: List[str] = Field(default_factory=list, description="观测查询规则的关联资源labels列表")
 
 
-class QueryPrometheusMetricGuidanceOutput(BaseModel):
+class QueryPrometheusMetricGuidanceOutput(BaseOutputModel):
     metrics: List[MetricDefinition] = Field(default_factory=list, description="指标定义列表")
     promql_samples: List[PromQLSample] = Field(default_factory=list, description="PromQL最佳实践样例列表")
     error: Optional[ErrorModel] = None
@@ -81,7 +151,7 @@ class DiagnosisCodeEnum(Enum):
     FAILED = 1
 
 
-class GetDiagnoseResourceResultOutput(BaseModel):
+class GetDiagnoseResourceResultOutput(BaseOutputModel):
     result: Optional[str] = None
     status: Optional[str] = Field(..., description="诊断状态：诊断已创建, 诊断运行中, 诊断已完成")
     code: Optional[str] = Field(..., description="诊断结果：诊断完成, 诊断失败")
@@ -119,7 +189,7 @@ class CheckItemResult(BaseModel):
     level: str = Field(..., description="巡检项所属级别。取值：/advice：建议/warning：低危/error：中危/critical：高危")
 
 
-class QueryInspectReportOutput(BaseModel):
+class QueryInspectReportOutput(BaseOutputModel):
     report_status: Optional[str] = None
     report_finish_time: Optional[str] = None
     summary: Optional[InspectSummary] = None
@@ -152,7 +222,7 @@ class ClusterInfo(BaseModel):
     api_server_endpoints: dict[str, str] = Field(default_factory=list, description="集群API Server 访问地址")
 
 
-class ListClustersOutput(BaseModel):
+class ListClustersOutput(BaseOutputModel):
     count: int = Field(..., description="返回的集群数")
     error: Optional[ErrorModel] = Field(None, description="错误信息")
     clusters: List[ClusterInfo] = Field(default_factory=list, description="集群列表")
@@ -194,7 +264,7 @@ class AuditLogEntry(BaseModel):
     raw_log: Optional[str] = Field(None, description="原始日志内容")
 
 
-class QueryAuditLogsOutput(BaseModel):
+class QueryAuditLogsOutput(BaseOutputModel):
     query: Optional[str] = Field(None, description="查询语句")
     entries: List[AuditLogEntry] = Field(default_factory=list, description="返回的日志条目")
     total: int = Field(0, description="总数")
@@ -222,7 +292,7 @@ class ClusterAuditProjectInfo(BaseModel):
     audit_enabled: bool = Field(False, description="当前集群是否已启用 API Server 审计功能")
 
 
-class GetClusterAuditProjectOutput(BaseModel):
+class GetClusterAuditProjectOutput(BaseOutputModel):
     """获取集群审计项目信息输出结果"""
     cluster_id: str = Field(..., description="集群 ID")
     audit_info: Optional[ClusterAuditProjectInfo] = Field(None, description="审计项目信息")
@@ -237,7 +307,7 @@ class KubectlInput(BaseModel):
     cluster_id: Optional[str] = Field(None, description="可选的集群 ID，如果提供则通过 ACK API 获取 kubeconfig")
 
 
-class KubectlOutput(BaseModel):
+class KubectlOutput(BaseOutputModel):
     """Kubectl 命令输出结果"""
     command: str = Field(..., description="kubectl 命令参数，例如 'get pods -A'")
     stdout: str = Field("", description="kubectl 命令执行结果")
@@ -245,7 +315,7 @@ class KubectlOutput(BaseModel):
     exit_code: int = Field(0, description="kubectl 命令执行结果码")
 
 
-class GetClusterKubeConfigOutput(BaseModel):
+class GetClusterKubeConfigOutput(BaseOutputModel):
     """get_cluster_kubeconfig 命令输出结果"""
     error: Optional[ErrorModel] = Field(None, description="错误信息")
     kubeconfig: Optional[str] = Field(None, description="KUBECONFIG file path for an ACK cluster")
@@ -259,7 +329,7 @@ class KubectlErrorCodes:
     KUBECTL_COMMAND_FAILED = "KUBECTL_COMMAND_FAILED"
 
 
-class GetCurrentTimeOutput(BaseModel):
+class GetCurrentTimeOutput(BaseOutputModel):
     """获取当前时间的输出模型"""
     current_time_iso: str = Field(..., description="当前时间，ISO 8601 格式 (UTC)")
     current_time_unix: int = Field(..., description="当前时间，Unix 时间戳（秒级）")
@@ -289,7 +359,7 @@ class ControlPlaneLogEntry(BaseModel):
     raw_log: Optional[str] = Field(None, description="原始日志内容")
 
 
-class QueryControlPlaneLogsOutput(BaseModel):
+class QueryControlPlaneLogsOutput(BaseOutputModel):
     """查询控制面日志输出结果"""
     query: Optional[str] = Field(None, description="查询语句")
     entries: List[ControlPlaneLogEntry] = Field(default_factory=list, description="返回的日志条目")
@@ -316,7 +386,7 @@ class ControlPlaneLogConfig(BaseModel):
     components: List[str] = Field(default_factory=list, description="当前开启控制面日志的组件列表")
 
 
-class GetControlPlaneLogConfigOutput(BaseModel):
+class GetControlPlaneLogConfigOutput(BaseOutputModel):
     """获取控制面日志配置输出结果"""
     cluster_id: str = Field(..., description="集群 ID")
     config: Optional[ControlPlaneLogConfig] = Field(None, description="控制面日志配置信息")
