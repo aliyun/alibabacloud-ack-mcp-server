@@ -7,11 +7,15 @@ from alibabacloud_cs20151215 import models as cs20151215_models
 from alibabacloud_tea_util import models as util_models
 from pydantic import Field
 import json
+import time
+from datetime import datetime
 from models import (
     ListClustersOutput,
     ClusterInfo,
     ErrorModel,
-    ClusterErrorCodes
+    ClusterErrorCodes,
+    ExecutionLog,
+    enable_execution_log_ctx
 )
 
 
@@ -106,13 +110,17 @@ class ACKClusterHandler:
             settings: Configuration settings
         """
         self.settings = settings or {}
+        # Per-handler ExecutionLog output toggle
+
+        # 是否可写变更配置
+        self.allow_write = self.settings.get("allow_write", False)
+
+        # Per-handler toggle
+        self.enable_execution_log = self.settings.get("enable_execution_log", False)
+
         if server is None:
             return
         self.server = server
-        # 是否可写变更配置
-        self.allow_write = self.settings.get("allow_write", False)
-        self.settings = settings or {}
-
         # Register tools
         self.server.tool(
             name="list_clusters",
@@ -139,26 +147,76 @@ class ACKClusterHandler:
         Returns:
            ListClustersOutput: 包含集群列表和错误信息的输出
         """
+        # Set per-request context from handler setting
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        
+        # Initialize execution log
+        execution_log = ExecutionLog(
+            tool_call_id=f"list_clusters_{int(time.time() * 1000)}",
+            start_time=datetime.utcnow().isoformat() + "Z"
+        )
+        start_ms = int(time.time() * 1000)
 
         try:
             # 获取 CS 客户端
             cs_client = _get_cs_client(ctx, "CENTER")
 
             # 构建请求
+            actual_page_size = min(page_size or 10, 500)
+            actual_page_num = page_num or 1
+
             request = cs20151215_models.DescribeClustersV1Request(
-                page_size=min(page_size or 10, 500),
-                page_number=page_num or 1,
+                page_size=actual_page_size,
+                page_number=actual_page_num,
             )
             runtime = util_models.RuntimeOptions()
             headers = {}
 
             # 调用 API
-            response = await cs_client.describe_clusters_v1with_options_async(request, headers, runtime)
+            api_start = int(time.time() * 1000)
+            execution_log.messages.append("Calling DescribeClusters API")
+            
+            try:
+                response = await cs_client.describe_clusters_v1with_options_async(request, headers, runtime)
+                api_duration = int(time.time() * 1000) - api_start
+                
+                execution_log.api_calls.append({
+                    "api": "DescribeClustersV1",
+                    "region": "CENTER",
+                    "request_params": {
+                        "page_size": actual_page_size,
+                        "page_number": actual_page_num
+                    },
+                    "duration_ms": api_duration,
+                    "status": "success"
+                })
+                execution_log.messages.append(f"API call succeeded in {api_duration}ms")
+            except Exception as api_error:
+                api_duration = int(time.time() * 1000) - api_start
+                execution_log.api_calls.append({
+                    "api": "DescribeClustersV1",
+                    "region": "CENTER",
+                    "request_params": {
+                        "page_size": actual_page_size,
+                        "page_number": actual_page_num
+                    },
+                    "duration_ms": api_duration,
+                    "status": "failed",
+                    "error": str(api_error)
+                })
+                execution_log.messages.append(f"API call failed after {api_duration}ms: {str(api_error)}")
+                raise api_error
 
             # 处理响应
+            request_id = response.headers.get("x-acs-request-id", "N/A") if hasattr(response, 'headers') and response.headers else "N/A"
+            execution_log.messages.append(f"Processing API response, requestId: {request_id}")
             clusters_data = _serialize_sdk_object(
                 response.body.clusters) if response.body and response.body.clusters else []
+            execution_log.messages.append(f"Retrieved {len(clusters_data)} raw cluster records")
+            
             clusters = []
+            skipped_count = 0
+            parse_errors = 0
 
             for cluster_data in clusters_data:
                 try:
@@ -172,6 +230,7 @@ class ACKClusterHandler:
                     # 如果必填字段为空，跳过这个集群
                     if not cluster_name or not cluster_id or not state or not cluster_type:
                         logger.warning(f"Skipping cluster with missing required fields: {cluster_data}")
+                        skipped_count += 1
                         continue
 
                     cluster_info = ClusterInfo(
@@ -195,11 +254,23 @@ class ACKClusterHandler:
                     clusters.append(cluster_info)
                 except Exception as e:
                     logger.warning(f"Failed to parse cluster data: {e}")
+                    execution_log.warnings.append(f"Failed to parse cluster data: {cluster_data}, error: {e}")
+                    parse_errors += 1
                     continue
+
+            if skipped_count > 0:
+                execution_log.warnings.append(f"Skipped {skipped_count} clusters with missing required fields")
+            if parse_errors > 0:
+                execution_log.warnings.append(f"Failed to parse {parse_errors} cluster records")
+            
+            execution_log.messages.append(f"Successfully list {len(clusters)} clusters")
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
 
             return ListClustersOutput(
                 count=len(clusters),
-                clusters=clusters
+                clusters=clusters,
+                execution_log=execution_log
             )
 
         except Exception as e:
@@ -211,11 +282,21 @@ class ACKClusterHandler:
             if "region" in error_message.lower() or "region_id" in error_message.lower():
                 error_code = ClusterErrorCodes.MISS_REGION_ID
 
+            execution_log.error = error_message
+            execution_log.messages.append(f"Operation failed: {error_message}")
+            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+            execution_log.metadata = {
+                "error_code": error_code,
+                "failure_stage": "list_clusters_operation"
+            }
+
             return ListClustersOutput(
                 count=0,
                 error=ErrorModel(
                     error_code=error_code,
                     error_message=error_message
                 ),
-                clusters=[]
+                clusters=[],
+                execution_log=execution_log
             )

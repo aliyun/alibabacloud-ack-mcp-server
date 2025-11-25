@@ -7,7 +7,9 @@ from typing import Dict, Optional
 from cachetools import TTLCache
 from loguru import logger
 from ack_cluster_handler import parse_master_url
-from models import KubectlOutput
+from models import KubectlOutput, ExecutionLog, enable_execution_log_ctx
+import time
+from datetime import datetime
 
 class KubectlContextManager(TTLCache):
     """基于 TTL+LRU 缓存的 kubeconfig 文件管理器"""
@@ -78,13 +80,14 @@ class KubectlContextManager(TTLCache):
         except Exception:
             pass
 
-    def _get_or_create_kubeconfig_file(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str) -> str:
+    def _get_or_create_kubeconfig_file(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str, execution_log: ExecutionLog) -> str:
         """获取或创建集群的 kubeconfig 文件
 
         Args:
             cluster_id: 集群ID
             kubeconfig_mode: 获取kubeconfig的模式，支持 "ACK_PUBLIC", "ACK_PRIVATE", "LOCAL"
             kubeconfig_path: 本地kubeconfig文件路径（仅在模式为LOCAL时使用）
+            execution_log: 执行日志
             
         Returns:
             kubeconfig 文件路径
@@ -92,12 +95,24 @@ class KubectlContextManager(TTLCache):
         # 检查缓存中是否已存在
         if cluster_id in self:
             logger.debug(f"Found cached kubeconfig for cluster {cluster_id}")
+            execution_log.api_calls.append({
+                "api": "GetKubeconfig",
+                "source": "cache",
+                "cluster_id": cluster_id,
+                "status": "success"
+            })
             return self[cluster_id]
 
         if kubeconfig_mode == "INCLUSTER":
             # 使用集群内配置
             logger.debug(f"Using in-cluster kubeconfig for cluster {cluster_id}")
             kubeconfig_path = self._construct_incluster_kubeconfig()
+            execution_log.api_calls.append({
+                "api": "GetKubeconfig",
+                "source": "incluster",
+                "cluster_id": cluster_id,
+                "status": "success"
+            })
             self[cluster_id] = kubeconfig_path
             return kubeconfig_path
 
@@ -111,6 +126,13 @@ class KubectlContextManager(TTLCache):
                 raise ValueError(f"File {kubeconfig_path} does not exist")
             self.do_not_cleanup_file = kubeconfig_path
             logger.debug(f"Using local kubeconfig for cluster {cluster_id} from {kubeconfig_path}")
+            execution_log.api_calls.append({
+                "api": "GetKubeconfig",
+                "source": "local_file",
+                "cluster_id": cluster_id,
+                "path": kubeconfig_path,
+                "status": "success"
+            })
             self[cluster_id] = kubeconfig_path
             return kubeconfig_path
 
@@ -118,7 +140,7 @@ class KubectlContextManager(TTLCache):
         private_ip_address = kubeconfig_mode == "ACK_PRIVATE"
 
         # 创建新的 kubeconfig 文件
-        kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id, private_ip_address, int(self.ttl / 60))  # 转换为分钟
+        kubeconfig_content = self._get_kubeconfig_from_ack(cluster_id, private_ip_address, int(self.ttl / 60), execution_log)  # 转换为分钟
         if not kubeconfig_content:
             raise ValueError(f"Failed to get kubeconfig for cluster {cluster_id}")
 
@@ -181,13 +203,14 @@ class KubectlContextManager(TTLCache):
             raise ValueError("CS client not set")
         return self._cs_client
 
-    def _get_kubeconfig_from_ack(self, cluster_id: str, private_ip_address: bool = False, ttl_minutes: int = 60) -> Optional[str]:
+    def _get_kubeconfig_from_ack(self, cluster_id: str, private_ip_address: bool = False, ttl_minutes: int = 60, execution_log: ExecutionLog = None) -> Optional[str]:
         """通过ACK API获取kubeconfig配置
 
         Args:
             cluster_id: 集群ID
             private_ip_address: 是否获取内网连接配置
             ttl_minutes: kubeconfig有效期（分钟），默认60分钟
+            execution_log: 执行日志
         """
         try:
             # 获取CS客户端
@@ -195,9 +218,25 @@ class KubectlContextManager(TTLCache):
             from alibabacloud_cs20151215 import models as cs_models
 
             # 先检查集群详情，确认是否有公网端点
+            api_start = int(time.time() * 1000)
             detail_response = cs_client.describe_cluster_detail(cluster_id)
+            api_duration = int(time.time() * 1000) - api_start
+            
+            # Extract request_id
+            request_id = None
+            if hasattr(detail_response, 'headers') and detail_response.headers:
+                request_id = detail_response.headers.get('x-acs-request-id', 'N/A')
 
             if not detail_response or not detail_response.body:
+                if execution_log:
+                    execution_log.api_calls.append({
+                        "api": "DescribeClusterDetail",
+                        "cluster_id": cluster_id,
+                        "request_id": request_id,
+                        "duration_ms": api_duration,
+                        "status": "failed",
+                        "error": "No response body"
+                    })
                 raise ValueError(f"Failed to get cluster details for {cluster_id}")
 
             cluster_info = detail_response.body
@@ -206,16 +245,44 @@ class KubectlContextManager(TTLCache):
             master_url = parse_master_url(master_url_str)
             if private_ip_address:
                 if not master_url["intranet_api_server_endpoint"]:
+                    if execution_log:
+                        execution_log.api_calls.append({
+                            "api": "DescribeClusterDetail",
+                            "cluster_id": cluster_id,
+                            "request_id": request_id,
+                            "duration_ms": api_duration,
+                            "status": "failed",
+                            "error": "No intranet endpoint"
+                        })
                     raise ValueError(
                         f"Cluster {cluster_id} does not have intranet endpoint access, "
                         f"Please enable intranet endpoint access setting first."
                     )
             else:
                 if not master_url["api_server_endpoint"]:
+                    if execution_log:
+                        execution_log.api_calls.append({
+                            "api": "DescribeClusterDetail",
+                            "cluster_id": cluster_id,
+                            "request_id": request_id,
+                            "duration_ms": api_duration,
+                            "status": "failed",
+                            "error": "No public endpoint"
+                        })
                     raise ValueError(
                         f"Cluster {cluster_id} does not have public endpoint access, "
                         f"Please enable public endpoint access setting first."
                     )
+            
+            # Log successful cluster detail check
+            if execution_log:
+                execution_log.api_calls.append({
+                    "api": "DescribeClusterDetail",
+                    "cluster_id": cluster_id,
+                    "request_id": request_id,
+                    "duration_ms": api_duration,
+                    "status": "success"
+                })
 
             # 调用DescribeClusterUserKubeconfig API
             request = cs_models.DescribeClusterUserKubeconfigRequest(
@@ -223,13 +290,39 @@ class KubectlContextManager(TTLCache):
                 temporary_duration_minutes=ttl_minutes,  # 使用传入的TTL
             )
 
+            api_start = int(time.time() * 1000)
             response = cs_client.describe_cluster_user_kubeconfig(cluster_id, request)
+            api_duration = int(time.time() * 1000) - api_start
+            
+            # Extract request_id
+            request_id = None
+            if hasattr(response, 'headers') and response.headers:
+                request_id = response.headers.get('x-acs-request-id', 'N/A')
 
             if response and response.body and response.body.config:
                 logger.info(f"Successfully fetched kubeconfig for cluster {cluster_id} (TTL: {ttl_minutes} minutes)")
+                if execution_log:
+                    execution_log.api_calls.append({
+                        "api": "DescribeClusterUserKubeconfig",
+                        "cluster_id": cluster_id,
+                        "request_id": request_id,
+                        "duration_ms": api_duration,
+                        "status": "success",
+                        "mode": "private" if private_ip_address else "public",
+                        "ttl_minutes": ttl_minutes
+                    })
                 return response.body.config
             else:
                 logger.warning(f"No kubeconfig found for cluster {cluster_id}")
+                if execution_log:
+                    execution_log.api_calls.append({
+                        "api": "DescribeClusterUserKubeconfig",
+                        "cluster_id": cluster_id,
+                        "request_id": request_id,
+                        "duration_ms": api_duration,
+                        "status": "failed",
+                        "error": "No kubeconfig in response"
+                    })
                 return None
 
         except Exception as e:
@@ -270,18 +363,19 @@ users:
 """)
         return kubeconfig_path
 
-    def get_kubeconfig_path(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str) -> str:
+    def get_kubeconfig_path(self, cluster_id: str, kubeconfig_mode: str, kubeconfig_path: str, execution_log: ExecutionLog) -> str:
         """获取集群的 kubeconfig 文件路径
 
         Args:
             cluster_id: 集群ID
             kubeconfig_mode: 获取kubeconfig的模式，支持 "ACK_PUBLIC", "ACK_PRIVATE", "LOCAL"
             kubeconfig_path: 本地kubeconfig文件路径（仅在模式为LOCAL时使用）
+            execution_log: 执行日志
             
         Returns:
             kubeconfig 文件路径
         """
-        return self._get_or_create_kubeconfig_file(cluster_id, kubeconfig_mode, kubeconfig_path)
+        return self._get_or_create_kubeconfig_file(cluster_id, kubeconfig_mode, kubeconfig_path, execution_log)
 
 
 # 全局上下文管理器实例
@@ -317,9 +411,6 @@ class KubectlHandler:
             settings: Optional settings dictionary
         """
         self.settings = settings or {}
-        if server is None:
-            return
-        self.server = server
 
         # 超时配置
         self.kubectl_timeout = self.settings.get("kubectl_timeout", 30)
@@ -327,6 +418,13 @@ class KubectlHandler:
         # 是否可写变更配置
         self.allow_write = self.settings.get("allow_write", False)
         
+        # Per-handler toggle
+        self.enable_execution_log = self.settings.get("enable_execution_log", False)
+
+        if server is None:
+            return
+        self.server = server
+
         self._register_tools()
 
     def _setup_cs_client(self, ctx: Context):
@@ -441,10 +539,12 @@ class KubectlHandler:
 
         return False, None
 
-    def run_streaming_command(self, command: str, kubeconfig_path: str, timeout: int = 10) -> Dict[str, Any]:
+    def run_streaming_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
         """运行流式命令，支持超时控制"""
         try:
             full_command = f"kubectl --kubeconfig {kubeconfig_path} {command}"
+            
+            cmd_start = int(time.time() * 1000)
             process = subprocess.Popen(
                 full_command,
                 shell=True,
@@ -496,9 +596,21 @@ class KubectlHandler:
             stdout_thread.join(timeout=1)
             stderr_thread.join(timeout=1)
 
+            cmd_duration = int(time.time() * 1000) - cmd_start
             exit_code = process.returncode
             if process_terminated and exit_code is None:
                 exit_code = 124
+            
+            # Log kubectl execution
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "streaming",
+                "duration_ms": cmd_duration,
+                "exit_code": exit_code or 0,
+                "status": "success" if exit_code == 0 else "failed",
+                "timeout": timeout
+            })
 
             return {
                 "exit_code": exit_code or 0,
@@ -507,16 +619,25 @@ class KubectlHandler:
             }
 
         except Exception as e:
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "streaming",
+                "status": "failed",
+                "error": str(e)
+            })
             return {
                 "exit_code": 1,
                 "stdout": "",
                 "stderr": str(e)
             }
 
-    def run_command(self, command: str, kubeconfig_path: str, timeout: int = 10) -> Dict[str, Any]:
+    def run_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
         """Run a kubectl command and return structured result."""
         try:
             full_command = f"kubectl --kubeconfig {kubeconfig_path} {command}"
+            
+            cmd_start = int(time.time() * 1000)
             result = subprocess.run(
                 full_command,
                 shell=True,
@@ -525,18 +646,50 @@ class KubectlHandler:
                 check=True,
                 timeout=timeout
             )
+            cmd_duration = int(time.time() * 1000) - cmd_start
+            
+            # Log kubectl execution
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "normal",
+                "duration_ms": cmd_duration,
+                "exit_code": result.returncode,
+                "status": "success",
+                "timeout": timeout
+            })
+            
             return {
                 "exit_code": result.returncode,
                 "stdout": result.stdout.strip() if result.stdout else "",
                 "stderr": result.stderr.strip() if result.stderr else "",
             }
         except subprocess.TimeoutExpired:
+            cmd_duration = int(time.time() * 1000) - cmd_start
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "normal",
+                "duration_ms": cmd_duration,
+                "exit_code": 124,
+                "status": "timeout",
+                "timeout": timeout
+            })
             return {
                 "exit_code": 124,
                 "stdout": "",
                 "stderr": f"Command timed out after {timeout} seconds",
             }
         except subprocess.CalledProcessError as e:
+            cmd_duration = int(time.time() * 1000) - cmd_start
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "normal",
+                "duration_ms": cmd_duration,
+                "exit_code": e.returncode,
+                "status": "failed"
+            })
             return {
                 "exit_code": e.returncode,
                 "stdout": e.stdout.strip() if e.stdout else "",
@@ -594,6 +747,16 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                 ),
         ) -> KubectlOutput:
 
+            # Set per-request context from handler setting
+            enable_execution_log_ctx.set(self.enable_execution_log)
+
+            # Initialize execution log
+            start_ms = int(time.time() * 1000)
+            execution_log = ExecutionLog(
+                tool_call_id=f"ack_kubectl_{cluster_id}_{start_ms}",
+                start_time=datetime.utcnow().isoformat() + "Z"
+            )
+
             try:
                 # 设置CS客户端
                 self._setup_cs_client(ctx)
@@ -602,47 +765,77 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                 if not self.allow_write:
                     is_write_command, not_allow_write_error = self.is_write_command(command)
                     if is_write_command:
+                        execution_log.error = not_allow_write_error
+                        execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                        execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                        execution_log.metadata = {
+                            "error_type": "WriteCommandNotAllowed",
+                            "command": command,
+                            "allow_write": False
+                        }
                         return KubectlOutput(
                             command=command,
                             stdout="",
                             stderr=not_allow_write_error,
-                            exit_code=1
+                            exit_code=1,
+                            execution_log=execution_log
                         )
 
                 # 检查是否为交互式命令
                 is_interactive, interactive_error = self.is_interactive_command(command)
                 if is_interactive:
+                    execution_log.error = interactive_error
+                    execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                    execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                    execution_log.metadata = {
+                        "error_type": "InteractiveCommandNotSupported",
+                        "command": command
+                    }
                     return KubectlOutput(
                         command=command,
                         stdout="",
                         stderr=interactive_error,
-                        exit_code=1
+                        exit_code=1,
+                        execution_log=execution_log
                     )
 
                 # 获取 kubeconfig 文件路径
                 context_manager = get_context_manager()
-                kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id, self.settings.get("kubeconfig_mode"), self.settings.get("kubeconfig_path"))
+                kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id, self.settings.get("kubeconfig_mode"), self.settings.get("kubeconfig_path"), execution_log)
 
                 # 检查是否为流式命令
                 is_streaming, stream_type = self.is_streaming_command(command)
 
                 if is_streaming:
-                    result = self.run_streaming_command(command, kubeconfig_path, self.kubectl_timeout)
+                    result = self.run_streaming_command(command, kubeconfig_path, self.kubectl_timeout, execution_log)
                 else:
-                    result = self.run_command(command, kubeconfig_path, self.kubectl_timeout)
+                    result = self.run_command(command, kubeconfig_path, self.kubectl_timeout, execution_log)
+
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
 
                 return KubectlOutput(
                     command=command,
                     stdout=result["stdout"],
                     stderr=result["stderr"],
-                    exit_code=result["exit_code"]
+                    exit_code=result["exit_code"],
+                    execution_log=execution_log
                 )
 
             except Exception as e:
                 logger.error(f"kubectl tool execution error: {e}")
+                execution_log.error = str(e)
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": type(e).__name__,
+                    "failure_stage": "kubectl_execution",
+                    "command": command
+                }
                 return KubectlOutput(
                     command=command,
                     stdout="",
                     stderr=str(e),
-                    exit_code=1
+                    exit_code=1,
+                    execution_log=execution_log
                 )
