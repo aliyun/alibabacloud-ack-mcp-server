@@ -391,3 +391,38 @@ class GetControlPlaneLogConfigOutput(BaseOutputModel):
     cluster_id: str = Field(..., description="集群 ID")
     config: Optional[ControlPlaneLogConfig] = Field(None, description="控制面日志配置信息")
     error: Optional[ErrorModel] = Field(None, description="错误信息")
+
+
+# ==================== 成本分析相关模型 ====================
+
+class WorkloadCostOutput(BaseOutputModel):
+    """工作负载成本分析输出结果"""
+    cluster_id: str = Field(..., description="集群 ID")
+    namespace: str = Field(..., description="命名空间")
+    workload_type: str = Field(..., description="工作负载类型")
+    workload_name: str = Field(..., description="工作负载名称")
+    resource_metrics: Optional[Dict[str, Any]] = Field(
+        None, 
+        description="资源使用详情，包含: cpu_usage, cpu_request, cpu_limit, memory_usage, memory_request, memory_limit, cpu_utilization, memory_utilization"
+    )
+    resource_recommendation: Optional[Dict[str, Any]] = Field(
+        None, 
+        description="""基于资源画像提供的推荐配置。
+
+        结构: {
+            'containers': [
+                {
+                    'container_name': str,
+                    'cpu_recommended': str,    # CPU推荐配置：画像值 × 1.3 倍安全冗余后取整，可应用于 request 配置
+                    'memory_recommended': str  # 内存推荐配置：画像值 × 1.3 倍安全冗余后取整，可应用于 request 配置
+                }
+            ],
+            'resource_recommendation_status': str
+        }
+        
+        resource_recommendation_status 值说明:
+        - Collecting: 初始阶段，正在采集资源使用数据
+        - Working: 资源画像结果已经生成，推荐值可供参考
+        """
+    )
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
