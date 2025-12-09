@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://python.org)
 [![FastMCP](https://img.shields.io/badge/FastMCP-2.12.2+-green.svg)](https://github.com/jlowin/fastmcp)
+[![Qwen Code Extension](https://img.shields.io/badge/Qwen%20Code-Extension-blueviolet.svg)](https://qwenlm.github.io/qwen-code-docs/zh/extensions/extension/)
 
 阿里云容器服务MCP Server工具集: ack-mcp-server。   
 将 ACK 集群/资源管理、Kubernetes 原生操作与容器场景的可观测性能力、安全审计、诊断巡检等运维能力统一为AI原生的标准化工具集。   
@@ -186,6 +187,12 @@ make build-binary
 
 # 运行
 ./dist/ack-mcp-server --help
+```
+
+#### 部署方式4 - 与 [Qwen Code](https://github.com/QwenLM/qwen-code) 集成
+
+```bash
+qwen extensions install aliyun/alibabacloud-ack-mcp-server --ref master --auto-update
 ```
 
 ## 🎯 3 如何本地开发运行
