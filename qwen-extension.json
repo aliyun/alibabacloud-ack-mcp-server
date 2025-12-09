@@ -1,0 +1,13 @@
+{
+  "name": "ack-mcp-server",
+  "version": "1.0.0",
+  "contextFileName": "LLM_CONTEXT.md",
+  "mcpServers": {
+    "ack-mcp-server": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "main_server.py", "--transport=stdio", "--allow-write"],
+      "cwd": "${extensionPath}/src"
+    }
+  }
+}
