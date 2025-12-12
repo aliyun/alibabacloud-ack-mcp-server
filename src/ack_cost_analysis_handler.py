@@ -112,7 +112,7 @@ class ACKCostAnalysisHandler:
             )
 
             execution_log.messages.append(
-                "Step 2 [Optional]: Fetching resource recommendation from VPA CR"
+                "Step 2 [Optional]: Fetching resource recommendation from Recommendation CR"
             )
             recommendation = await self._get_resource_recommendation(
                 ctx, cluster_id, namespace, workload_type, workload_name, execution_log
@@ -122,6 +122,9 @@ class ACKCostAnalysisHandler:
             execution_log.duration_ms = int(time.time() * 1000) - start_ms
 
             # 构建资源指标字典
+            cpu_util = instant_analysis.get("resource_utilization", {}).get("cpu_utilization")
+            memory_util = instant_analysis.get("resource_utilization", {}).get("memory_utilization")
+            
             resource_metrics = {
                 "cpu_usage": instant_analysis.get("instant_cpu_usage", "N/A"),
                 "cpu_request": instant_analysis.get("cpu_request") or "未配置",
@@ -129,8 +132,8 @@ class ACKCostAnalysisHandler:
                 "memory_usage": instant_analysis.get("instant_memory_usage", "N/A"),
                 "memory_request": instant_analysis.get("memory_request") or "未配置",
                 "memory_limit": instant_analysis.get("memory_limit") or "未配置",
-                "cpu_utilization": instant_analysis.get("resource_utilization", {}).get("cpu_utilization"),
-                "memory_utilization": instant_analysis.get("resource_utilization", {}).get("memory_utilization")
+                "cpu_utilization": f"{cpu_util * 100:.2f}%" if cpu_util is not None else "N/A",
+                "memory_utilization": f"{memory_util * 100:.2f}%" if memory_util is not None else "N/A"
             }
 
             return WorkloadCostOutput(
