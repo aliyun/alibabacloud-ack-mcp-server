@@ -31,6 +31,7 @@ from models import ExecutionLog
 
 from ack_audit_log_handler import ACKAuditLogHandler
 from ack_controlplane_log_handler import ACKControlPlaneLogHandler
+from ack_cost_analysis_handler import ACKCostAnalysisHandler
 
 # 尝试导入python-dotenv
 try:
@@ -167,6 +168,8 @@ def create_main_server(
     ACKAuditLogHandler(main_mcp, settings)
     # Register control plane log tools
     ACKControlPlaneLogHandler(main_mcp, settings)
+    # Register cost analysis tools
+    ACKCostAnalysisHandler(main_mcp, settings)
 
     return main_mcp
 

@@ -1,0 +1,15 @@
+task_name: "workload-cost-analysis"
+scripts:
+  - prompt: "在我的 benchmark 测试集群里，分析 case6-workload-cost-analysis 命名空间下的 cost-demo-app 成本优化建议。"
+setup:
+  - setup_script_file: "setup.sh"
+cleanup:
+  - cleanup_script_file: "cleanup.sh"
+verify:
+  - prompt: "请判断上面AI的回答是否包含了以下关键信息：1) 该应用的CPU和内存实际使用量；2) CPU和内存的请求配置(requests)；3) 资源利用率数据。如果这些关键信息都包含了，请仅输出：回答正确。如果缺少任何一项关键信息，请仅输出：回答错误。"
+    verify_config:
+      ai_agent:
+        name: qwen_code
+        version: 0.0.11
+      llm_model:
+        name: qwen3-coder-plus
