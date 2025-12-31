@@ -1,0 +1,12 @@
+{
+  "name": "ack-mcp-server",
+  "version": "1.0.0",
+  "mcpServers": {
+    "ack-mcp-server": {
+      "command": "uv",
+      "args": ["run", "main_server.py", "--transport=stdio", "--allow-write"],
+      "cwd": "${extensionPath}/src"
+    }
+  },
+  "settings": []
+}
