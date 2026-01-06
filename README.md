@@ -234,7 +234,7 @@ gemini mcp list
 #### 2.4.4 [Claude Code](https://github.com/anthropics/claude-code)
 
 ```bash
-claude mcp add --transport http --scope user http ack-mcp-server <endpoint>
+claude mcp add --transport http --scope user ack-mcp-server <endpoint>
 
 # Verify:
 claude mcp list
