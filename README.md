@@ -188,6 +188,67 @@ make build-binary
 ./dist/ack-mcp-server --help
 ```
 
+#### 2.3.4 部署方式3 - 与 Gemini CLI extensions 集成
+
+```bash
+# Gemini CLI
+gemini extensions install https://github.com/aliyun/alibabacloud-ack-mcp-server --ref master --auto-update
+
+# Verify:
+gemini extensions list
+```
+
+通过环境变量 或 `<home>/.gemini/extensions/ack-mcp-server/.env` 文件配置参数
+
+运行 `gemini`
+
+### 2.4 通过 Agent 使用 ack-mcp-server
+
+#### 2.4.1 [Qwen Code](https://github.com/QwenLM/qwen-code)
+
+```bash
+qwen mcp add --transport http --scope user ack-mcp-server <endpoint>
+
+# Verify:
+qwen mcp list
+```
+
+#### 2.4.2 [Qoder CLI](https://docs.qoder.com/cli/quick-start)
+
+```bash
+qodercli mcp add --transport http --scope user ack-mcp-server <endpoint>
+
+# Verify:
+qodercli mcp list
+```
+
+#### 2.4.3 [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+
+```bash
+gemini mcp add --transport http --scope user ack-mcp-server <endpoint>
+
+# Verify:
+gemini mcp list
+```
+
+#### 2.4.4 [Claude Code](https://github.com/anthropics/claude-code)
+
+```bash
+claude mcp add --transport http --scope user http ack-mcp-server <endpoint>
+
+# Verify:
+claude mcp list
+```
+
+#### 2.4.5 [Codex CLI](https://github.com/openai/codex)
+
+```bash
+codex mcp add ack-mcp-server --url <endpoint>
+
+# Verify:
+codex mcp list
+```
+
 ## 🎯 3 如何本地开发运行
 
 ### 💻 3.1 环境准备
