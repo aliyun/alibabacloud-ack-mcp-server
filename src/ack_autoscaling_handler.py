@@ -30,8 +30,8 @@ STD_DEV_SCALE_FACTOR_MEMORY = 3  # Memory 标准差归一化缩放因子
 
 VOLATILITY_COVERAGE_WINDOW = 60 * 60  # 波动覆盖率窗口大小（秒），默认 1 小时
 
-AMPLITUDE_WINDOW_DURATION = 3 * 60  # 振幅检测窗口大小（秒），默认 30 分钟
-AMPLITUDE_TIME_DIFFERENCE = 3 * 60  # 振幅检测窗口间隔要求（秒），默认 30 分钟
+AMPLITUDE_WINDOW_DURATION = 30 * 60  # 振幅检测窗口大小（秒），默认 30 分钟
+AMPLITUDE_TIME_DIFFERENCE = 30 * 60  # 振幅检测窗口间隔要求（秒），默认 30 分钟
 AMPLITUDE_THRESHOLD_MULTIPLIER = 1.3  # 振幅判断阈值倍数（相对于 pod_request）
 AMPLITUDE_WINDOW_STEP = 5  # 振幅检测窗口滑动步长
 
