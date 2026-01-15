@@ -1,6 +1,6 @@
 """ACK Cluster Handler - Alibaba Cloud Container Service Cluster Management."""
 
-from typing import Dict, Any, Optional
+from typing import Annotated, Dict, Any, Optional
 from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
@@ -134,8 +134,8 @@ class ACKClusterHandler:
     async def list_clusters(
             self,
             ctx: Context,
-            page_size: Optional[int] = Field(10, description="查询每个region集群列表的一页大小，默认10"),
-            page_num: Optional[int] = Field(1, description="查询每个region集群列表的分页页码，默认1"),
+            page_size: Annotated[int, Field(description="查询每个region集群列表的分页页码")] = 10,
+            page_num: Annotated[int, Field(description="查询每个region集群列表的分页页码")] = 1,
     ) -> ListClustersOutput:
         """获取一个region下所有ACK集群列表
 
