@@ -6,5 +6,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/ruff-action@v3
-      - run: ruff check --no-fix
+        with:
+          src: "./src"
       - run: ruff format --check --diff
