@@ -1,5 +1,6 @@
 """ACK Cluster Handler - Alibaba Cloud Container Service Cluster Management."""
 
+from enum import Enum
 from typing import Annotated, Dict, Any, Optional, List
 from datetime import datetime, timedelta, timezone
 from fastmcp import FastMCP, Context
@@ -90,6 +91,24 @@ _TASK_TYPE_DESC = (
     "nodepool_node_containerd_config_rollout"
 )
 
+# the state of the cluster node
+
+_NODE_STATE_DESCRIPTIONS = {
+    "all": "不按照运行状态进行过滤，查询所有状态的节点。",
+    "running": "正在运行的集群节点。",
+    "removing": "正在删除的集群节点。",
+    "initial": "正在初始化的集群节点。",
+    "failed": "创建失败的集群节点。",
+}
+_CLUSTER_NODE_STATE_DESC = f"集群节点状态，按照集群节点运行状态进行过滤，默认值 all。取值：{_NODE_STATE_DESCRIPTIONS}"
+
+class ClusterNodeState(Enum):
+    ALL = "all"
+    RUNNING = "running"
+    REMOVING = "removing"
+    INITIAL = "initial"
+    FAILED = "failed"
+
 
 def validate_cluster_id(cluster_id: str) -> None:
     """校验 cluster_id 是否符合 ACK 规范，不符合则抛出 ValueError。"""
@@ -150,6 +169,7 @@ async def _fetch_nodes_page(
     serialize: Any,
     *,
     instance_ids: Optional[List[str]] = None,
+    state: Optional[ClusterNodeState] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """调用 DescribeClusterNodes 一页，返回 (nodes, page_info_dict)。支持 instance_ids 过滤。"""
     runtime, headers = _cs_runtime_headers()
@@ -158,6 +178,8 @@ async def _fetch_nodes_page(
         "page_size": min(page_size, 100),
         "nodepool_id": nodepool_id,
     }
+    if state:
+        req_kw["state"] = state.value
     if instance_ids:
         # API 接受逗号分隔；部分 SDK 需字符串，部分接受 list
         req_kw["instance_ids"] = ",".join(str(i) for i in instance_ids)
@@ -525,6 +547,10 @@ class ACKClusterHandler:
             None,
             description="实例ID列表，只返回这些实例的节点；可先查得 node_name 再与 list_cluster_tasks 的 node_name、instance_id 并集过滤配合使用",
         ),
+        state: Optional[ClusterNodeState] = Field(
+            None,
+            description=_CLUSTER_NODE_STATE_DESC,
+        ),
         page_number: Optional[int] = Field(1, description="页码，默认1"),
         page_size: Optional[int] = Field(20, description="每页数量，默认20"),
     ) -> ListClusterNodesOutput:
@@ -537,6 +563,7 @@ class ACKClusterHandler:
             nodes, page_info = await _fetch_nodes_page(
                 cs,
                 cluster_id,
+                state,
                 page_number,
                 page_size,
                 nodepool_id,
