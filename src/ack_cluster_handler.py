@@ -563,12 +563,12 @@ class ACKClusterHandler:
             nodes, page_info = await _fetch_nodes_page(
                 cs,
                 cluster_id,
-                state,
                 page_number,
                 page_size,
                 nodepool_id,
                 _serialize_sdk_object,
                 instance_ids=instance_ids,
+                state=state,
             )
             items = [filter_node(n) for n in nodes]
             pi = page_info or {}
