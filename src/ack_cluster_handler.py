@@ -77,19 +77,50 @@ async def _get_cluster_region(ctx: Context, cluster_id: str) -> str:
     return region
 
 
+class ClusterNodeState(Enum):
+    ALL = "all"
+    RUNNING = "running"
+    REMOVING = "removing"
+    INITIAL = "initial"
+    FAILED = "failed"
+
+
+# running、success、fail、initial、paused、resuming、canceled
+class ClusterTaskState(Enum):
+    # ALL = "all"
+    INITIAL = "initial"
+    RUNNING = "running"
+    PAUSED = "paused"
+    RESUMING = "resuming"
+    CANCELED = "canceled"
+    SUCCESS = "success"
+    FAIL = "fail"
+
+
+class ClusterTaskType(Enum):
+    NODEPOOL_CREATE = "nodepool_create"
+    NODEPOOL_DELETE = "nodepool_delete"
+    NODEPOOL_UPDATE = "nodepool_update"
+    NODEPOOL_SCALEOUT = "nodepool_scaleout"
+    NODEPOOL_SCALEIN = "nodepool_scalein"
+    NODEPOOL_NODE_ATTACH = "nodepool_node_attach"
+    NODEPOOL_NODE_REMOVE = "nodepool_node_remove"
+    NODEPOOL_UPGRADE = "nodepool_upgrade"
+    NODEPOOL_CVE_FIX = "nodepool_cve_fix"
+    NODEPOOL_NODE_OS_CONFIG_ROLLOUT = "nodepool_node_os_config_rollout"
+    NODEPOOL_NODE_KUBELET_CONFIG_ROLLOUT = "nodepool_node_kubelet_config_rollout"
+    NODEPOOL_NODE_CONTAINERD_CONFIG_ROLLOUT = "nodepool_node_containerd_config_rollout"
+
+
 # ACK cluster_id 规范：以 c 开头，后跟小写字母、数字，长度 33
-_CLUSTER_ID_RE = re.compile(r"^c[a-z0-9]{32}$")
+_CLUSTER_ID_PATTERN = re.compile(r"^c[a-z0-9]{32}$")
 
 # ACK nodepool_id 规范：以 np 开头，后跟小写字母、数字，长度通常为 32-40
-_NODEPOOL_ID_RE = re.compile(r"^np[a-z0-9]{32}$")
+_NODEPOOL_ID_PATTERN = re.compile(r"^np[a-z0-9]{32}$")
 
 # list_cluster_tasks 的 task_type 可选值说明
-_TASK_TYPE_DESC = (
-    "任务类型：nodepool_create, nodepool_delete, nodepool_update, nodepool_scaleout, "
-    "nodepool_scalein, nodepool_node_attach, nodepool_node_remove, nodepool_upgrade, "
-    "nodepool_cve_fix, nodepool_node_os_config_rollout, nodepool_node_kubelet_config_rollout, "
-    "nodepool_node_containerd_config_rollout"
-)
+_CLUSTER_TASK_TYPE_DESC = f"任务类型: {",".join(str(i.value) for i in list(ClusterTaskType))}"
+
 
 # the state of the cluster node
 
@@ -103,36 +134,7 @@ _NODE_STATE_DESCRIPTIONS = {
 _CLUSTER_NODE_STATE_DESC = f"集群节点状态，按照集群节点运行状态进行过滤，默认值 all。取值：{_NODE_STATE_DESCRIPTIONS}"
 
 
-class ClusterNodeState(Enum):
-    ALL = "all"
-    RUNNING = "running"
-    REMOVING = "removing"
-    INITIAL = "initial"
-    FAILED = "failed"
-
-
-def validate_cluster_id(cluster_id: str) -> None:
-    """校验 cluster_id 是否符合 ACK 规范，不符合则抛出 ValueError。"""
-    if not cluster_id or not isinstance(cluster_id, str):
-        raise ValueError("cluster_id is required and must be a non-empty string")
-    c = cluster_id.strip()
-    if not _CLUSTER_ID_RE.match(c):
-        raise ValueError(
-            "cluster_id must start with 'c' and contain only lowercase letters, digits"
-            "(e.g. c23421cfa74454bc8b37163fd19af****)"
-        )
-
-
-def validate_nodepool_id(nodepool_id: str) -> None:
-    """校验 nodepool_id 是否符合 ACK 规范，不符合则抛出 ValueError。"""
-    if not nodepool_id or not isinstance(nodepool_id, str):
-        raise ValueError("nodepool_id must be a non-empty string")
-    np = nodepool_id.strip()
-    if not _NODEPOOL_ID_RE.match(np):
-        raise ValueError(
-            "nodepool_id must start with 'np' and contain only lowercase letters and digits "
-            "(e.g. np25b6714936a241ddb34c5d714bxxxxxx)"
-        )
+_CLUSTER_TASK_STATE_DESC = f"任务状态筛选，取值：{",".join(str(i.value) for i in list(ClusterTaskState))}"
 
 
 def _cs_runtime_headers() -> tuple:
@@ -177,7 +179,7 @@ async def _fetch_nodes_page(
     runtime, headers = _cs_runtime_headers()
     req_kw: Dict[str, Any] = {
         "page_number": page_number,
-        "page_size": min(page_size, 100),
+        "page_size": page_size,
         "nodepool_id": nodepool_id,
     }
     if state:
@@ -501,20 +503,19 @@ class ACKClusterHandler:
     async def list_cluster_nodepools(
         self,
         ctx: Context,
-        cluster_id: str = Field(..., description="集群ID，必填"),
-        nodepool_id: Optional[str] = Field(
-            None, description="节点池ID，可选；若填写则使用 DescribeClusterNodePoolDetail 查询该节点池详情"
-        ),
-        page_size: Optional[int] = Field(
-            10, description="查询集群内节点池分页参数，默认10；仅在不指定 nodepool_id 时生效"
-        ),
-        page_num: Optional[int] = Field(
-            1, description="查询集群内节点池分页参数，默认1；仅在不指定 nodepool_id 时生效"
-        ),
+        cluster_id: Annotated[str, Field(description="集群ID，必填", pattern=_CLUSTER_ID_PATTERN)],
+        nodepool_id: Annotated[
+            Optional[str], Field(description="节点池ID，可选；只返回该节点池下的节点", pattern=_NODEPOOL_ID_PATTERN)
+        ] = None,
+        page_number: Annotated[
+            int, Field(description="查询集群内节点池分页参数，默认1；仅在不指定 nodepool_id 时生效")
+        ] = 1,
+        page_size: Annotated[
+            int, Field(description="查询集群内节点池分页参数，默认10；仅在不指定 nodepool_id 时生效", max_digits=100)
+        ] = 10,
     ) -> ListClusterNodepoolsOutput:
         """查询集群节点池：指定 nodepool_id 时用 DescribeClusterNodePoolDetail；否则用 DescribeClusterNodePools 并分页。"""
         try:
-            validate_cluster_id(cluster_id)
             region_id = await _get_cluster_region(ctx, cluster_id)
             cs = _get_cs_client(ctx, region_id)
 
@@ -528,7 +529,7 @@ class ACKClusterHandler:
             all_raw = await _fetch_nodepools_list(cs, cluster_id, _serialize_sdk_object)
             total_count = len(all_raw)
             ps = max(1, int(page_size or 10))
-            pn = max(1, int(page_num or 1))
+            pn = max(1, int(page_number or 1))
             start = (pn - 1) * ps
             page = all_raw[start : start + ps]
             items = [filter_nodepool(x) for x in page]
@@ -537,29 +538,33 @@ class ACKClusterHandler:
             )
         except Exception as e:
             logger.error(f"Failed to list clusters: {e}")
-            return ListClustersOutput(
-                count=0,
-                clusters=[],
+            return ListClusterNodepoolsOutput(
+                count=0, 
                 error=ErrorModel(error_code="ListClustersError", error_message=str(e)),
             )
 
     async def list_cluster_nodes(
         self,
         ctx: Context,
-        cluster_id: str = Field(..., description="集群ID，必填"),
-        nodepool_id: Optional[str] = Field(None, description="节点池ID，可选；只返回该节点池下的节点"),
-        instance_ids:Annotated[list[str], Field(description="实例ID列表，只返回这些实例的节点；与 node_names 参数互斥；可先查得 node_name 再与 list_cluster_tasks 的 node_name、instance_id 并集过滤配合使用")] = [],
-        node_names: Annotated[list[str], Field(description="节点名称列表，只返回这些名称的节点；与 instance_ids 参数互斥")] = [],
-        state: Optional[ClusterNodeState] = Field(
-            None,
-            description=_CLUSTER_NODE_STATE_DESC,
-        ),
-        page_number: Optional[int] = Field(1, description="页码，默认1"),
-        page_size: Optional[int] = Field(20, description="每页数量，默认20"),
+        cluster_id: Annotated[str, Field(description="集群ID，必填", pattern=_CLUSTER_ID_PATTERN)],
+        nodepool_id: Annotated[
+            Optional[str], Field(description="节点池ID，可选；只返回该节点池下的节点", pattern=_NODEPOOL_ID_PATTERN)
+        ] = None,
+        instance_ids: Annotated[
+            list[str],
+            Field(
+                description="实例ID列表，只返回这些实例的节点；与 node_names 参数互斥；可先查得 node_name 再与 list_cluster_tasks 的 node_name、instance_id 并集过滤配合使用"
+            ),
+        ] = [],
+        node_names: Annotated[
+            list[str], Field(description="节点名称列表，只返回这些名称的节点；与 instance_ids 参数互斥")
+        ] = [],
+        state: Annotated[Optional[ClusterNodeState], Field(description=_CLUSTER_NODE_STATE_DESC)] = None,
+        page_number: Annotated[int, Field(description="页码，默认1")] = 1,
+        page_size: Annotated[int, Field(description="每页数量，默认10", max_digits=100)] = 10,
     ) -> ListClusterNodesOutput:
         """查询集群节点列表（DescribeClusterNodes），支持 instance_ids；默认分页。"""
         try:
-            validate_cluster_id(cluster_id)
             region_id = await _get_cluster_region(ctx, cluster_id)
             cs = _get_cs_client(ctx, region_id)
 
@@ -595,27 +600,26 @@ class ACKClusterHandler:
     async def list_cluster_tasks(
         self,
         ctx: Context,
-        cluster_id: str = Field(..., description="集群ID，必填"),
-        nodepool_id: Optional[str] = Field(None, description="节点池ID，可选；只返回与该节点池相关的任务"),
-        instance_id: Optional[str] = Field(None, description="实例ID，可选；"),
-        state: Optional[str] = Field(
-            None, description="任务状态筛选，支持: running、success、fail、initial、paused、resuming、canceled"
-        ),
-        task_type: Optional[str] = Field(None, description=_TASK_TYPE_DESC),
-        page_number: Optional[int] = Field(1, description="页码，默认1"),
-        page_size: Optional[int] = Field(10, description="每页数量，默认10"),
-        start_time: Optional[str] = Field(
-            None, description="开始时间，可选；指定时才生效；支持 ISO8601 或相对时间如 3m、1h"
-        ),
-        end_time: Optional[str] = Field(None, description="结束时间，可选；指定时才生效"),
+        cluster_id: Annotated[str, Field(description="集群ID，必填", pattern=_CLUSTER_ID_PATTERN)],
+        nodepool_id: Annotated[
+            Optional[str], Field(description="节点池ID，可选；只返回该节点池下的节点", pattern=_NODEPOOL_ID_PATTERN)
+        ] = None,
+        instance_id: Annotated[Optional[str], Field(description="实例ID，可选")] = None,
+        state: Annotated[
+            Optional[ClusterTaskState],
+            Field(description=_CLUSTER_TASK_STATE_DESC),
+        ] = None,
+        task_type: Annotated[Optional[ClusterTaskType], Field(description=_CLUSTER_TASK_TYPE_DESC)] = None,
+        page_number: Annotated[int, Field(description="页码")] = 1,
+        page_size: Annotated[int, Field(description="每页数量")] = 10,
+        start_time: Annotated[
+            Optional[str], Field(description="开始时间, 支持 ISO8601格式 或 相对时间如 3m, 1h")
+        ] = None,
+        end_time: Annotated[Optional[str], Field(description="结束时间, 支持 ISO8601格式 或 相对时间如 3m, 1h")] = None,
     ) -> ListClusterTasksOutput:
         """查询集群任务列表（DescribeClusterTasks）。支持分页、state、task_type；如果提供 instance_id，会自动映射为 node_name 进行过滤；默认带 detail；按 nodepool_id、时间及 instance_id 过滤。"""
 
         try:
-            validate_cluster_id(cluster_id)
-            if nodepool_id:
-                validate_nodepool_id(nodepool_id)
-
             region_id = await _get_cluster_region(ctx, cluster_id)
             cs = _get_cs_client(ctx, region_id)
             start_sec, end_sec = parse_time_range(start_time, end_time)
