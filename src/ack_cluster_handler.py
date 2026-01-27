@@ -208,8 +208,8 @@ async def _fetch_tasks_page(
     page_size: int,
     serialize: Any,
     *,
-    state: Optional[str] = None,
-    task_type: Optional[str] = None,
+    state: Optional[ClusterTaskState] = None,
+    task_type: Optional[ClusterTaskType] = None,
     target_id: Optional[str] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """调用 DescribeClusterTasks 一页（call_api 风格），返回 (tasks, page_info_dict)。支持 state、type、target_id；默认带 detail=true。"""
@@ -220,9 +220,9 @@ async def _fetch_tasks_page(
         "detail": "true",
     }
     if state:
-        query["state"] = state
+        query["state"] = state.value
     if task_type:
-        query["type"] = task_type
+        query["type"] = task_type.value
     if target_id:
         query["target_id"] = target_id
 
@@ -511,7 +511,7 @@ class ACKClusterHandler:
             int, Field(description="查询集群内节点池分页参数，默认1；仅在不指定 nodepool_id 时生效")
         ] = 1,
         page_size: Annotated[
-            int, Field(description="查询集群内节点池分页参数，默认10；仅在不指定 nodepool_id 时生效", max_digits=100)
+            int, Field(description="查询集群内节点池分页参数，默认10；仅在不指定 nodepool_id 时生效")
         ] = 10,
     ) -> ListClusterNodepoolsOutput:
         """查询集群节点池：指定 nodepool_id 时用 DescribeClusterNodePoolDetail；否则用 DescribeClusterNodePools 并分页。"""
@@ -561,7 +561,7 @@ class ACKClusterHandler:
         ] = [],
         state: Annotated[Optional[ClusterNodeState], Field(description=_CLUSTER_NODE_STATE_DESC)] = None,
         page_number: Annotated[int, Field(description="页码，默认1")] = 1,
-        page_size: Annotated[int, Field(description="每页数量，默认10", max_digits=100)] = 10,
+        page_size: Annotated[int, Field(description="每页数量，默认10",  le=100, ge=1)] = 10,
     ) -> ListClusterNodesOutput:
         """查询集群节点列表（DescribeClusterNodes），支持 instance_ids；默认分页。"""
         try:
@@ -615,7 +615,7 @@ class ACKClusterHandler:
         start_time: Annotated[
             Optional[str], Field(description="开始时间, 支持 ISO8601格式 或 相对时间如 3m, 1h")
         ] = None,
-        end_time: Annotated[Optional[str], Field(description="结束时间, 支持 ISO8601格式 或 相对时间如 3m, 1h")] = None,
+        end_time: Annotated[Optional[str], Field(description="结束时间, 支持 ISO8601格式")] = None,
     ) -> ListClusterTasksOutput:
         """查询集群任务列表（DescribeClusterTasks）。支持分页、state、task_type；如果提供 instance_id，会自动映射为 node_name 进行过滤；默认带 detail；按 nodepool_id、时间及 instance_id 过滤。"""
 
