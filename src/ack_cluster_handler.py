@@ -102,6 +102,7 @@ _NODE_STATE_DESCRIPTIONS = {
 }
 _CLUSTER_NODE_STATE_DESC = f"集群节点状态，按照集群节点运行状态进行过滤，默认值 all。取值：{_NODE_STATE_DESCRIPTIONS}"
 
+
 class ClusterNodeState(Enum):
     ALL = "all"
     RUNNING = "running"
@@ -169,6 +170,7 @@ async def _fetch_nodes_page(
     serialize: Any,
     *,
     instance_ids: Optional[List[str]] = None,
+    node_names: Optional[List[str]] = None,
     state: Optional[ClusterNodeState] = None,
 ) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """调用 DescribeClusterNodes 一页，返回 (nodes, page_info_dict)。支持 instance_ids 过滤。"""
@@ -190,6 +192,9 @@ async def _fetch_nodes_page(
     if instance_ids:
         ids = {str(i) for i in instance_ids}
         nodes = [n for n in nodes if (v := (n.get("instance_id") or n.get("instanceId"))) is not None and str(v) in ids]
+    if node_names:
+        names = {str(i) for i in node_names}
+        nodes = [n for n in nodes if (v := (n.get("node_name") or n.get("nodeName"))) is not None and str(v) in names]
     page_info = extract_page_info(response.body, serialize)
     return nodes, page_info
 
@@ -543,10 +548,8 @@ class ACKClusterHandler:
         ctx: Context,
         cluster_id: str = Field(..., description="集群ID，必填"),
         nodepool_id: Optional[str] = Field(None, description="节点池ID，可选；只返回该节点池下的节点"),
-        instance_ids: Optional[List[str]] = Field(
-            None,
-            description="实例ID列表，只返回这些实例的节点；可先查得 node_name 再与 list_cluster_tasks 的 node_name、instance_id 并集过滤配合使用",
-        ),
+        instance_ids:Annotated[list[str], Field(description="实例ID列表，只返回这些实例的节点；与 node_names 参数互斥；可先查得 node_name 再与 list_cluster_tasks 的 node_name、instance_id 并集过滤配合使用")] = [],
+        node_names: Annotated[list[str], Field(description="节点名称列表，只返回这些名称的节点；与 instance_ids 参数互斥")] = [],
         state: Optional[ClusterNodeState] = Field(
             None,
             description=_CLUSTER_NODE_STATE_DESC,
@@ -568,6 +571,7 @@ class ACKClusterHandler:
                 nodepool_id,
                 _serialize_sdk_object,
                 instance_ids=instance_ids,
+                node_names=node_names,
                 state=state,
             )
             items = [filter_node(n) for n in nodes]
