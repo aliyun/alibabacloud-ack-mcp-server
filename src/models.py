@@ -228,7 +228,7 @@ class ListClustersOutput(BaseOutputModel):
     clusters: List[ClusterInfo] = Field(default_factory=list, description="集群列表")
 
 
-class ListClusterNodepoolsOutput(BaseModel):
+class ListClusterNodepoolsOutput(BaseOutputModel):
     """list_cluster_nodepools 输出"""
     count: int = Field(..., description="本页返回的节点池数量")
     total_count: Optional[int] = Field(None, description="节点池总数（分页前）")
@@ -238,7 +238,7 @@ class ListClusterNodepoolsOutput(BaseModel):
     page_size: Optional[int] = Field(None, description="每页大小")
 
 
-class ListClusterNodesOutput(BaseModel):
+class ListClusterNodesOutput(BaseOutputModel):
     """list_cluster_nodes 输出"""
     count: int = Field(..., description="本页节点数量")
     total_count: Optional[int] = Field(None, description="总节点数（如有分页信息）")
@@ -248,7 +248,7 @@ class ListClusterNodesOutput(BaseModel):
     page_size: Optional[int] = Field(None, description="每页大小")
 
 
-class ListClusterTasksOutput(BaseModel):
+class ListClusterTasksOutput(BaseOutputModel):
     """list_cluster_tasks 输出"""
     count: int = Field(..., description="返回的任务数量")
     error: Optional[ErrorModel] = Field(None, description="错误信息")
