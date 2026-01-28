@@ -1,8 +1,13 @@
-"""ACK Cluster Handler - Alibaba Cloud Container Service Cluster Management."""
+"""
+ACK Cluster Handler Module
+
+This module provides management and query functionality for Alibaba Cloud Container Service (ACK) clusters,
+including cluster listing, node pool management, node queries, and task tracking operations.
+"""
 
 from enum import Enum
 from typing import Annotated, Dict, Any, Optional, List
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from fastmcp import FastMCP, Context
 from loguru import logger
 from alibabacloud_cs20151215 import models as cs20151215_models
@@ -335,15 +340,19 @@ def _parse_cluster_info(d: Dict[str, Any]) -> Optional[ClusterInfo]:
 
 
 class ACKClusterHandler:
-    """Handler for ACK addon management operations."""
+    """
+    ACK (Alibaba Cloud Container Service for Kubernetes) Cluster Management Handler
+
+    Provides query functions for clusters, node pools, nodes, and tasks with support for pagination and filtering.
+    All methods include execution log recording and error handling mechanisms.
+    """
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
-        """Initialize the ACK addon management handler.
+        """
+        Initialize the ACK cluster handler
 
         Args:
-            server: FastMCP server instance
-            allow_write: Whether to allow write operations
-            settings: Configuration settings
+            enable_execution_log: Whether to enable execution log recording
         """
         self.settings = settings or {}
         # Per-handler ExecutionLog output toggle
@@ -381,24 +390,29 @@ class ACKClusterHandler:
         page_size: Annotated[int, Field(description="查询每个region集群列表的分页页码")] = 10,
         page_num: Annotated[int, Field(description="查询每个region集群列表的分页页码")] = 1,
     ) -> ListClustersOutput:
-        """获取一个region下所有ACK集群列表
+        """
+        Retrieve all ACK clusters from all regions, returning up to 10 clusters by default.
 
         Args:
             ctx: FastMCP context containing lifespan providers
-            page_size: 查询每个region集群列表的一页大小，默认500
-            page_num: 查询每个region集群列表的分页页码，默认1
+            page_size: Number of clusters to return per page, default is 10
+            page_num: Page number for pagination, default is 1
 
         Returns:
-           ListClustersOutput: 包含集群列表和错误信息的输出
+            ListClustersOutput: Contains cluster list and execution log
+
+        Raises:
+            Exception: Raised when retrieving clusters fails
         """
-        # Set per-request context from handler setting
-        enable_execution_log_ctx.set(self.enable_execution_log)
 
         # Initialize execution log
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        now = datetime.now(timezone.utc)
+        start_ms = now.timestamp() * 1000
         execution_log = ExecutionLog(
-            tool_call_id=f"list_clusters_{int(time.time() * 1000)}", start_time=datetime.utcnow().isoformat() + "Z"
+            tool_call_id=f"list_clusters_{start_ms}",
+            start_time=now.isoformat(),
         )
-        start_ms = int(time.time() * 1000)
 
         try:
             cs_client = _get_cs_client(ctx, "CENTER")
@@ -473,8 +487,10 @@ class ACKClusterHandler:
                 execution_log.warnings.append(f"Skipped {skipped_count} clusters with missing required fields")
 
             execution_log.messages.append(f"Successfully list {len(clusters)} clusters")
-            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
 
             return ListClustersOutput(count=len(clusters), clusters=clusters, execution_log=execution_log)
 
@@ -489,8 +505,10 @@ class ACKClusterHandler:
 
             execution_log.error = error_message
             execution_log.messages.append(f"Operation failed: {error_message}")
-            execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-            execution_log.duration_ms = int(time.time() * 1000) - start_ms
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
             execution_log.metadata = {"error_code": error_code, "failure_stage": "list_clusters_operation"}
 
             return ListClustersOutput(
@@ -514,7 +532,31 @@ class ACKClusterHandler:
             int, Field(description="查询集群内节点池分页参数，默认10；仅在不指定 nodepool_id 时生效")
         ] = 10,
     ) -> ListClusterNodepoolsOutput:
-        """查询集群节点池：指定 nodepool_id 时用 DescribeClusterNodePoolDetail；否则用 DescribeClusterNodePools 并分页。"""
+        """
+        Query cluster node pools: uses DescribeClusterNodePoolDetail when nodepool_id is specified;
+        otherwise uses DescribeClusterNodePools with pagination.
+
+        Args:
+            ctx: FastMCP context containing lifespan providers
+            cluster_id: Unique identifier for the cluster
+            nodepool_id: Optional, returns only this specific node pool
+            page_number: Page number for pagination, default is 1
+            page_size: Number of results per page, default is 10, maximum 100
+
+        Returns:
+            ListClusterNodepoolsOutput: Contains node pool list and execution log
+
+        Raises:
+            Exception: Raised when retrieving cluster node pools fails
+        """
+
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        now = datetime.now(timezone.utc)
+        start_ms = now.timestamp() * 1000
+        execution_log = ExecutionLog(
+            tool_call_id=f"list_cluster_nodepools_{start_ms}",
+            start_time=now.isoformat(),
+        )
         try:
             region_id = await _get_cluster_region(ctx, cluster_id)
             cs = _get_cs_client(ctx, region_id)
@@ -533,14 +575,33 @@ class ACKClusterHandler:
             start = (pn - 1) * ps
             page = all_raw[start : start + ps]
             items = [filter_nodepool(x) for x in page]
+
+            execution_log.messages.append(f"Successfully list {len(items)} nodepools")
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
+
             return ListClusterNodepoolsOutput(
-                count=len(items), total_count=total_count, nodepools=items, page_number=pn, page_size=ps
+                count=len(items),
+                total_count=total_count,
+                nodepools=items,
+                page_number=pn,
+                page_size=ps,
+                execution_log=execution_log,
             )
         except Exception as e:
-            logger.error(f"Failed to list clusters: {e}")
+            logger.error(f"Failed to list cluster nodepools: {e}")
+            execution_log.messages.append(f"Failed list cluster nodepools")
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
+            execution_log.error = str(e)
             return ListClusterNodepoolsOutput(
-                count=0, 
+                count=0,
                 error=ErrorModel(error_code="ListClustersError", error_message=str(e)),
+                execution_log=execution_log,
             )
 
     async def list_cluster_nodes(
@@ -561,9 +622,35 @@ class ACKClusterHandler:
         ] = [],
         state: Annotated[Optional[ClusterNodeState], Field(description=_CLUSTER_NODE_STATE_DESC)] = None,
         page_number: Annotated[int, Field(description="页码，默认1")] = 1,
-        page_size: Annotated[int, Field(description="每页数量，默认10",  le=100, ge=1)] = 10,
+        page_size: Annotated[int, Field(description="每页数量，默认10", le=100, ge=1)] = 10,
     ) -> ListClusterNodesOutput:
-        """查询集群节点列表（DescribeClusterNodes），支持 instance_ids；默认分页。"""
+        """
+        Query cluster node list (DescribeClusterNodes), supports instance_ids; paginated by default.
+
+        Args:
+            ctx: FastMCP context containing lifespan providers
+            cluster_id: Unique identifier for the cluster
+            instance_ids: Optional, only return nodes for these instance IDs
+            node_names: Optional, only return nodes with these names (mutually exclusive with instance_ids)
+            nodepool_id: Optional, only return nodes from this node pool
+            state: Optional, filter by node state
+            page_number: Page number for pagination, default is 1
+            page_size: Number of results per page, default is 10, maximum 100
+
+        Returns:
+            ListClusterNodesOutput: Contains node list and execution log
+
+        Raises:
+            Exception: Raised when querying cluster nodes fails
+        """
+
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        now = datetime.now(timezone.utc)
+        start_ms = now.timestamp() * 1000
+        execution_log = ExecutionLog(
+            tool_call_id=f"list_cluster_nodes_{start_ms}",
+            start_time=now.isoformat(),
+        )
         try:
             region_id = await _get_cluster_region(ctx, cluster_id)
             cs = _get_cs_client(ctx, region_id)
@@ -582,19 +669,34 @@ class ACKClusterHandler:
             items = [filter_node(n) for n in nodes]
             pi = page_info or {}
             total = pi.get("total_count") or pi.get("total") or len(items)
+
+            execution_log.messages.append(f"Successfully list {len(items)} nodes")
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
+
             return ListClusterNodesOutput(
                 count=len(items),
                 total_count=total if isinstance(total, int) else None,
                 nodes=items,
                 page_number=page_number,
                 page_size=page_size,
+                execution_log=execution_log,
             )
         except Exception as e:
             logger.error(f"list_cluster_nodes failed: {e}")
+            execution_log.messages.append(f"Failed list cluster nodes: {e}")
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
+            execution_log.error = str(e)
             return ListClusterNodesOutput(
                 count=0,
                 nodes=[],
                 error=ErrorModel(error_code="ListClusterNodesError", error_message=str(e)),
+                execution_log=execution_log,
             )
 
     async def list_cluster_tasks(
@@ -617,8 +719,37 @@ class ACKClusterHandler:
         ] = None,
         end_time: Annotated[Optional[str], Field(description="结束时间, 支持 ISO8601格式")] = None,
     ) -> ListClusterTasksOutput:
-        """查询集群任务列表（DescribeClusterTasks）。支持分页、state、task_type；如果提供 instance_id，会自动映射为 node_name 进行过滤；默认带 detail；按 nodepool_id、时间及 instance_id 过滤。"""
+        """
+        Query cluster task list (DescribeClusterTasks). Supports pagination, state, task_type;
+        if instance_id is provided, automatically maps to node_name for filtering;
+        includes details by default; filtered by nodepool_id, time, and instance_id.
 
+        Args:
+            ctx: FastMCP context containing lifespan providers
+            cluster_id: Unique identifier for the cluster
+            end_time: Optional, end time for filtering (ISO8601 format)
+            instance_id: Optional, filter by specific instance ID
+            nodepool_id: Optional, filter by specific node pool
+            page_number: Page number for pagination
+            page_size: Number of results per page
+            start_time: Optional, start time for filtering (ISO8601 or relative time)
+            state: Optional, filter by task state
+            task_type: Optional, filter by task type
+
+        Returns:
+            ListClusterTasksOutput: Contains task list and execution log
+
+        Raises:
+            Exception: Raised when querying cluster tasks fails
+        """
+
+        enable_execution_log_ctx.set(self.enable_execution_log)
+        now = datetime.now(timezone.utc)
+        start_ms = now.timestamp() * 1000
+        execution_log = ExecutionLog(
+            tool_call_id=f"list_cluster_tasks_{start_ms}",
+            start_time=now.isoformat(),
+        )
         try:
             region_id = await _get_cluster_region(ctx, cluster_id)
             cs = _get_cs_client(ctx, region_id)
@@ -644,26 +775,43 @@ class ACKClusterHandler:
             ]
             lp = page_info or {}
 
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
+
             # 如果过滤后没有任务，但 total_count > 0 且从API获取到了任务，
             # 说明任务不匹配过滤条件，返回错误提示
             if len(collected) == 0 and len(tasks) > 0:
+                execution_log.messages.append("No tasks match the specified filters")
                 return ListClusterTasksOutput(
                     count=0,
                     tasks=[],
                     page_number=lp.get("page_number") or page_number,
                     page_size=lp.get("page_size") or page_size,
+                    execution_log=execution_log,
                 )
+
+            execution_log.messages.append(f"Successfully list {len(collected)} tasks")
 
             return ListClusterTasksOutput(
                 count=len(collected),
                 tasks=collected,
                 page_number=lp.get("page_number") or page_number,
                 page_size=lp.get("page_size") or page_size,
+                execution_log=execution_log,
             )
         except Exception as e:
             logger.error(f"list_cluster_tasks failed: {e}")
+            execution_log.messages.append(f"Failed list cluster tasks: {e}")
+            now = datetime.now(timezone.utc)
+            end_ms = now.timestamp() * 1000
+            execution_log.end_time = now.isoformat()
+            execution_log.duration_ms = int(end_ms - start_ms)
+            execution_log.error = str(e)
             return ListClusterTasksOutput(
                 count=0,
                 tasks=[],
                 error=ErrorModel(error_code="ListClusterTasksError", error_message=str(e)),
+                execution_log=execution_log,
             )
