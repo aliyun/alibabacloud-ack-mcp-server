@@ -90,16 +90,17 @@ class ClusterNodeState(Enum):
     FAILED = "failed"
 
 
-# running、success、fail、initial、paused、resuming、canceled
 class ClusterTaskState(Enum):
     # ALL = "all"
-    INITIAL = "initial"
     RUNNING = "running"
+    PAUSING = "pausing"
     PAUSED = "paused"
     RESUMING = "resuming"
+    CANCELLING = "cancelling"
     CANCELED = "canceled"
     SUCCESS = "success"
     FAIL = "fail"
+    FAILED = "failed"
 
 
 class ClusterTaskType(Enum):
@@ -723,6 +724,7 @@ class ACKClusterHandler:
         Query cluster task list (DescribeClusterTasks). Supports pagination, state, task_type;
         if instance_id is provided, automatically maps to node_name for filtering;
         includes details by default; filtered by nodepool_id, time, and instance_id.
+        Fetch both FAIL and FAILED task states when querying for failed tasks.
 
         Args:
             ctx: FastMCP context containing lifespan providers
@@ -764,6 +766,24 @@ class ACKClusterHandler:
                 task_type=task_type,
                 target_id=nodepool_id,
             )
+            fail_state = (
+                ClusterTaskState.FAIL
+                if state == ClusterTaskState.FAILED
+                else ClusterTaskState.FAILED if state == ClusterTaskState.FAIL else None
+            )
+            if fail_state:
+                fail_tasks, fail_page_info = await _fetch_tasks_page(
+                    cs,
+                    cluster_id,
+                    page_number,
+                    page_size,
+                    _serialize_sdk_object,
+                    state=fail_state,
+                    task_type=task_type,
+                    target_id=nodepool_id,
+                )
+                tasks += fail_tasks
+                page_info |= fail_page_info
 
             # 如果提供了 instance_id，通过 list_cluster_nodes 映射为 node_name
             node_name = None
