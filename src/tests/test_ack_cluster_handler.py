@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 from unittest.mock import MagicMock
-from datetime import datetime
+from datetime import datetime, timezone
 
 # 添加 src 目录到 Python 路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -800,7 +800,7 @@ class FakeCSClientForTasks:
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_success():
     """测试成功获取任务列表"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     fake_tasks = [
         {
             "task_id": "task-1",
@@ -871,7 +871,7 @@ async def test_list_cluster_tasks_success():
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_with_state_filter():
     """测试按状态过滤任务"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     fake_tasks = [
         {
             "task_id": "task-1",
@@ -913,7 +913,7 @@ async def test_list_cluster_tasks_with_state_filter():
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_with_time_range():
     """测试按时间范围过滤任务"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     # 创建1小时前的任务（应该被过滤掉，默认30分钟）
     old_task = {
         "task_id": "task-old",
@@ -959,7 +959,7 @@ async def test_list_cluster_tasks_with_time_range():
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_with_nodepool_id():
     """测试按节点池ID过滤任务"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     fake_tasks = [
         {
             "task_id": "task-1",
@@ -1037,7 +1037,7 @@ async def test_list_cluster_tasks_empty():
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_with_wide_time_range_fallback():
     """测试时间范围回退逻辑（当默认30分钟没有任务时，使用更宽的时间范围）"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     # 创建2小时前的任务（不在默认30分钟范围内）
     old_task = {
         "task_id": "task-old",
@@ -1134,7 +1134,7 @@ class FakeCSClientForBothFailStates:
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_fetch_both_fail_states_when_query_failed():
     """测试当查询状态为 'failed' 时也同时获取 'fail' 状态的任务"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     # 准备 'failed' 状态的任务
     failed_tasks = [
         {
@@ -1208,7 +1208,7 @@ async def test_list_cluster_tasks_fetch_both_fail_states_when_query_failed():
 @pytest.mark.asyncio
 async def test_list_cluster_tasks_fetch_both_fail_states_when_query_fail():
     """测试当查询状态为 'fail' 时也同时获取 'failed' 状态的任务"""
-    now = int(datetime.utcnow().timestamp())
+    now = int(datetime.now(timezone.utc).timestamp())
     # 准备 'fail' 状态的任务
     fail_tasks = [
         {
