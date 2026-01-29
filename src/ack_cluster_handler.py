@@ -35,7 +35,6 @@ from ack_cluster_helpers import (
     parse_time_range,
     task_matches_filters,
     extract_page_info,
-    parse_task_time,
 )
 
 
@@ -479,7 +478,7 @@ class ACKClusterHandler:
             for cluster_data in clusters_data:
                 cluster_info = _parse_cluster_info(cluster_data)
                 if not cluster_info:
-                    execution_log.warnings.append(f"Failed to parse cluster data: {cluster_data}, error: {e}")
+                    execution_log.warnings.append(f"Failed to parse cluster data: {cluster_data}")
                     skipped_count += 1
                     continue
                 clusters.append(cluster_info)
@@ -593,7 +592,7 @@ class ACKClusterHandler:
             )
         except Exception as e:
             logger.error(f"Failed to list cluster nodepools: {e}")
-            execution_log.messages.append(f"Failed list cluster nodepools")
+            execution_log.messages.append(f"Failed list cluster nodepools, error: {e}")
             now = datetime.now(timezone.utc)
             end_ms = now.timestamp() * 1000
             execution_log.end_time = now.isoformat()
@@ -601,7 +600,7 @@ class ACKClusterHandler:
             execution_log.error = str(e)
             return ListClusterNodepoolsOutput(
                 count=0,
-                error=ErrorModel(error_code="ListClustersError", error_message=str(e)),
+                error=ErrorModel(error_code="ListClusterNodePoolsError", error_message=str(e)),
                 execution_log=execution_log,
             )
 
