@@ -35,14 +35,14 @@ jobs:
       - name: Run Trivy vulnerability scanner on Docker image
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'alibabacloud-ack-mcp-server:1.0' # Reference to the built Docker image
-          format: 'sarif' # Output format for GitHub Code Scanning
-          output: 'trivy-results.sarif' # File to save SARIF results
-          severity: 'CRITICAL,HIGH' # Scan for Critical and High severity vulnerabilities
+          image-ref: "alibabacloud-ack-mcp-server:1.0" # Reference to the built Docker image
+          format: "sarif" # Output format for GitHub Code Scanning
+          output: "trivy-results.sarif" # File to save SARIF results
+          severity: "CRITICAL,HIGH" # Scan for Critical and High severity vulnerabilities
           ignore-unfixed: true # Ignore vulnerabilities that don't have a fix available
-          exit-code: '0' # Temporarily set to 0 to see vulnerability status
+          exit-code: "0" # Temporarily set to 0 to see vulnerability status
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: 'trivy-results.sarif'
+          sarif_file: "trivy-results.sarif"
