@@ -253,6 +253,7 @@ class ListClusterTasksOutput(BaseOutputModel):
     count: int = Field(..., description="返回的任务数量")
     error: Optional[ErrorModel] = Field(None, description="错误信息")
     tasks: List[Dict[str, Any]] = Field(default_factory=list, description="任务列表（仅含 task_id、state、created、updated、task_type、cluster_id、error_code、error_message）")
+    total_count: Optional[int] = Field(None, description="结果总数"),
     page_number: Optional[int] = Field(None, description="当前页码")
     page_size: Optional[int] = Field(None, description="每页大小")
 

@@ -806,6 +806,7 @@ class ACKClusterHandler:
                 return ListClusterTasksOutput(
                     count=0,
                     tasks=[],
+                    total_count=lp.get("total_count") if lp.get("total_count") else 0,
                     page_number=lp.get("page_number") or page_number,
                     page_size=lp.get("page_size") or page_size,
                     execution_log=execution_log,
@@ -816,6 +817,7 @@ class ACKClusterHandler:
             return ListClusterTasksOutput(
                 count=len(collected),
                 tasks=collected,
+                total_count=lp.get("total_count") if lp.get("total_count") else 0,
                 page_number=lp.get("page_number") or page_number,
                 page_size=lp.get("page_size") or page_size,
                 execution_log=execution_log,
