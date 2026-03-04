@@ -36,11 +36,11 @@
 
 > 在提问之前，请先阅读可用的[文档](README.md)和[设计文档](DESIGN.md)。
 
-在提问之前，最好先搜索现有的 [Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)，看看是否能找到答案。如果找到了相关 issue 但仍需要澄清，可以在该 issue 中提问。同时也建议先在互联网上搜索答案。
+在提问之前，最好先搜索现有的 [Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues)，看看是否能找到答案。如果找到了相关 issue 但仍需要澄清，可以在该 issue 中提问。同时也建议先在互联网上搜索答案。
 
 如果您仍然需要提问，我们建议：
 
-- 创建一个新的 [Issue](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues/new)
+- 创建一个新的 [Issue](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues/new)
 - 尽可能提供详细的上下文信息
 - 提供项目和平台版本信息（Python 版本、操作系统、FastMCP 版本等）
 
@@ -59,7 +59,7 @@
 
 - 确保您使用的是最新版本
 - 确认您的问题确实是一个 Bug，而不是您自己的配置问题（例如使用不兼容的环境组件/版本）
-- 在 [Bug 跟踪器](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues?q=label%3Abug)中查看是否已有相同的 Bug 报告
+- 在 [Bug 跟踪器](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues?q=label%3Abug)中查看是否已有相同的 Bug 报告
 - 在互联网（包括 Stack Overflow）上搜索，看是否有其他用户讨论过此问题
 - 收集关于 Bug 的信息：
   - 堆栈跟踪（Traceback）
@@ -74,7 +74,7 @@
 
 我们使用 GitHub Issues 来跟踪 Bug 和错误。如果您遇到项目问题：
 
-- 创建一个 [Issue](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues/new)
+- 创建一个 [Issue](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues/new)
 - 解释您期望的行为和实际行为
 - 请提供尽可能多的上下文，并描述**重现步骤**，以便其他人可以跟随这些步骤在他们自己的环境中重现问题。这通常包括您的代码。优秀的 Bug 报告应该隔离问题并创建简化的测试用例
 - 提供您在上一节中收集的信息
@@ -93,12 +93,12 @@
 
 - 确保您使用的是最新版本
 - 仔细阅读[文档](README.md)和[设计文档](DESIGN.md)，确认该功能尚未涵盖
-- 执行[搜索](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)以查看该功能建议是否已被提出。如果已经存在，请在现有 issue 中添加评论，而不是创建新的
+- 执行[搜索](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues)以查看该功能建议是否已被提出。如果已经存在，请在现有 issue 中添加评论，而不是创建新的
 - 确定您的想法是否符合项目的范围和目标。您需要向项目开发者充分说明此功能的优点。请记住，我们希望功能对大多数用户有用，而不仅仅是一小部分用户
 
 #### 如何提交一个好的功能建议？
 
-功能建议通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues) 跟踪：
+功能建议通过 [GitHub Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues) 跟踪：
 
 - 使用**清晰和描述性的标题**来标识建议
 - 尽可能详细地提供**建议功能的分步描述**
@@ -111,8 +111,8 @@
 
 不确定从哪里开始贡献？您可以从这些 `good-first-issue` 和 `help-wanted` issues 开始：
 
-- [Good First Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) - 适合初学者的问题
-- [Help Wanted Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) - 需要社区帮助的问题
+- [Good First Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) - 适合初学者的问题
+- [Help Wanted Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) - 需要社区帮助的问题
 
 ### 改进文档
 
@@ -141,8 +141,8 @@
 1. **Fork 并克隆仓库**
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/alibabacloud-cs-mcp-server.git
-cd alibabacloud-cs-mcp-server
+git clone https://github.com/YOUR_USERNAME/alibabacloud-ack-mcp-server.git
+cd alibabacloud-ack-mcp-server
 ```
 
 2. **创建虚拟环境并安装依赖**
@@ -579,8 +579,8 @@ make clean
 如果您在贡献过程中遇到问题：
 
 1. 查看[文档](README.md)和[设计文档](DESIGN.md)
-2. 搜索现有的 [Issues](https://github.com/aliyun/alibabacloud-cs-mcp-server/issues)
-3. 在 [Discussions](https://github.com/aliyun/alibabacloud-cs-mcp-server/discussions) 中提问
+2. 搜索现有的 [Issues](https://github.com/aliyun/alibabacloud-ack-mcp-server/issues)
+3. 在 [Discussions](https://github.com/aliyun/alibabacloud-ack-mcp-server/discussions) 中提问
 4. 创建新的 Issue 描述您的问题
 
 ## 致谢
