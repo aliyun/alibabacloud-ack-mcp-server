@@ -75,7 +75,7 @@ build-binary: ## Build standalone binary using PyInstaller
 		echo "Using virtual environment..."; \
 		. .venv/bin/activate && python -m pip install pyinstaller; \
 		. .venv/bin/activate && python -m PyInstaller --onefile \
-		--name alibabacloud-ack-mcp-server \
+		--name ack-mcp-server \
 		--add-data "src/prometheus_metrics_guidance:prometheus_metrics_guidance" \
 		--hidden-import fastmcp \
 		--hidden-import fastmcp.server \
@@ -121,7 +121,7 @@ build-binary: ## Build standalone binary using PyInstaller
 		echo "No virtual environment found, using system Python..."; \
 		python3 -m pip install pyinstaller; \
 		python3 -m PyInstaller --onefile \
-		--name alibabacloud-ack-mcp-server \
+		--name ack-mcp-server \
 		--add-data "src/prometheus_metrics_guidance:prometheus_metrics_guidance" \
 		--hidden-import fastmcp \
 		--hidden-import fastmcp.server \
@@ -171,11 +171,11 @@ build-spec: ## Build binary using PyInstaller spec file
 	@if [ -f ".venv/bin/activate" ]; then \
 		echo "Using virtual environment..."; \
 		. .venv/bin/activate && python -m pip install pyinstaller; \
-		. .venv/bin/activate && python -m PyInstaller alibabacloud-ack-mcp-server.spec; \
+		. .venv/bin/activate && python -m PyInstaller ack-mcp-server.spec; \
 	else \
 		echo "No virtual environment found, using system Python..."; \
 		python3 -m pip install pyinstaller; \
-		python3 -m PyInstaller alibabacloud-ack-mcp-server.spec; \
+		python3 -m PyInstaller ack-mcp-server.spec; \
 	fi
 	@echo "Binary built successfully in dist/"
 
