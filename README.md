@@ -185,7 +185,7 @@ docker run \
 make build-binary
 
 # 运行
-./dist/ack-mcp-server --help
+./dist/binary/ack-mcp-server --help
 ```
 
 #### 2.3.4 部署方式3 - 与 Gemini CLI extensions 集成
