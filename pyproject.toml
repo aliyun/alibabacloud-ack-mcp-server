@@ -82,6 +82,7 @@ py-modules = [
     "ack_audit_log_handler",
     "ack_cluster_handler",
     "ack_controlplane_log_handler",
+    "ack_cost_analysis_handler",
     "ack_diagnose_handler",
     "ack_inspect_handler",
     "ack_prometheus_handler",
