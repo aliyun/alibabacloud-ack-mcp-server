@@ -6,7 +6,7 @@ with open("README.md", encoding="utf-8") as f:
 
 setup(
     name="alibabacloud-ack-mcp-server",
-    version="1.0.1",
+    version="1.0.2",
     author="AlibabaCloud",
     author_email="KeyOfSpectator@zju.edu.cn",
     description="AlibabaCloud Container Service MCP Server (ack-mcp-server)",
