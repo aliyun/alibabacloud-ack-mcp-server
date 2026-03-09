@@ -191,66 +191,138 @@ make build-binary
 ./dist/binary/ack-mcp-server --help
 ```
 
-#### 2.3.4 部署方式 3 - 与 Gemini CLI extensions 集成
+### 2.4 MCP 客户端配置
 
-```bash
-# Gemini CLI
-gemini extensions install https://github.com/aliyun/alibabacloud-ack-mcp-server --ref master --auto-update
+在 MCP 客户端中添加下面的配置：
 
-# Verify:
-gemini extensions list
+```json
+{
+  "mcpServers": {
+    "ack-mcp-server": {
+      "command": "uvx",
+      "args": ["alibabacloud-ack-mcp-server@latest"],
+      "env": {
+        "ACCESS_KEY_ID": "<ak>",
+        "ACCESS_KEY_SECRET": "<sk>"
+      }
+    }
+  }
+}
 ```
 
-通过环境变量 或 `<home>/.gemini/extensions/ack-mcp-server/.env` 文件配置参数
+<details>
+  <summary>Claude Code</summary>
 
-运行 `gemini`
+**通过 CLI 安装**
 
-### 2.4 通过 Agent 使用 ack-mcp-server
-
-#### 2.4.1 [Qwen Code](https://github.com/QwenLM/qwen-code)
+使用 Claude Code CLI 添加 ACK MCP server：
 
 ```bash
-qwen mcp add --transport http --scope user ack-mcp-server <endpoint>
+# Either STDIO:
+claude mcp add --scope user --env ACCESS_KEY_ID=${ACCESS_KEY_ID} --env ACCESS_KEY_SECRET=${ACCESS_KEY_SECRET} ack-mcp-server -- uvx alibabacloud-ack-mcp-server@latest
 
-# Verify:
-qwen mcp list
+# Or HTTP:
+claude mcp add --transport http --scope user ack-mcp-server <endpoint>
 ```
 
-#### 2.4.2 [Qoder CLI](https://docs.qoder.com/cli/quick-start)
+参考 [Claude Code CLI 添加 MCP server](https://code.claude.com/docs/en/mcp)
+
+</details>
+<details>
+  <summary>Codex</summary>
+
+使用 Codex CLI 安装 ACK MCP server：
 
 ```bash
-qodercli mcp add --transport http --scope user ack-mcp-server <endpoint>
+# Either STDIO:
+codex mcp add --env ACCESS_KEY_ID=${ACCESS_KEY_ID} --env ACCESS_KEY_SECRET=${ACCESS_KEY_SECRET} ack-mcp-server -- uvx alibabacloud-ack-mcp-server@latest
 
-# Verify:
-qodercli mcp list
+# Or HTTP:
+codex mcp add ack-mcp-server --url <endpoint>
 ```
 
-#### 2.4.3 [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+参考 [Codex 添加 MCP server](https://developers.openai.com/codex/mcp/#configure-with-the-cli)
+
+</details>
+
+<details>
+  <summary>Gemini CLI</summary>
+使用 Gemini CLI 安装 ACK MCP server：
 
 ```bash
+# Either STDIO:
+gemini mcp add --scope user --env ACCESS_KEY_ID=${ACCESS_KEY_ID} --env ACCESS_KEY_SECRET=${ACCESS_KEY_SECRET} ack-mcp-server uvx alibabacloud-ack-mcp-server@latest
+
+# Or HTTP:
 gemini mcp add --transport http --scope user ack-mcp-server <endpoint>
 
-# Verify:
-gemini mcp list
+# Gemini extension:
+gemini extensions install --ref master --auto-update https://github.com/aliyun/alibabacloud-ack-mcp-server
+# 通过环境变量 或 `<home>/.gemini/extensions/ack-mcp-server/.env` 文件配置 ak/sk
 ```
 
-#### 2.4.4 [Claude Code](https://github.com/anthropics/claude-code)
+参考 [Gemini CLI 添加 MCP server](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md#how-to-set-up-your-mcp-server)
+
+</details>
+
+<details>
+  <summary>OpenCode</summary>
+
+添加下面的配置到 `opencode.json` 文件：
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "ack-mcp-server": {
+      "type": "local",
+      "command": ["uvx", "alibabacloud-ack-mcp-server@latest"],
+      "environment": {
+        "ACCESS_KEY_ID": "<ak>",
+        "ACCESS_KEY_SECRET": "<sk>"
+      }
+    }
+  }
+}
+```
+
+参考 [OpenCode 添加 MCP server](https://opencode.ai/docs/mcp-servers)
+
+</details>
+
+<details>
+  <summary>Qoder CLI</summary>
+
+使用 Qoder CLI 安装 ACK MCP server：
 
 ```bash
-claude mcp add --transport http --scope user ack-mcp-server <endpoint>
+# Either STDIO:
+qodercli mcp add --scope user --env ACCESS_KEY_ID=${ACCESS_KEY_ID} --env ACCESS_KEY_SECRET=${ACCESS_KEY_SECRET} ack-mcp-server -- uvx alibabacloud-ack-mcp-server@latest
 
-# Verify:
-claude mcp list
+# Or HTTP:
+qodercli mcp add --transport http --scope user ack-mcp-server <endpoint>
 ```
 
-#### 2.4.5 [Codex CLI](https://github.com/openai/codex)
+参考 [Qoder CLI 添加 MCP server](https://docs.qoder.com/cli/using-cli#mcp-servsers)
+
+</details>
+
+<details>
+  <summary>Qwen Code</summary>
+
+使用 Qwen Code 安装 ACK MCP server：
 
 ```bash
-codex mcp add ack-mcp-server --url <endpoint>
+# Either STDIO:
+qwen mcp add --scope user --env ACCESS_KEY_ID=${ACCESS_KEY_ID} --env ACCESS_KEY_SECRET=${ACCESS_KEY_SECRET} ack-mcp-server uvx alibabacloud-ack-mcp-server@latest
 
-# Verify:
-codex mcp list
+# Or HTTP:
+qwen mcp add --transport http --scope user ack-mcp-server <endpoint>
 ```
+
+参考 [Qwen Code 添加 MCP server](https://qwenlm.github.io/qwen-code-docs/en/users/features/mcp/)
+
+</details>
 
 ## 🎯 3 如何本地开发运行
 
