@@ -303,7 +303,7 @@ qodercli mcp add --scope user --env ACCESS_KEY_ID=${ACCESS_KEY_ID} --env ACCESS_
 qodercli mcp add --transport http --scope user ack-mcp-server <endpoint>
 ```
 
-参考 [Qoder CLI 添加 MCP server](https://docs.qoder.com/cli/using-cli#mcp-servsers)
+参考 [Qoder CLI 添加 MCP server](https://docs.qoder.com/cli/using-cli#mcp-servers)
 
 </details>
 
