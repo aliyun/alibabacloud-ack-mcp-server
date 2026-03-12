@@ -88,7 +88,7 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 
 建议为 ack-mcp-server 配置的阿里云账号认证为一个主账号的子账号，并遵循最小权限原则，为此子账号赋予所需的 **RAM 权限和 RBAC 权限**。
 
-### 2.1.1 所需 RAM 权限策略集
+#### 2.1.1 所需 RAM 权限策略集
 
 如何为阿里云账号的 RAM 账号添加所需权限，参考文档：[RAM 权限策略](https://help.aliyun.com/zh/ram/user-guide/policy-overview)  
 当前 ack-mcp-server 所需只读权限集为：
@@ -129,7 +129,7 @@ https://github.com/user-attachments/assets/9e48cac3-0af1-424c-9f16-3862d047cc68
 }
 ```
 
-### 2.1.2 授予 RBAC 权限
+#### 2.1.2 授予 RBAC 权限
 
 请联系 ACK 集群管理员，参考 [RBAC 授权文档](https://help.aliyun.com/zh/ack/ack-managed-and-ack-dedicated/user-guide/grant-rbac-permissions-to-ram-users-or-ram-roles) 为此子账号授予合适的 RBAC 权限。
 
