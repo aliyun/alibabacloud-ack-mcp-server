@@ -35,20 +35,12 @@ import json
 import os
 import sys
 from typing import Any, Dict, List, Optional, Sequence
-
 from loguru import logger
-
-# Try to import python-dotenv
-try:
-    from dotenv import load_dotenv
-
-    DOTENV_AVAILABLE = True
-except ImportError:
-    DOTENV_AVAILABLE = False
-
+from dotenv import load_dotenv
 from config import Configs
 from main_server import create_main_server
 from runtime_provider import ACKClusterRuntimeProvider
+from fastmcp.tools.tool import ToolResult
 
 
 # ---------------------------------------------------------------------------
@@ -300,14 +292,14 @@ class CLIRunner:
         self._print_result(result)
 
     @staticmethod
-    def _print_result(result: Any) -> None:
+    def _print_result(result: ToolResult) -> None:
         """Serialize and print the tool result as JSON to stdout."""
-        if hasattr(result, "structured_content") and result.structured_content is not None:
+        if result.structured_content:
             print(json.dumps(result.structured_content, indent=2, ensure_ascii=False, default=str))
-        elif hasattr(result, "content") and result.content:
+        elif result.content:
             texts = []
             for item in result.content:
-                if hasattr(item, "text"):
+                if item.text:
                     texts.append(item.text)
             if len(texts) == 1:
                 try:
@@ -413,8 +405,7 @@ def build_settings_dict(args: argparse.Namespace) -> Dict[str, Any]:
 
 def main() -> None:
     """Entry point for the ack-mcp-cli command."""
-    if DOTENV_AVAILABLE:
-        load_dotenv()
+    load_dotenv()
 
     parser = _build_global_parser()
 
@@ -428,7 +419,7 @@ def main() -> None:
 
     # Configure logging to stderr so JSON output on stdout stays clean
     logger.remove()
-    logger.add(sys.stderr, level=os.getenv("FASTMCP_LOG_LEVEL", "INFO"))
+    logger.add(sys.stderr, level=os.getenv("FASTMCP_LOG_LEVEL", "WARNING"))
 
     settings_dict = build_settings_dict(args)
     runner = CLIRunner(settings_dict)
