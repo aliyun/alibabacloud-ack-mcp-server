@@ -396,7 +396,9 @@ DEVELOPMENT=false
 
 > ⚠️ **注意**: 未设置 ACCESS_KEY_ID/ACCESS_KEY_SECRET 时，部分依赖云 API 的功能不可用。
 
-### 3.4.1 运行模式 1. 基于 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) 的交互界面（适合本地效果调试）
+### 3.4 运行模式
+
+#### 3.4.1 基于 [MCP Inspector](https://github.com/modelcontextprotocol/inspector) 的交互界面（适合本地效果调试）
 
 ```bash
 npx @modelcontextprotocol/inspector --config ./mcp.json
