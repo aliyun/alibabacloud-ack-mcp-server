@@ -34,12 +34,11 @@ import asyncio
 import json
 import os
 import sys
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 from loguru import logger
 from dotenv import load_dotenv
 from config import Configs
 from main_server import create_main_server
-from runtime_provider import ACKClusterRuntimeProvider
 from fastmcp.tools.tool import ToolResult
 
 
@@ -197,16 +196,6 @@ class CLIRunner:
 
         # Create the FastMCP server with all tools registered
         self.mcp = create_main_server(settings_dict=settings_dict)
-
-        # Initialise providers (same logic as the MCP server lifespan)
-        runtime_provider = ACKClusterRuntimeProvider()
-        self.providers = runtime_provider.initialize_providers(settings_dict)
-
-        # Inject lifespan context so ctx.lifespan_context works in call_tool
-        self.mcp._lifespan_result = {
-            "config": settings_dict,
-            "providers": self.providers,
-        }
 
     # -- Cached tool metadata ---------------------------------------------------
 
