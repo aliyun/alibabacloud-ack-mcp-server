@@ -199,19 +199,19 @@ class CLIRunner:
 
     # -- Cached tool metadata ---------------------------------------------------
 
-    def _get_tools(self):
+    def _list_tools(self):
         """Return the list of registered tools (cached)."""
         if not hasattr(self, "_tools_cache"):
-            self._tools_cache = asyncio.run(self.mcp.get_tools()).values()
+            self._tools_cache = asyncio.run(self.mcp.list_tools())
         return self._tools_cache
 
-    def _get_tool_by_name(self, name: str):
+    def _get_tool(self, name: str):
         """Look up a tool by name; exit with error if not found."""
         try:
             tool = asyncio.run(self.mcp.get_tool(name))
             return tool
         except Exception as e:
-            available = ", ".join(sorted(t.name for t in self._get_tools()))
+            available = ", ".join(sorted(t.name for t in self._list_tools()))
             logger.error(f"Unknown tool: '{name}'. Available tools: {available}")
             sys.exit(1)
 
@@ -219,7 +219,7 @@ class CLIRunner:
 
     def list_tools(self) -> None:
         """Print all available tools in a human-readable table."""
-        tools = self._get_tools()
+        tools = self._list_tools()
         if not tools:
             print("No tools registered.")
             return
@@ -240,7 +240,7 @@ class CLIRunner:
 
     def describe_tool(self, tool_name: str) -> None:
         """Print detailed parameter information for a single tool."""
-        tool = self._get_tool_by_name(tool_name)
+        tool = self._get_tool(tool_name)
 
         print(f"Tool:  {tool.name}")
         desc_first = (tool.description or "").split("\n")[0].strip()
@@ -272,7 +272,7 @@ class CLIRunner:
     def call_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> None:
         """Call a tool by name with the given arguments dict and print the result."""
         try:
-            tool = self._get_tool_by_name(tool_name)
+            tool = self._get_tool(tool_name)
             result = asyncio.run(tool.run(tool_args))
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
@@ -421,7 +421,7 @@ def main() -> None:
 
     elif args.subcommand == "call":
         # Look up tool schema and parse remaining argv as tool parameters
-        tool = runner._get_tool_by_name(args.tool_name)
+        tool = runner._get_tool(args.tool_name)
         tool_args = parse_tool_args(
             args.tool_name,
             tool.parameters or {},
