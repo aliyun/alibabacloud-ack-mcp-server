@@ -63,7 +63,7 @@ dev = [
 
 [project.scripts]
 alibabacloud-ack-mcp-server = "main_server:main"
-ack-mcp-cli = "cli:main"
+ack-mcp-cli = "cli:app"
 
 [project.urls]
 Homepage = "https://github.com/aliyun/alibabacloud-ack-mcp-server"
