@@ -31,12 +31,14 @@ Usage:
 
 import argparse
 import asyncio
+import inspect
 import json
 import os
 import sys
 from typing import Any, Dict, Optional, Sequence
 from loguru import logger
 from dotenv import load_dotenv
+from fastmcp import Context
 from config import Configs
 from main_server import create_main_server
 from fastmcp.tools.tool import ToolResult
@@ -209,6 +211,10 @@ class CLIRunner:
         """Look up a tool by name; exit with error if not found."""
         try:
             tool = asyncio.run(self.mcp.get_tool(name))
+            if tool is None:
+                available = ", ".join(sorted(t.name for t in self._list_tools()))
+                logger.error(f"Unknown tool: '{name}'. Available tools: {available}")
+                sys.exit(1)
             return tool
         except Exception as e:
             available = ", ".join(sorted(t.name for t in self._list_tools()))
