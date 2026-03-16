@@ -50,7 +50,7 @@ from ack_diagnose_handler import DiagnoseHandler
 from ack_inspect_handler import InspectHandler
 
 # Define main server configuration
-MAIN_SERVER_NAME = "alibabacloud-cs-main-server"
+MAIN_SERVER_NAME = "ack-mcp-server"
 MAIN_SERVER_INSTRUCTIONS = """
 AlibabaCloud Container Service Main MCP Server
 
