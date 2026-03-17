@@ -16,19 +16,6 @@
 **改动内容**:
 将所有 handler 中的 `ctx.request_context.lifespan_context` 统一改为 `ctx.lifespan_context`。
 
-改动模式：
-```python
-# Before
-lifespan_context = getattr(ctx.request_context, "lifespan_context", {}) or {}
-providers = lifespan_context.get("providers", {}) if isinstance(lifespan_context, dict) else {}
-config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
-
-# After
-lifespan_context = ctx.lifespan_context or {}
-providers = lifespan_context.get("providers", {})
-config = lifespan_context.get("config", {})
-```
-
 `ctx.lifespan_context` 是 FastMCP 官方 API，当 `request_context` 存在时从中获取，当 `request_context` 为 None 时（CLI 模式）自动 fallback 到 `mcp._lifespan_result`。
 
 ### 步骤 2：重构 KubectlHandler
@@ -42,54 +29,36 @@ config = lifespan_context.get("config", {})
 
 ### 步骤 3：修复各 Handler 的 `__init__` 方法
 
-**文件**:
-- `src/ack_cluster_handler.py`
-- `src/ack_diagnose_handler.py`
-- `src/ack_prometheus_handler.py`
-- `src/ack_inspect_handler.py`
-- `src/ack_audit_log_handler.py`
-- `src/ack_controlplane_log_handler.py`
-
-**改动内容**:
 将各 Handler 的 `__init__` 方法中配置属性初始化移到 `server is None` 判断之前。
-
-改动模式：
-```python
-# Before
-def __init__(self, server, settings=None):
-    self.settings = settings or {}
-    if server is None:
-        return
-    self.server = server
-    self.allow_write = self.settings.get("allow_write", False)
-
-# After
-def __init__(self, server, settings=None):
-    self.settings = settings or {}
-    self.allow_write = self.settings.get("allow_write", False)
-    if server is None:
-        return
-    self.server = server
-```
 
 ### 步骤 4：创建 CLI 模块
 
 **文件**: `src/cli.py`（新建）
 
-**核心类**:
+**核心组件**:
 
-1. **`CLIRunner`**: CLI 执行器
+1. **`_resolve_param_type(prop_schema)`** -- 从 JSON Schema 属性中提取有效类型（处理 `anyOf` nullable 模式）
+
+2. **`build_tool_arg_parser(tool_name, parameters)`** -- 根据 tool 的 JSON Schema 动态创建 argparse.ArgumentParser
+   - 所有参数使用 `_UNSET` 哨兵作为 default，区分「用户未传」和「schema 默认值」
+   - 所有参数在 argparse 层面均为 optional（必填校验在 parse_tool_args 中进行）
+   - 始终附加 `--args` JSON fallback 参数
+
+3. **`parse_tool_args(tool_name, parameters, argv)`** -- 解析 CLI 参数并合并
+   - 优先级：显式 CLI 参数 > `--args` JSON > schema defaults
+   - `None` 默认值不加入结果（避免传入多余参数）
+   - 校验 required 参数是否缺失
+
+4. **`CLIRunner`**: CLI 执行器
    - `__init__(settings_dict)` -- 调用 `create_main_server()` 创建 FastMCP 实例，初始化 providers，设置 `mcp._lifespan_result`
    - `list_tools()` -- 通过 `mcp.list_tools()` 列出所有工具
-   - `call_tool(tool_name, args_json)` -- 通过 `mcp.call_tool()` 调用指定工具
+   - `describe_tool(tool_name)` -- 显示工具参数详情（名称、CLI flag、类型、必填/默认值、描述）
+   - `call_tool(tool_name, tool_args)` -- 通过 `mcp.call_tool()` 调用指定工具
 
-2. **`build_settings_dict(args)`**: 从 CLI 参数和环境变量构建统一配置字典
-
-3. **`main()`**: CLI 入口函数
-   - argparse 定义：
-     - 全局参数：`--allow-write`, `--region`, `--access-key-id`, `--access-key-secret`, `--kubeconfig-mode`, `--kubeconfig-path`
-     - 子命令 `list`：列出所有工具
-     - 子命令 `call <tool_name> --args '<JSON>'`：调用工具
+5. **`main()`**: CLI 入口函数
+   - 使用 `parse_known_args()` 先解析全局参数和子命令
+   - `call` 子命令：获取 tool schema 后用 `parse_tool_args` 解析 remaining_argv
+   - 子命令：`list`、`describe <tool_name>`、`call <tool_name> [--param-name value ...]`
 
 ### 步骤 5：更新项目配置
 
@@ -106,48 +75,37 @@ def __init__(self, server, settings=None):
 **文件**: `src/tests/test_cli.py`（新建）
 
 **测试覆盖**:
-- CLIRunner 初始化和 FastMCP 实例创建
-- `mcp._lifespan_result` 注入验证
-- `mcp.list_tools()` 返回所有 9 个工具
-- `mcp.call_tool()` 执行 `get_current_time` 并验证结果
-- `list` 子命令输出验证
-- `call` 子命令执行和 JSON 输出验证
-- 参数解析正确性（`build_settings_dict`）
-- 错误处理（不存在的 tool、无效 JSON、非 dict JSON）
+- `_resolve_param_type` 类型解析（string/integer/boolean/nullable/无类型）
+- `build_tool_arg_parser` 动态参数生成（string required/integer default/boolean/nullable）
+- `parse_tool_args` 合并逻辑（CLI only / JSON only / CLI override JSON / schema default / None 默认省略 / 缺失必填报错）
+- `CLIRunner` 功能（list/describe/call/unknown tool）
+- FastMCP 集成（lifespan_result 注入、list_tools 返回、call_tool 执行）
+- `build_settings_dict` 参数构建
 
 **文件**: 各 handler 测试文件中的 `FakeContext`
-
-在所有 `FakeContext` 类中新增 `self.lifespan_context` 属性，同时将使用对象形式 lifespan context 的测试改为 dict 形式，以匹配 handler 中 `ctx.lifespan_context.get()` 的 dict 访问方式。
-
-涉及文件：
-- `src/tests/test_ack_cluster_handler.py`
-- `src/tests/test_ack_audit_log_handler.py`
-- `src/tests/test_ack_controlplane_log_handler.py`
-- `src/tests/test_ack_prometheus_handler.py`
-- `src/tests/test_ack_inspect_handler.py`
-- `src/tests/test_kubectl_handler.py`
-- `src/tests/test_kubeconfig_mode.py`
+- 新增 `self.lifespan_context` 属性
+- lifespan context 改为 dict 形式
 
 ## 文件变更清单
 
 | 文件 | 操作 | 说明 |
 |---|---|---|
-| `src/cli.py` | 新建 | CLI 入口模块（复用 FastMCP list_tools/call_tool） |
+| `src/cli.py` | 新建 | CLI 入口（schema-based args + FastMCP call_tool） |
 | `src/ack_cluster_handler.py` | 修改 | ctx 访问方式统一 + __init__ 调整 |
 | `src/ack_diagnose_handler.py` | 修改 | ctx 访问方式统一 + __init__ 调整 |
 | `src/ack_prometheus_handler.py` | 修改 | ctx 访问方式统一（3 处） + __init__ 调整 |
 | `src/ack_inspect_handler.py` | 修改 | ctx 访问方式统一 + __init__ 调整 |
 | `src/ack_audit_log_handler.py` | 修改 | ctx 访问方式统一（2 处） |
 | `src/ack_controlplane_log_handler.py` | 修改 | ctx 访问方式统一（3 处） + __init__ 调整 |
-| `src/kubectl_handler.py` | 修改 | ctx 访问方式统一 + 提取 execute() + __init__ 调整 |
+| `src/kubectl_handler.py` | 修改 | ctx 统一 + 提取 execute() + __init__ 调整 |
 | `pyproject.toml` | 修改 | 新增 CLI 入口和模块 |
 | `Makefile` | 修改 | 新增 CLI 快捷命令 |
-| `src/tests/test_cli.py` | 新建 | CLI 测试（基于 FastMCP API） |
+| `src/tests/test_cli.py` | 新建 | CLI 测试（schema 解析 + 参数合并 + FastMCP 集成） |
 | `src/tests/test_ack_cluster_handler.py` | 修改 | FakeContext 增加 lifespan_context 属性 |
 | `src/tests/test_ack_audit_log_handler.py` | 修改 | FakeContext 增加 lifespan_context 属性 |
 | `src/tests/test_ack_controlplane_log_handler.py` | 修改 | FakeContext 增加 lifespan_context 属性 |
 | `src/tests/test_ack_prometheus_handler.py` | 修改 | FakeContext 增加 lifespan_context 属性 |
 | `src/tests/test_ack_inspect_handler.py` | 修改 | FakeContext 增加 lifespan_context 属性 |
-| `src/tests/test_kubectl_handler.py` | 修改 | FakeContext 增加 lifespan_context + lifespan context 改为 dict |
-| `src/tests/test_kubeconfig_mode.py` | 修改 | FakeContext 增加 lifespan_context + FakeLifespanContext 改为 dict 工厂 |
+| `src/tests/test_kubectl_handler.py` | 修改 | FakeContext + lifespan context 改为 dict |
+| `src/tests/test_kubeconfig_mode.py` | 修改 | FakeContext + FakeLifespanContext 改为 dict 工厂 |
 | `src/main_server.py` | 不变 | MCP server 入口保持独立 |
