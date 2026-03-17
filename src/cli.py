@@ -217,7 +217,7 @@ class CLIRunner:
     def _get_tools(self):
         """Return the list of registered tools (cached)."""
         if not hasattr(self, "_tools_cache"):
-            self._tools_cache = asyncio.run(self.mcp.list_tools())
+            self._tools_cache = asyncio.run(self.mcp._list_tools())
         return self._tools_cache
 
     def _get_tool_by_name(self, name: str):
@@ -286,7 +286,7 @@ class CLIRunner:
     def call_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> None:
         """Call a tool by name with the given arguments dict and print the result."""
         try:
-            result = asyncio.run(self.mcp.call_tool(tool_name, tool_args))
+            result = asyncio.run(self.mcp._call_tool(tool_name, tool_args))
         except Exception as e:
             logger.error(f"Tool execution failed: {e}")
             sys.exit(1)
