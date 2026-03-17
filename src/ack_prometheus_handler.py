@@ -107,7 +107,7 @@ class PrometheusHandler:
             raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
 
 
-    def _resolve_prometheus_endpoint(self, ctx, cluster_id: str, execution_log: ExecutionLog) -> Optional[str]:
+    def _resolve_prometheus_endpoint(self, ctx: Context, cluster_id: str, execution_log: ExecutionLog) -> Optional[str]:
         lifespan = ctx.lifespan_context or {}
         providers = lifespan.get("providers", {})
         
@@ -172,7 +172,7 @@ class PrometheusHandler:
         try:
             cs_client = _get_cs_client(ctx, "CENTER")
             region_id = self._get_cluster_region(cs_client, cluster_id, execution_log)
-            config = lifespan.get("config", {}) or {}
+            config = ctx.lifespan_context.get("config", {}) or {}
             arms_client_factory = providers.get("arms_client_factory")
             if arms_client_factory and region_id:
                 arms_client = arms_client_factory(region_id, config)
@@ -220,13 +220,6 @@ class PrometheusHandler:
         except Exception as e:
             logger.debug(f"resolve endpoint via ARMS failed: {e}")
             execution_log.warnings.append(f"Failed to resolve endpoint via ARMS: {str(e)}")
-
-        # 2) providers 中的静态映射
-        endpoints = providers.get("prometheus_endpoints", {}) if isinstance(providers, dict) else {}
-        if isinstance(endpoints, dict):
-            ep = endpoints.get(cluster_id) or endpoints.get("default")
-            if ep:
-                return ep.rstrip("/")
 
         # 2) Fallback to local resolution
         return self._resolve_from_local(providers, cluster_id, execution_log)

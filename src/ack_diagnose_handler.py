@@ -44,7 +44,7 @@ def _serialize_sdk_object(obj):
         return str(obj)
 
 
-def _get_cs_client(ctx, region: str):
+def _get_cs_client(ctx: Context, region: str):
     """从 lifespan providers 中获取指定区域的 CS 客户端。"""
     lifespan_context = ctx.lifespan_context or {}
     providers = lifespan_context.get("providers", {})

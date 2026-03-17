@@ -21,7 +21,7 @@ from models import (
 )
 
 
-def _get_sls_client(ctx, region_id: str):
+def _get_sls_client(ctx: Context, region_id: str):
     """从 lifespan providers 中获取指定区域的 SLS 客户端（统一入参: region_id, config）。"""
     lifespan_context = ctx.lifespan_context or {}
     providers = lifespan_context.get("providers", {})
@@ -32,7 +32,7 @@ def _get_sls_client(ctx, region_id: str):
     return factory(region_id, config)
 
 
-def _get_cs_client(ctx, region_id: str):
+def _get_cs_client(ctx: Context, region_id: str):
     """从 lifespan providers 中获取指定区域的 CS 客户端。"""
     lifespan_context = ctx.lifespan_context or {}
     providers = lifespan_context.get("providers", {})

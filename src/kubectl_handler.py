@@ -427,8 +427,8 @@ class KubectlHandler:
 
         self._register_tools()
 
-    def _setup_cs_client(self, ctx):
-        """设置CS客户端（仅在需要时）"""
+    def _setup_cs_client(self, ctx: Context):
+        """设置CS客户端(仅在需要时)"""
         try:
             # 检查是否已经设置过
             if hasattr(get_context_manager(), '_cs_client') and get_context_manager()._cs_client:
@@ -436,7 +436,6 @@ class KubectlHandler:
 
             lifespan_context = ctx.lifespan_context or {}
             providers = lifespan_context.get("providers", {})
-
             cs_client_factory = providers.get("cs_client_factory")
             if cs_client_factory:
                 config = lifespan_context.get("config", {})
@@ -692,7 +691,7 @@ class KubectlHandler:
                 "stderr": e.stderr.strip() if e.stderr else str(e),
             }
 
-    async def execute(self, ctx, command: str, cluster_id: str) -> KubectlOutput:
+    async def execute(self, ctx: Context, command: str, cluster_id: str) -> KubectlOutput:
         """Execute a kubectl command. Core logic shared by MCP tool and CLI.
 
         Args:
