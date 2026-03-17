@@ -228,10 +228,41 @@ class ListClustersOutput(BaseOutputModel):
     clusters: List[ClusterInfo] = Field(default_factory=list, description="集群列表")
 
 
+class ListClusterNodepoolsOutput(BaseOutputModel):
+    """list_cluster_nodepools 输出"""
+    count: int = Field(..., description="本页返回的节点池数量")
+    total_count: Optional[int] = Field(None, description="节点池总数（分页前）")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+    nodepools: List[Dict[str, Any]] = Field(default_factory=list, description="节点池列表")
+    page_number: Optional[int] = Field(None, description="当前页码")
+    page_size: Optional[int] = Field(None, description="每页大小")
+
+
+class ListClusterNodesOutput(BaseOutputModel):
+    """list_cluster_nodes 输出"""
+    count: int = Field(..., description="本页节点数量")
+    total_count: Optional[int] = Field(None, description="总节点数（如有分页信息）")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+    nodes: List[Dict[str, Any]] = Field(default_factory=list, description="节点列表")
+    page_number: Optional[int] = Field(None, description="当前页码")
+    page_size: Optional[int] = Field(None, description="每页大小")
+
+
+class ListClusterTasksOutput(BaseOutputModel):
+    """list_cluster_tasks 输出"""
+    count: int = Field(..., description="返回的任务数量")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
+    tasks: List[Dict[str, Any]] = Field(default_factory=list, description="任务列表（仅含 task_id、state、created、updated、task_type、cluster_id、error_code、error_message）")
+    total_count: Optional[int] = Field(None, description="结果总数"),
+    page_number: Optional[int] = Field(None, description="当前页码")
+    page_size: Optional[int] = Field(None, description="每页大小")
+
+
 # 错误码定义
 class ClusterErrorCodes:
     NO_RAM_POLICY_AUTH = "NO_RAM_POLICY_AUTH"
     MISS_REGION_ID = "MISS_REGION_ID"
+    INVALID_CLUSTER_ID = "INVALID_CLUSTER_ID"
 
 
 # ACK Audit Log Models

@@ -42,6 +42,7 @@ dependencies = [
     "aiofiles>=24.0.0",
     "cachetools>=5.5.0",
     "pyyaml>=6.0.0",
+    "pytest>=9.0.2",
 ]
 
 [project.optional-dependencies]
@@ -81,6 +82,7 @@ exclude = ["tests", "tests.*", "*.egg-info"]
 py-modules = [
     "ack_audit_log_handler",
     "ack_cluster_handler",
+    "ack_cluster_helpers",
     "ack_controlplane_log_handler",
     "ack_cost_analysis_handler",
     "ack_diagnose_handler",
