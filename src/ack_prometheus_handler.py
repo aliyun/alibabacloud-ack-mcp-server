@@ -107,9 +107,9 @@ class PrometheusHandler:
             raise ValueError(f"Failed to get cluster region for {cluster_id}: {e}")
 
 
-    def _resolve_prometheus_endpoint(self, ctx: Context, cluster_id: str, execution_log: ExecutionLog) -> Optional[str]:
-        lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
-        providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
+    def _resolve_prometheus_endpoint(self, ctx, cluster_id: str, execution_log: ExecutionLog) -> Optional[str]:
+        lifespan = ctx.lifespan_context or {}
+        providers = lifespan.get("providers", {})
         
         # Check prometheus_endpoint_mode setting
         if self.prometheus_endpoint_mode == "LOCAL":
@@ -172,8 +172,8 @@ class PrometheusHandler:
         try:
             cs_client = _get_cs_client(ctx, "CENTER")
             region_id = self._get_cluster_region(cs_client, cluster_id, execution_log)
-            config = (ctx.request_context.lifespan_context.get("config", {}) or {}) if hasattr(ctx.request_context, "lifespan_context") and isinstance(ctx.request_context.lifespan_context, dict) else {}
-            arms_client_factory = providers.get("arms_client_factory") if isinstance(providers, dict) else None
+            config = lifespan.get("config", {}) or {}
+            arms_client_factory = providers.get("arms_client_factory")
             if arms_client_factory and region_id:
                 arms_client = arms_client_factory(region_id, config)
                 from alibabacloud_arms20190808 import models as arms_models
@@ -220,6 +220,13 @@ class PrometheusHandler:
         except Exception as e:
             logger.debug(f"resolve endpoint via ARMS failed: {e}")
             execution_log.warnings.append(f"Failed to resolve endpoint via ARMS: {str(e)}")
+
+        # 2) providers 中的静态映射
+        endpoints = providers.get("prometheus_endpoints", {}) if isinstance(providers, dict) else {}
+        if isinstance(endpoints, dict):
+            ep = endpoints.get(cluster_id) or endpoints.get("default")
+            if ep:
+                return ep.rstrip("/")
 
         # 2) Fallback to local resolution
         return self._resolve_from_local(providers, cluster_id, execution_log)
@@ -417,9 +424,9 @@ class PrometheusHandler:
         
         try:
             # 从 runtime context 获取 Prometheus 指标指引数据
-            lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
-            providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
-            prometheus_guidance = providers.get("prometheus_guidance", {}) if isinstance(providers, dict) else {}
+            lifespan = ctx.lifespan_context or {}
+            providers = lifespan.get("providers", {})
+            prometheus_guidance = providers.get("prometheus_guidance", {})
 
             if not prometheus_guidance or not prometheus_guidance.get("initialized"):
                 error_msg = "Prometheus guidance not initialized"
@@ -509,7 +516,7 @@ class PrometheusHandler:
                 promql_samples=promql_samples,
                 error=None,
                 execution_log=execution_log
-            )
+                )
 
         except Exception as e:
             logger.error(f"Error querying guidance data: {e}")
@@ -525,15 +532,12 @@ class PrometheusHandler:
                 "execution_log": execution_log
             }
 
+
 def _get_cs_client(ctx: Context, region_id: str):
     """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = ctx.request_context.lifespan_context
-    if isinstance(lifespan_context, dict):
-        providers = lifespan_context.get("providers", {})
-        config = lifespan_context.get("config", {})
-    else:
-        providers = getattr(lifespan_context, "providers", {})
-        config = getattr(lifespan_context, "config", {}) if hasattr(lifespan_context, "config") else {}
+    lifespan_context = ctx.lifespan_context or {}
+    providers = lifespan_context.get("providers", {})
+    config = lifespan_context.get("config", {})
 
     cs_client_factory = providers.get("cs_client_factory")
     if not cs_client_factory:

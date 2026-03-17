@@ -30,6 +30,7 @@ class FakeRequestContext:
 class FakeContext:
     def __init__(self, lifespan_context=None):
         self.request_context = FakeRequestContext(lifespan_context)
+        self.lifespan_context = lifespan_context or {}
 
 
 def make_handler_and_tool():
@@ -82,12 +83,10 @@ async def test_kubectl_tool_success(monkeypatch):
         def __call__(self, region_id, config=None):
             return FakeCSClient()
     
-    class SimpleLifespanContext:
-        def __init__(self):
-            self.config = {"region_id": "cn-hangzhou"}
-            self.providers = {"cs_client_factory": FakeCSClientFactory()}
-    
-    ctx = FakeContext(SimpleLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {"cs_client_factory": FakeCSClientFactory()},
+    })
     result = await tool(ctx, command="version --client", cluster_id="test-cluster")
 
     assert result.exit_code == 0
@@ -126,12 +125,10 @@ async def test_kubectl_tool_error(monkeypatch):
         def __call__(self, region_id, config=None):
             return FakeCSClient()
     
-    class SimpleLifespanContext:
-        def __init__(self):
-            self.config = {"region_id": "cn-hangzhou"}
-            self.providers = {"cs_client_factory": FakeCSClientFactory()}
-    
-    ctx = FakeContext(SimpleLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {"cs_client_factory": FakeCSClientFactory()},
+    })
     result = await tool(ctx, command="get pods -A", cluster_id="test-cluster")
 
     assert result.exit_code == 1
@@ -177,11 +174,6 @@ async def test_kubectl_with_cluster_id_success(monkeypatch):
         "cs_client_factory": FakeCSClientFactory()
     }
     
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
-    
     def fake_run(*args, **kwargs):
         cmd = args[0] if args else None
         if isinstance(cmd, str):
@@ -193,7 +185,10 @@ async def test_kubectl_with_cluster_id_success(monkeypatch):
     monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
     
     _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": fake_providers,
+    })
     result = await tool(ctx, command="get pods", cluster_id="c123456")
     
     assert result.exit_code == 0
@@ -233,13 +228,11 @@ async def test_kubectl_with_cluster_id_no_kubeconfig(monkeypatch):
         "cs_client_factory": FakeCSClientFactory()
     }
     
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
-    
     _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": fake_providers,
+    })
     result = await tool(ctx, command="get pods", cluster_id="c123456")
     
     assert result.exit_code == 1
@@ -289,13 +282,11 @@ async def test_kubectl_without_cluster_id(monkeypatch):
         "cs_client_factory": FakeCSClientFactory()
     }
     
-    class SimpleLifespanContext:
-        def __init__(self):
-            self.config = {"region_id": "cn-hangzhou"}
-            self.providers = fake_providers
-    
     _, tool = make_handler_and_tool()
-    ctx = FakeContext(SimpleLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": fake_providers,
+    })
     result = await tool(ctx, command="get pods", cluster_id="test-cluster")
     
     assert result.exit_code == 0
@@ -312,13 +303,11 @@ async def test_kubectl_cs_client_factory_not_available(monkeypatch):
     # Mock providers 中没有 cs_client_factory
     fake_providers = {}
     
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
-    
     _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": fake_providers,
+    })
     result = await tool(ctx, command="get pods", cluster_id="c123456")
     
     assert result.exit_code == 1
@@ -356,11 +345,6 @@ async def test_kubectl_temp_file_cleanup(monkeypatch):
         "cs_client_factory": FakeCSClientFactory()
     }
     
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = fake_providers
-            self.config = {"region_id": "cn-hangzhou"}
-    
     def fake_run(*args, **kwargs):
         return DummyCompleted(returncode=0, stdout="success", stderr="")
     
@@ -383,7 +367,10 @@ async def test_kubectl_temp_file_cleanup(monkeypatch):
     monkeypatch.setattr(module_under_test.subprocess, "run", fake_run)
     
     _, tool = make_handler_and_tool()
-    ctx = FakeContext(FakeLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": fake_providers,
+    })
     result = await tool(ctx, command="get pods", cluster_id="c123456")
     
     assert result.exit_code == 0
@@ -524,12 +511,10 @@ async def test_write_command_blocked_in_readonly_mode(monkeypatch):
         def __call__(self, region_id, config=None):
             return FakeCSClient()
     
-    class FakeLifespanContext:
-        def __init__(self):
-            self.providers = {"cs_client_factory": FakeCSClientFactory()}
-            self.config = {"region_id": "cn-hangzhou"}
-    
-    ctx = FakeContext(FakeLifespanContext())
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {"cs_client_factory": FakeCSClientFactory()},
+    })
     
     # 测试写命令被阻止
     result = await tool(ctx, command="apply -f deployment.yaml", cluster_id="test-cluster")

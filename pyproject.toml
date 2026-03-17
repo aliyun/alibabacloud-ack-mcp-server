@@ -64,6 +64,7 @@ dev = [
 
 [project.scripts]
 alibabacloud-ack-mcp-server = "main_server:main"
+ack-mcp-cli = "cli:main"
 
 [project.urls]
 Homepage = "https://github.com/aliyun/alibabacloud-ack-mcp-server"
@@ -88,6 +89,7 @@ py-modules = [
     "ack_diagnose_handler",
     "ack_inspect_handler",
     "ack_prometheus_handler",
+    "cli",
     "kubectl_handler",
     "main_server",
     "models",

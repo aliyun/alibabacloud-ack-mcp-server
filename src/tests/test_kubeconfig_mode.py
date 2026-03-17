@@ -30,6 +30,7 @@ class FakeRequestContext:
 class FakeContext:
     def __init__(self, lifespan_context=None):
         self.request_context = FakeRequestContext(lifespan_context)
+        self.lifespan_context = lifespan_context or {}
 
 
 class FakeCSClient:
@@ -54,10 +55,12 @@ class FakeCSClientFactory:
         return FakeCSClient()
 
 
-class FakeLifespanContext:
-    def __init__(self):
-        self.providers = {"cs_client_factory": FakeCSClientFactory()}
-        self.config = {"region_id": "cn-hangzhou"}
+def FakeLifespanContext():
+    """Return a dict matching the lifespan_context structure used by handlers."""
+    return {
+        "providers": {"cs_client_factory": FakeCSClientFactory()},
+        "config": {"region_id": "cn-hangzhou"},
+    }
 
 
 @pytest.fixture

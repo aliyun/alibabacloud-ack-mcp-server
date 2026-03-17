@@ -427,23 +427,19 @@ class KubectlHandler:
 
         self._register_tools()
 
-    def _setup_cs_client(self, ctx: Context):
+    def _setup_cs_client(self, ctx):
         """设置CS客户端（仅在需要时）"""
         try:
             # 检查是否已经设置过
             if hasattr(get_context_manager(), '_cs_client') and get_context_manager()._cs_client:
                 return
 
-            lifespan_context = ctx.request_context.lifespan_context
-            if isinstance(lifespan_context, dict):
-                providers = lifespan_context.get("providers", {})
-            else:
-                providers = getattr(lifespan_context, "providers", {})
+            lifespan_context = ctx.lifespan_context or {}
+            providers = lifespan_context.get("providers", {})
 
             cs_client_factory = providers.get("cs_client_factory")
             if cs_client_factory:
-                # 传入统一签名所需的 config
-                config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
+                config = lifespan_context.get("config", {})
                 get_context_manager().set_cs_client(cs_client_factory("CENTER", config))
                 logger.debug("CS client factory set successfully")
             else:
@@ -695,6 +691,70 @@ class KubectlHandler:
                 "stdout": e.stdout.strip() if e.stdout else "",
                 "stderr": e.stderr.strip() if e.stderr else str(e),
             }
+
+    async def execute(self, ctx, command: str, cluster_id: str) -> KubectlOutput:
+        """Execute a kubectl command. Core logic shared by MCP tool and CLI.
+
+        Args:
+            ctx: FastMCP Context or CLIContext providing lifespan_context
+            command: kubectl sub-command string (without 'kubectl' prefix)
+            cluster_id: ACK cluster ID
+
+        Returns:
+            KubectlOutput with command result
+        """
+        try:
+            # Setup CS client
+            self._setup_cs_client(ctx)
+
+            # Check read-only mode
+            if not self.allow_write:
+                is_write_command, not_allow_write_error = self.is_write_command(command)
+                if is_write_command:
+                    return KubectlOutput(
+                        command=command,
+                        stdout="",
+                        stderr=not_allow_write_error,
+                        exit_code=1
+                    )
+
+            # Check interactive command
+            is_interactive, interactive_error = self.is_interactive_command(command)
+            if is_interactive:
+                return KubectlOutput(
+                    command=command,
+                    stdout="",
+                    stderr=interactive_error,
+                    exit_code=1
+                )
+
+            # Get kubeconfig file path
+            context_manager = get_context_manager()
+            kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id, self.settings.get("kubeconfig_mode"), self.settings.get("kubeconfig_path"))
+
+            # Check streaming command
+            is_streaming, stream_type = self.is_streaming_command(command)
+
+            if is_streaming:
+                result = self.run_streaming_command(command, kubeconfig_path, self.kubectl_timeout)
+            else:
+                result = self.run_command(command, kubeconfig_path, self.kubectl_timeout)
+
+            return KubectlOutput(
+                command=command,
+                stdout=result["stdout"],
+                stderr=result["stderr"],
+                exit_code=result["exit_code"]
+            )
+
+        except Exception as e:
+            logger.error(f"kubectl tool execution error: {e}")
+            return KubectlOutput(
+                command=command,
+                stdout="",
+                stderr=str(e),
+                exit_code=1
+            )
 
     def _register_tools(self):
         """Register kubectl tool."""
