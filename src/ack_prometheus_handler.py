@@ -18,8 +18,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx,
 )
-from src.clients.arms_client import get_arms_client
-from src.clients.cs_client import get_cs_client
+from clients import get_cs_client, get_arms_client
 
 
 # Patterns for relative time strings like "6h", "30m", "1d", "2w"

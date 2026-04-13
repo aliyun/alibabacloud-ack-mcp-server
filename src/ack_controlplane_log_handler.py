@@ -19,8 +19,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx
 )
-from src.clients.cs_client import get_cs_client
-from src.clients.sls_client import get_sls_client
+from clients import get_cs_client, get_sls_client
 
 
 def _parse_single_time(time_str: Optional[str], default_hours: int = 24) -> datetime:

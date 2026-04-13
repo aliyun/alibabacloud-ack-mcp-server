@@ -16,7 +16,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx,
 )
-from src.clients.cs_client import get_cs_client
+from clients import get_cs_client
 
 
 def _serialize_sdk_object(obj):

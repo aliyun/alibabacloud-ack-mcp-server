@@ -36,7 +36,7 @@ from ack_cluster_helpers import (
     task_matches_filters,
     extract_page_info,
 )
-from src.clients.cs_client import get_cs_client
+from clients import get_cs_client
 
 
 def _serialize_sdk_object(obj):
