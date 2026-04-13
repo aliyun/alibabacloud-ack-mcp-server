@@ -59,6 +59,18 @@ def _serialize_sdk_object(obj):
     return str(obj)
 
 
+async def _get_cluster_region(ctx: Context, cluster_id: str) -> str:
+    """通过 DescribeClusterDetail 获取集群的 region_id。"""
+    cs_client = get_cs_client(ctx, "CENTER")
+    detail_response = await cs_client.describe_cluster_detail_async(cluster_id)
+    if not detail_response or not detail_response.body:
+        raise ValueError(f"Failed to get cluster details for {cluster_id}")
+    region = getattr(detail_response.body, "region_id", "") or ""
+    if not region:
+        raise ValueError(f"Could not determine region for cluster {cluster_id}")
+    return region
+
+
 class ClusterNodeState(Enum):
     ALL = "all"
     RUNNING = "running"
