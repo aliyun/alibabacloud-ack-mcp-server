@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, Optional, List
 from fastmcp import FastMCP, Context
 from loguru import logger
@@ -20,6 +21,17 @@ from models import (
 from src.clients.arms_client import get_arms_client
 from src.clients.cs_client import get_cs_client
 
+
+# Patterns for relative time strings like "6h", "30m", "1d", "2w"
+_RELATIVE_RE = re.compile(r"^(\d+)([smhdwy])$")
+_RELATIVE_UNITS = {
+    "s": 1,
+    "m": 60,
+    "h": 3600,
+    "d": 86400,
+    "w": 604800,
+    "y": 31536000,
+}
 
 class PrometheusHandler:
     """ACK Prometheus 查询与指标指引 Handler。"""
@@ -236,6 +248,19 @@ class PrometheusHandler:
             # 直接传回（由后端 Prometheus 判定）
             return value
 
+    def _normalize_time(self, value: Optional[str]) -> Optional[str]:
+        """Convert relative time strings (e.g. '6h', '30m') to unix timestamp strings."""
+        if not value:
+            return value
+        v = value.strip()
+        if v.lower() == "now":
+            return str(int(time.time()))
+        m = _RELATIVE_RE.match(v)
+        if m:
+            amount, unit = int(m.group(1)), m.group(2).lower()
+            return str(int(time.time()) - amount * _RELATIVE_UNITS[unit])
+        return value
+
     async def query_prometheus(
             self,
             ctx: Context,
@@ -275,8 +300,8 @@ class PrometheusHandler:
             params: Dict[str, Any] = {"query": promql}
             url = endpoint + ("/api/v1/query_range" if has_range else "/api/v1/query")
             if has_range:
-                params["start"] = self._parse_time(start_time)
-                params["end"] = self._parse_time(end_time)
+                params["start"] = self._parse_time(self._normalize_time(start_time))
+                params["end"] = self._parse_time(self._normalize_time(end_time))
                 if step:
                     params["step"] = step
 

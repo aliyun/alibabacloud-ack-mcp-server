@@ -499,3 +499,128 @@ async def test_resolve_endpoint_arms_factory_missing():
     result = handler._resolve_prometheus_endpoint(ctx, "c-norms")
 
     assert result == "http://fallback.example.com"
+
+# ---------------------------------------------------------------------------
+# _normalize_time tests
+# ---------------------------------------------------------------------------
+
+class TestNormalizeTime:
+    """Tests for _normalize_time relative time conversion."""
+
+    def test_none_returns_none(self):
+        handler, _ = make_handler_and_tools()
+        assert handler._normalize_time(None) is None
+
+    def test_empty_string_returns_empty(self):
+        handler, _ = make_handler_and_tools()
+        assert handler._normalize_time("") == ""
+
+    def test_now_returns_current_timestamp(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        result = handler._normalize_time("now")
+        assert result == "1700000000"
+
+    def test_now_case_insensitive(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("NOW") == "1700000000"
+        assert handler._normalize_time("Now") == "1700000000"
+
+    def test_relative_seconds(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("30s") == str(1700000000 - 30)
+
+    def test_relative_minutes(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("30m") == str(1700000000 - 30 * 60)
+
+    def test_relative_hours(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("6h") == str(1700000000 - 6 * 3600)
+
+    def test_relative_days(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("1d") == str(1700000000 - 86400)
+
+    def test_relative_weeks(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("2w") == str(1700000000 - 2 * 604800)
+
+    def test_relative_years(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("1y") == str(1700000000 - 31536000)
+
+    def test_rfc3339_passes_through(self):
+        """RFC3339 strings should pass through unchanged (handled by _parse_time)."""
+        handler, _ = make_handler_and_tools()
+        result = handler._normalize_time("2025-09-16T06:15:23.239Z")
+        assert result == "2025-09-16T06:15:23.239Z"
+
+    def test_unix_timestamp_passes_through(self):
+        """Unix timestamp strings should pass through unchanged."""
+        handler, _ = make_handler_and_tools()
+        result = handler._normalize_time("1700000000")
+        assert result == "1700000000"
+
+    def test_unknown_unit_passes_through(self):
+        """Unknown time units should pass through unchanged."""
+        handler, _ = make_handler_and_tools()
+        result = handler._normalize_time("5x")
+        assert result == "5x"
+
+    def test_whitespace_stripped(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("  6h  ") == str(1700000000 - 6 * 3600)
+
+
+# ---------------------------------------------------------------------------
+# Integration: _normalize_time + _parse_time in query_prometheus
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_query_prometheus_range_with_relative_time(monkeypatch):
+    """Test that relative time strings are converted to unix timestamps."""
+    _, tools = make_handler_and_tools()
+    tool = tools["query_prometheus"]
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {"prometheus_endpoints": {"c-3": "http://prom.example.com"}},
+    })
+
+    captured_params = {}
+
+    class DummyClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params=None):
+            captured_params.update(params)
+            return DummyResp({
+                "status": "success",
+                "data": {"resultType": "matrix", "result": []}
+            })
+
+    monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+    monkeypatch.setattr(module_under_test.httpx, "AsyncClient", lambda timeout=60.0: DummyClient())
+
+    await tool(ctx, cluster_id="c-3", promql="up", start_time="6h", end_time="now", step="1m")
+
+    # start_time "6h" should be converted to 1700000000 - 6*3600
+    expected_start = str(1700000000 - 6 * 3600)
+    # end_time "now" should be converted to 1700000000
+    expected_end = "1700000000"
+
+    assert captured_params["start"] == expected_start
+    assert captured_params["end"] == expected_end

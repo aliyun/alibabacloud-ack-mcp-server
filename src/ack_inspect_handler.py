@@ -65,7 +65,7 @@ class InspectHandler:
             self,
             ctx: Context,
             cluster_id: str = Field(..., description="需要查询的prometheus所在的集群clusterId"),
-            region_id: str = Field(..., description="集群所在的regionId"),
+            region_id: str = Field("CENTER", description="集群所在的regionId"),
             is_result_exception: bool = Field(True, description="是否只返回异常的结果，默认为true"),
     ) -> QueryInspectReportOutput | Dict[str, Any]:
         """查询一个ACK集群最近的巡检报告"""
