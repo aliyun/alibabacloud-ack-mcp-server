@@ -17,6 +17,8 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx,
 )
+from src.clients.arms_client import get_arms_client
+from src.clients.cs_client import get_cs_client
 
 
 class PrometheusHandler:
@@ -170,12 +172,10 @@ class PrometheusHandler:
         #    从 providers 里取 ARMS client，调用 GetPrometheusInstance
         mode = "ARMS_PRIVATE" if use_private else "ARMS_PUBLIC"
         try:
-            cs_client = _get_cs_client(ctx, "CENTER")
+            cs_client = get_cs_client(ctx, "CENTER")
             region_id = self._get_cluster_region(cs_client, cluster_id, execution_log)
-            config = ctx.lifespan_context.get("config", {}) or {}
-            arms_client_factory = providers.get("arms_client_factory")
-            if arms_client_factory and region_id:
-                arms_client = arms_client_factory(region_id, config)
+            arms_client = get_arms_client(ctx, region_id)
+            if arms_client and region_id:
                 from alibabacloud_arms20190808 import models as arms_models
                 from alibabacloud_tea_util import models as util_models
                 req = arms_models.GetPrometheusInstanceRequest(region_id=region_id, cluster_id=cluster_id)
@@ -524,15 +524,3 @@ class PrometheusHandler:
                 "error": ErrorModel(error_code="GuidanceQueryError", error_message=f"Error querying guidance data: {str(e)}").model_dump(),
                 "execution_log": execution_log
             }
-
-
-def _get_cs_client(ctx: Context, region_id: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = ctx.lifespan_context or {}
-    providers = lifespan_context.get("providers", {})
-    config = lifespan_context.get("config", {})
-
-    cs_client_factory = providers.get("cs_client_factory")
-    if not cs_client_factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    return cs_client_factory(region_id, config)

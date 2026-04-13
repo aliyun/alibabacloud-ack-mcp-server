@@ -7,6 +7,7 @@ import json
 import time
 from datetime import datetime, timedelta, timezone
 from alibabacloud_tea_util import models as util_models
+from clients import get_cs_client, get_sls_client
 
 try:
     from .models import (
@@ -25,30 +26,6 @@ except ImportError:
         ExecutionLog,
         enable_execution_log_ctx
     )
-
-
-def _get_sls_client(ctx: Context, region_id: str):
-    """从 lifespan providers 中获取指定区域的 SLS 客户端（统一入参: region_id, config）。"""
-    lifespan_context = ctx.lifespan_context or {}
-    providers = lifespan_context.get("providers", {})
-    config = lifespan_context.get("config", {})
-    factory = providers.get("sls_client_factory")
-    if not factory:
-        raise RuntimeError("sls_client_factory not available in runtime providers")
-    return factory(region_id, config)
-
-
-def _get_cs_client(ctx: Context, region_id: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = ctx.lifespan_context or {}
-    providers = lifespan_context.get("providers", {})
-    config = lifespan_context.get("config", {})
-
-    cs_client_factory = providers.get("cs_client_factory")
-    if not cs_client_factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    return cs_client_factory(region_id, config)
-
 
 class ACKAuditLogHandler:
     """Handler for ACK audit log operations."""
@@ -438,7 +415,7 @@ class ACKAuditLogHandler:
         
         try:
             if self.cs_client is None:
-                cs_client = _get_cs_client(ctx, "CENTER")
+                cs_client = get_cs_client(ctx, "CENTER")
                 self.cs_client = cs_client
             
             # Get cluster region
@@ -471,7 +448,7 @@ class ACKAuditLogHandler:
                 })
                 execution_log.messages.append(f"Cluster region retrieved: {region_id} in {api_duration}ms, requestId: {request_id}")
             
-            self.sls_client = _get_sls_client(ctx, region_id)
+            self.sls_client = get_sls_client(ctx, region_id)
 
             # Normalize parameters
             normalized_params = self._normalize_params(params)

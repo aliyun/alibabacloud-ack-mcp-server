@@ -16,6 +16,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx,
 )
+from src.clients.cs_client import get_cs_client
 
 
 def _serialize_sdk_object(obj):
@@ -42,17 +43,6 @@ def _serialize_sdk_object(obj):
         return str(obj)
     except Exception:
         return str(obj)
-
-
-def _get_cs_client(ctx: Context, region: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = ctx.lifespan_context or {}
-    providers = lifespan_context.get("providers", {})
-    config = lifespan_context.get("config", {})
-    factory = providers.get("cs_client_factory")
-    if not factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    return factory(region, config)
 
 
 class InspectHandler:
@@ -91,7 +81,7 @@ class InspectHandler:
         
         try:
             # 获取 CS 客户端
-            cs_client = _get_cs_client(ctx, region_id)
+            cs_client = get_cs_client(ctx, region_id)
             runtime = util_models.RuntimeOptions()
             headers = {}
 
@@ -385,7 +375,7 @@ class InspectHandler:
         
         try:
             # 获取 CS 客户端
-            cs_client = _get_cs_client(ctx, region_id)
+            cs_client = get_cs_client(ctx, region_id)
             runtime = util_models.RuntimeOptions()
             headers = {}
 
