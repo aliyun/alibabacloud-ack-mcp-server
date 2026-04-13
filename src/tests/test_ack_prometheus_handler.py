@@ -336,3 +336,166 @@ async def test_query_prometheus_metric_guidance_case_insensitive():
     assert result.promql_samples[0].rule_name == "CPU High"
 
 
+# ---------------------------------------------------------------------------
+# ARMS endpoint resolution via get_arms_client
+# ---------------------------------------------------------------------------
+
+class FakeARMSData:
+    def __init__(self, http_api_inter_url=None, http_api_intra_url=None):
+        self.http_api_inter_url = http_api_inter_url
+        self.http_api_intra_url = http_api_intra_url
+
+
+class FakeARMSBody:
+    def __init__(self, data):
+        self.data = data
+
+
+class FakeARMSResponse:
+    def __init__(self, data):
+        self.body = FakeARMSBody(data)
+
+
+class FakeARMSClient:
+    def __init__(self, inter_url=None, intra_url=None, fail=False):
+        self._inter_url = inter_url
+        self._intra_url = intra_url
+        self.fail = fail
+        self.call_args = None
+
+    def get_prometheus_instance_with_options(self, req, runtime):
+        self.call_args = {"region_id": req.region_id, "cluster_id": req.cluster_id}
+        if self.fail:
+            raise RuntimeError("ARMS API error")
+        data = FakeARMSData(
+            http_api_inter_url=self._inter_url,
+            http_api_intra_url=self._intra_url,
+        )
+        return FakeARMSResponse(data)
+
+
+class FakeDescribeClusterDetailBody:
+    def __init__(self, region_id="cn-hangzhou"):
+        self.region_id = region_id
+
+
+class FakeDescribeClusterDetailResponse:
+    def __init__(self, region_id="cn-hangzhou"):
+        self.body = FakeDescribeClusterDetailBody(region_id)
+
+
+class FakeCSForARMS:
+    def __init__(self, region_id="cn-hangzhou"):
+        self._region_id = region_id
+
+    # _get_cluster_region calls the SYNC version
+    def describe_cluster_detail(self, cluster_id):
+        return FakeDescribeClusterDetailResponse(self._region_id)
+
+    async def describe_clusters_v1with_options_async(self, request, headers, runtime):
+        class EmptyBody:
+            clusters = []
+        class EmptyResp:
+            body = EmptyBody()
+        return EmptyResp()
+
+
+def _arms_factory(region_id, config):
+    return _arms_factory._instance
+
+
+def _cs_factory_for_arms(region_id, config):
+    return _cs_factory_for_arms._instance
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_via_arms_inter_url():
+    """Test _resolve_prometheus_endpoint uses get_arms_client to get internal URL."""
+    handler, _ = make_handler_and_tools()
+
+    arms = FakeARMSClient(inter_url="https://arms-inner.example.com")
+    cs = FakeCSForARMS("cn-hangzhou")
+    _arms_factory._instance = arms
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {
+            "arms_client_factory": _arms_factory,
+            "cs_client_factory": _cs_factory_for_arms,
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-test-cluster")
+
+    assert result == "https://arms-inner.example.com"
+    assert arms.call_args["region_id"] == "cn-hangzhou"
+    assert arms.call_args["cluster_id"] == "c-test-cluster"
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_falls_back_to_intra_url():
+    """Test fallback from http_api_inter_url to http_api_intra_url."""
+    handler, _ = make_handler_and_tools()
+
+    arms = FakeARMSClient(intra_url="https://arms-intra.example.com")
+    cs = FakeCSForARMS("cn-shanghai")
+    _arms_factory._instance = arms
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-shanghai"},
+        "providers": {
+            "arms_client_factory": _arms_factory,
+            "cs_client_factory": _cs_factory_for_arms,
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-test")
+
+    assert result == "https://arms-intra.example.com"
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_arms_fails_falls_back_to_static():
+    """Test that when ARMS call fails, it falls back to prometheus_endpoints."""
+    handler, _ = make_handler_and_tools()
+
+    arms = FakeARMSClient(fail=True)
+    cs = FakeCSForARMS("cn-hangzhou")
+    _arms_factory._instance = arms
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {
+            "arms_client_factory": _arms_factory,
+            "cs_client_factory": _cs_factory_for_arms,
+            "prometheus_endpoints": {"c-fallback": "http://static-prom.example.com"},
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-fallback")
+
+    assert result == "http://static-prom.example.com"
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_arms_factory_missing():
+    """Test that when no arms_client_factory, it falls through to static endpoints."""
+    handler, _ = make_handler_and_tools()
+
+    cs = FakeCSForARMS("cn-hangzhou")
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {
+            "cs_client_factory": _cs_factory_for_arms,
+            "prometheus_endpoints": {"c-norms": "http://fallback.example.com"},
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-norms")
+
+    assert result == "http://fallback.example.com"
