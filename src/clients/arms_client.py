@@ -1,7 +1,6 @@
 """ARMS client factory for Alibaba Cloud Application Real-Time Monitoring Service."""
 
 from fastmcp import Context
-from typing import Optional
 
 
 def get_arms_client(ctx: Context, region_id: str):

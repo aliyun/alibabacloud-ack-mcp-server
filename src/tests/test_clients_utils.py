@@ -1,6 +1,5 @@
 """Tests for clients/utils.py (serialize_sdk_object)."""
 
-import pytest
 import sys
 import os
 
