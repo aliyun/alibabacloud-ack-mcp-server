@@ -211,6 +211,7 @@ class CLIRunner:
             "config": settings_dict,
             "providers": self.providers,
         }
+        self.mcp._lifespan_result_set = True
 
     # -- Cached tool metadata ---------------------------------------------------
 
