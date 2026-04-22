@@ -11,6 +11,10 @@ transport: sse
 port: 8000
 allowWrite: true
 
+# Host binding address. Use "127.0.0.1" for localhost-only access (recommended for security).
+# Use "0.0.0.0" to expose to all network interfaces (requires proper authentication and Origin validation).
+host: "127.0.0.1"
+
 image:
   registry: registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server
   tag: "v1.0.0-73a8c94-aliyun"

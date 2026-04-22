@@ -30,7 +30,7 @@ spec:
             {{ if .Values.allowWrite }}
             - '--allow-write'
             {{ end }}
-            - '--host=0.0.0.0'
+            - '--host={{ .Values.host }}'
             - '--port={{ .Values.port }}'
           env:
             - name: ACCESS_KEY_ID

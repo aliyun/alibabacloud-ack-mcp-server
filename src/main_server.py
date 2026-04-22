@@ -22,10 +22,12 @@ to connect various sub-MCP servers.
 import argparse
 import os
 import sys
-from typing import Dict, Any, Optional, Literal
+from typing import Dict, Any, Optional, Literal, List
+from urllib.parse import urlparse
 
 from loguru import logger
 from fastmcp import FastMCP
+from starlette.middleware import Middleware as ASGIMiddleware
 
 from models import ExecutionLog
 
@@ -121,6 +123,85 @@ MAIN_SERVER_DEPENDENCIES = [
     "pydantic-settings",
 ]
 
+class OriginValidationMiddleware:
+    """
+    ASGI middleware to validate Origin header on incoming HTTP requests.
+    Required by MCP specification (2025-03-26) to prevent DNS rebinding attacks.
+    """
+
+    def __init__(self, app, allowed_origins: List[str] = None, host: str = "localhost"):
+        self.app = app
+        self.allowed_origins = allowed_origins or []
+        self.host = host
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # Extract Origin header from request
+        headers = dict(scope.get("headers", []))
+        origin = headers.get(b"origin", b"").decode("utf-8", errors="ignore").strip()
+
+        # No Origin header: allow (non-browser direct API calls)
+        if not origin:
+            await self.app(scope, receive, send)
+            return
+
+        # If user specified allowed origins, only allow those
+        if self.allowed_origins:
+            if origin in self.allowed_origins:
+                await self.app(scope, receive, send)
+                return
+            logger.warning(f"Rejected request with Origin: {origin} (not in allowed origins)")
+            await self._send_403(send)
+            return
+
+        # No allowed origins configured: auto-allow localhost origins for localhost/127.0.0.1 hosts
+        if self.host in ("localhost", "127.0.0.1"):
+            if self._is_localhost_origin(origin):
+                await self.app(scope, receive, send)
+                return
+            logger.warning(f"Rejected request with Origin: {origin} (only localhost origins allowed)")
+            await self._send_403(send)
+            return
+
+        # Non-localhost host without explicit allowed origins: reject for security (fail closed)
+        logger.warning(
+            f"No allowed origins configured for non-localhost host '{self.host}'. "
+            f"Rejecting request with Origin: {origin}. "
+            "Please configure --allowed-origins or ALLOWED_ORIGINS environment variable."
+        )
+        await self._send_403(send)
+        return
+
+    @staticmethod
+    def _is_localhost_origin(origin: str) -> bool:
+        """Check if the origin is from localhost or 127.0.0.1."""
+        try:
+            parsed = urlparse(origin)
+            return parsed.hostname in ("localhost", "127.0.0.1")
+        except Exception:
+            return False
+
+    @staticmethod
+    async def _send_403(send):
+        """Send a 403 Forbidden response."""
+        body = b"Forbidden: Origin not allowed"
+        await send({
+            "type": "http.response.start",
+            "status": 403,
+            "headers": [
+                [b"content-type", b"text/plain"],
+                [b"content-length", str(len(body)).encode()],
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body,
+        })
+
+
 def create_main_server(
     settings_dict: Optional[Dict[str, Any]] = None,
     transport: Literal["stdio", "sse"] = "stdio",
@@ -144,11 +225,47 @@ def create_main_server(
     # Create runtime provider for main server (reuse ACK cluster runtime)
     runtime_provider = ACKClusterRuntimeProvider()
 
+    # 条件创建 OAuth auth provider
+    auth = None
+    if settings.get("enable_oauth"):
+        from fastmcp.server.auth import RemoteAuthProvider
+        from fastmcp.server.auth.providers.jwt import JWTVerifier
+        from pydantic import AnyHttpUrl
+
+        jwks_uri = settings.get("oauth_jwks_uri")
+        issuer = settings.get("oauth_issuer")
+        if not jwks_uri:
+            raise ValueError("--oauth-jwks-uri / OAUTH_JWKS_URI is required when OAuth is enabled")
+        if not issuer:
+            raise ValueError("--oauth-issuer / OAUTH_ISSUER is required when OAuth is enabled")
+
+        required_scopes = []
+        if settings.get("oauth_required_scopes"):
+            required_scopes = [s.strip() for s in settings["oauth_required_scopes"].split(",") if s.strip()]
+
+        token_verifier = JWTVerifier(
+            jwks_uri=jwks_uri,
+            issuer=issuer,
+            audience=settings.get("oauth_audience"),
+            required_scopes=required_scopes or None,
+        )
+
+        base_url = settings.get("oauth_base_url") or f"http://{settings.get('host', '127.0.0.1')}:{settings.get('port', 8000)}"
+
+        auth = RemoteAuthProvider(
+            token_verifier=token_verifier,
+            authorization_servers=[AnyHttpUrl(issuer)],
+            base_url=base_url,
+            resource_name="AlibabaCloud ACK MCP Server",
+        )
+        logger.info(f"OAuth 2.1 authentication enabled (issuer: {issuer})")
+
     # Create main MCP server
     main_mcp = FastMCP(
         name=MAIN_SERVER_NAME,
         instructions=MAIN_SERVER_INSTRUCTIONS,
         lifespan=runtime_provider.init_runtime,
+        auth=auth,  # None if OAuth disabled
     )
 
     # Attach config for lifespan provider access
@@ -257,6 +374,44 @@ def main():
         help="Path to audit log configuration file (YAML format)"
     )
     parser.add_argument(
+        "--allowed-origins",
+        type=str,
+        default=os.environ.get("ALLOWED_ORIGINS", ""),
+        help="Comma-separated list of allowed origins for Origin header validation (env: ALLOWED_ORIGINS)"
+    )
+    # OAuth 2.1 认证参数
+    parser.add_argument(
+        "--enable-oauth",
+        action="store_true",
+        default=False,
+        help="Enable OAuth 2.1 authentication for HTTP/SSE transport (env: ENABLE_OAUTH)"
+    )
+    parser.add_argument(
+        "--oauth-jwks-uri",
+        type=str,
+        help="JWKS endpoint URI for JWT verification (env: OAUTH_JWKS_URI)"
+    )
+    parser.add_argument(
+        "--oauth-issuer",
+        type=str,
+        help="Expected JWT issuer (env: OAUTH_ISSUER)"
+    )
+    parser.add_argument(
+        "--oauth-audience",
+        type=str,
+        help="Expected JWT audience (env: OAUTH_AUDIENCE)"
+    )
+    parser.add_argument(
+        "--oauth-base-url",
+        type=str,
+        help="Public base URL of this MCP server for OAuth metadata (env: OAUTH_BASE_URL)"
+    )
+    parser.add_argument(
+        "--oauth-required-scopes",
+        type=str,
+        help="Comma-separated required OAuth scopes (env: OAUTH_REQUIRED_SCOPES)"
+    )
+    parser.add_argument(
         "--version",
         "-v",
         action="version",
@@ -311,6 +466,14 @@ def main():
         
         # Prometheus 配置
         "prometheus_endpoint_mode": args.prometheus_endpoint_mode or os.getenv("PROMETHEUS_ENDPOINT_MODE", "ARMS_PUBLIC"),
+
+        # OAuth 2.1 认证配置
+        "enable_oauth": args.enable_oauth or os.getenv("ENABLE_OAUTH", "false").lower() == "true",
+        "oauth_jwks_uri": args.oauth_jwks_uri or os.getenv("OAUTH_JWKS_URI"),
+        "oauth_issuer": args.oauth_issuer or os.getenv("OAUTH_ISSUER"),
+        "oauth_audience": args.oauth_audience or os.getenv("OAUTH_AUDIENCE"),
+        "oauth_base_url": args.oauth_base_url or os.getenv("OAUTH_BASE_URL"),
+        "oauth_required_scopes": args.oauth_required_scopes or os.getenv("OAUTH_REQUIRED_SCOPES"),
     }
     
     # 验证必要的配置
@@ -349,8 +512,47 @@ def main():
             logger.info("Starting stdio server...")
             main_server.run()
         elif args.transport == "http" or args.transport == "sse":
+            # OAuth 2.1 启动日志
+            if settings_dict.get("enable_oauth"):
+                logger.info(f"OAuth 2.1 authentication is ENABLED")
+                logger.info(f"  JWKS URI: {settings_dict.get('oauth_jwks_uri')}")
+                logger.info(f"  Issuer: {settings_dict.get('oauth_issuer')}")
+                logger.info(f"  Protected Resource Metadata: {settings_dict.get('oauth_base_url', f'http://{args.host}:{args.port}')}/.well-known/oauth-protected-resource")
+            else:
+                logger.warning(
+                    "OAuth 2.1 authentication is DISABLED. "
+                    "For production deployments, enable OAuth with --enable-oauth. "
+                    "See SECURITY.md for configuration details."
+                )
+
+            # Parse allowed origins for Origin header validation
+            allowed_origins = [o.strip() for o in args.allowed_origins.split(",") if o.strip()] if args.allowed_origins else []
+
+            # Log Origin validation configuration
+            if allowed_origins:
+                logger.info(f"Origin validation enabled with allowed origins: {allowed_origins}")
+            elif args.host in ("localhost", "127.0.0.1"):
+                logger.info("Origin validation enabled for localhost origins")
+            else:
+                logger.warning(
+                    f"No allowed origins configured for non-localhost host '{args.host}'. "
+                    "All requests with Origin headers will be REJECTED. "
+                    "Configure --allowed-origins or ALLOWED_ORIGINS to allow specific origins."
+                )
+
+            origin_middleware = ASGIMiddleware(
+                OriginValidationMiddleware,
+                allowed_origins=allowed_origins,
+                host=args.host,
+            )
+
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            main_server.run(transport=args.transport, host=args.host, port=args.port)
+            main_server.run(
+                transport=args.transport,
+                host=args.host,
+                port=args.port,
+                middleware=[origin_middleware],
+            )
     
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")

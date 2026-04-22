@@ -180,7 +180,7 @@ docker run \
   -e ACCESS_KEY_SECRET="your-access-key-secret" \
   -p 8000:8000 \
   registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server:latest \
-  python -m main_server --transport sse --host 0.0.0.0 --port 8000 --allow-write
+  python -m main_server --transport sse --host 127.0.0.1 --port 8000 --allow-write
 ```
 
 #### 2.3.3 部署方式 3 - 💻 使用 Binary 方式启动部署
@@ -419,7 +419,7 @@ python -m src.main_server
 ```bash
 make run-http
 # 或
-python -m src.main_server --transport http --host 0.0.0.0 --port 8000
+python -m src.main_server --transport http --host 127.0.0.1 --port 8000
 ```
 
 **本地运行 ack-mcp-server SSE 模式**
@@ -427,21 +427,60 @@ python -m src.main_server --transport http --host 0.0.0.0 --port 8000
 ```bash
 make run-sse
 # 或
-python -m src.main_server --transport sse --host 0.0.0.0 --port 8000
+python -m src.main_server --transport sse --host 127.0.0.1 --port 8000
 ```
 
 **常用参数**
 
-| 参数                  | 说明             | 默认值             |
-| --------------------- | ---------------- | ------------------ |
-| `--access-key-id`     | AccessKey ID     | 阿里云账号凭证 AK  |
-| `--access-key-secret` | AccessKey Secret | 阿里云账号凭证 SK  |
-| `--allow-write`       | 启用写入操作     | 默认不启动         |
-| `--transport`         | 传输模式         | stdio / sse / http |
-| `--host`              | 绑定主机         | localhost          |
-| `--port`              | 端口号           | 8000               |
+| 参数 | 说明               | 默认值                |
+|-----|------------------|--------------------|
+| `--access-key-id` | AccessKey ID     | 阿里云账号凭证AK          |
+| `--access-key-secret` | AccessKey Secret | 阿里云账号凭证SK          |
+| `--allow-write` | 启用写入操作           | 默认不启动              |
+| `--transport` | 传输模式             | stdio / sse / http |
+| `--host` | 绑定主机             | localhost          |
+| `--port` | 端口号              | 8000               |
+| `--allowed-origins` | 允许的 Origin 白名单 | 无（本地模式自动允许 localhost） |
+| `--enable-oauth` | 启用 OAuth 2.1 认证 | false |
+| `--oauth-jwks-uri` | JWKS 端点 URI | 无 |
+| `--oauth-issuer` | JWT 签发者 | 无 |
+| `--oauth-audience` | JWT 受众 | 无 |
+| `--oauth-base-url` | 服务器公网 URL | 自动检测 |
+| `--oauth-required-scopes` | 必需的 OAuth 作用域（逗号分隔） | 无 |
 
-### 3.5. 功能测试 UT
+### 3.6 安全注意事项
+
+- 服务默认绑定 `127.0.0.1`，仅允许本地访问。如需暴露到网络，请配合 `--allowed-origins` 参数配置 Origin 白名单。
+- 服务内置了 Origin 头校验中间件，符合 MCP 2025-03-26 规范要求，可防御 DNS Rebinding 攻击。
+- **注意：** 当服务绑定到非 localhost 地址（如 `0.0.0.0`）且未配置 `--allowed-origins` 时，所有带 Origin 头的请求将被拒绝（403 Forbidden）。生产环境部署前请务必通过 `--allowed-origins` 或 `ALLOWED_ORIGINS` 环境变量配置 Origin 白名单。
+- 生产环境部署建议配合反向代理、API Gateway 或 Kubernetes NetworkPolicy 等方式增加认证和网络隔离。
+- 完整安全指南请参考 [SECURITY.md](./SECURITY.md)。
+
+```bash
+# 指定允许的 Origin 来源
+python -m src.main_server --transport http --host 127.0.0.1 --port 8000 --allowed-origins "http://localhost:3000,https://myapp.example.com"
+
+# 或通过环境变量
+export ALLOWED_ORIGINS="http://localhost:3000,https://myapp.example.com"
+python -m src.main_server --transport http --host 127.0.0.1 --port 8000
+```
+
+#### OAuth 2.1 认证
+
+服务器支持可选的 OAuth 2.1 认证（符合 MCP 2025-11-25 规范）：
+
+```bash
+# 启用 OAuth 认证
+python -m src.main_server --transport http --host 127.0.0.1 --port 8000 \
+  --enable-oauth \
+  --oauth-jwks-uri "https://your-auth-provider.com/.well-known/jwks.json" \
+  --oauth-issuer "https://your-auth-provider.com" \
+  --oauth-audience "your-audience"
+```
+
+启用后自动提供 Bearer Token 验证、RFC 9728 资源发现端点和标准 401/403 响应。详细配置请参考 [SECURITY.md](./SECURITY.md)。
+
+### 3.7 功能测试UT
 
 ```bash
 # 运行全部测试UT
