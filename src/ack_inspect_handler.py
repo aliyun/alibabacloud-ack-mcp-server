@@ -16,6 +16,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx,
 )
+from clients import get_cs_client
 
 
 def _serialize_sdk_object(obj):
@@ -44,17 +45,6 @@ def _serialize_sdk_object(obj):
         return str(obj)
 
 
-def _get_cs_client(ctx: Context, region: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = getattr(ctx.request_context, "lifespan_context", {}) or {}
-    providers = lifespan_context.get("providers", {}) if isinstance(lifespan_context, dict) else {}
-    config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
-    factory = providers.get("cs_client_factory") if isinstance(providers, dict) else None
-    if not factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    return factory(region, config)
-
-
 class InspectHandler:
     """Handler for ACK inspect report operations."""
 
@@ -75,7 +65,7 @@ class InspectHandler:
             self,
             ctx: Context,
             cluster_id: str = Field(..., description="需要查询的prometheus所在的集群clusterId"),
-            region_id: str = Field(..., description="集群所在的regionId"),
+            region_id: str = Field("CENTER", description="集群所在的regionId"),
             is_result_exception: bool = Field(True, description="是否只返回异常的结果，默认为true"),
     ) -> QueryInspectReportOutput | Dict[str, Any]:
         """查询一个ACK集群最近的巡检报告"""
@@ -91,7 +81,7 @@ class InspectHandler:
         
         try:
             # 获取 CS 客户端
-            cs_client = _get_cs_client(ctx, region_id)
+            cs_client = get_cs_client(ctx, region_id)
             runtime = util_models.RuntimeOptions()
             headers = {}
 
@@ -385,7 +375,7 @@ class InspectHandler:
         
         try:
             # 获取 CS 客户端
-            cs_client = _get_cs_client(ctx, region_id)
+            cs_client = get_cs_client(ctx, region_id)
             runtime = util_models.RuntimeOptions()
             headers = {}
 

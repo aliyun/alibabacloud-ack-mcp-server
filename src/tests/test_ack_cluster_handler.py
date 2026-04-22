@@ -34,6 +34,7 @@ class FakeRequestContext:
 class FakeContext:
     def __init__(self, lifespan_context):
         self.request_context = FakeRequestContext(lifespan_context)
+        self.lifespan_context = lifespan_context
 
 
 class FakeResponseBody:

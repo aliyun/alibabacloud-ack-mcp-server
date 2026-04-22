@@ -36,6 +36,7 @@ from ack_cluster_helpers import (
     task_matches_filters,
     extract_page_info,
 )
+from clients import get_cs_client
 
 
 def _serialize_sdk_object(obj):
@@ -58,20 +59,9 @@ def _serialize_sdk_object(obj):
     return str(obj)
 
 
-def _get_cs_client(ctx: Context, region: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = getattr(ctx.request_context, "lifespan_context", {}) or {}
-    providers = lifespan_context.get("providers", {}) if isinstance(lifespan_context, dict) else {}
-    config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
-    cs_client_factory = providers.get("cs_client_factory") if isinstance(providers, dict) else None
-    if not cs_client_factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    return cs_client_factory(region, config)
-
-
 async def _get_cluster_region(ctx: Context, cluster_id: str) -> str:
     """通过 DescribeClusterDetail 获取集群的 region_id。"""
-    cs_client = _get_cs_client(ctx, "CENTER")
+    cs_client = get_cs_client(ctx, "CENTER")
     detail_response = await cs_client.describe_cluster_detail_async(cluster_id)
     if not detail_response or not detail_response.body:
         raise ValueError(f"Failed to get cluster details for {cluster_id}")
@@ -415,7 +405,7 @@ class ACKClusterHandler:
         )
 
         try:
-            cs_client = _get_cs_client(ctx, "CENTER")
+            cs_client = get_cs_client(ctx, "CENTER")
 
             # 构建请求
             actual_page_size = min(page_size or 10, 500)
@@ -559,7 +549,7 @@ class ACKClusterHandler:
         )
         try:
             region_id = await _get_cluster_region(ctx, cluster_id)
-            cs = _get_cs_client(ctx, region_id)
+            cs = get_cs_client(ctx, region_id)
 
             if nodepool_id:
                 raw = await _fetch_nodepool_detail(cs, cluster_id, nodepool_id, _serialize_sdk_object)
@@ -653,7 +643,7 @@ class ACKClusterHandler:
         )
         try:
             region_id = await _get_cluster_region(ctx, cluster_id)
-            cs = _get_cs_client(ctx, region_id)
+            cs = get_cs_client(ctx, region_id)
 
             nodes, page_info = await _fetch_nodes_page(
                 cs,
@@ -753,7 +743,7 @@ class ACKClusterHandler:
         )
         try:
             region_id = await _get_cluster_region(ctx, cluster_id)
-            cs = _get_cs_client(ctx, region_id)
+            cs = get_cs_client(ctx, region_id)
             start_sec, end_sec = parse_time_range(start_time, end_time)
             tasks, page_info = await _fetch_tasks_page(
                 cs,

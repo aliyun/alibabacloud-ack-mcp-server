@@ -28,6 +28,7 @@ class FakeRequestContext:
 class FakeContext:
     def __init__(self, lifespan_context=None):
         self.request_context = FakeRequestContext(lifespan_context)
+        self.lifespan_context = lifespan_context or {}
 
 
 def make_handler_and_tools():
@@ -335,3 +336,291 @@ async def test_query_prometheus_metric_guidance_case_insensitive():
     assert result.promql_samples[0].rule_name == "CPU High"
 
 
+# ---------------------------------------------------------------------------
+# ARMS endpoint resolution via get_arms_client
+# ---------------------------------------------------------------------------
+
+class FakeARMSData:
+    def __init__(self, http_api_inter_url=None, http_api_intra_url=None):
+        self.http_api_inter_url = http_api_inter_url
+        self.http_api_intra_url = http_api_intra_url
+
+
+class FakeARMSBody:
+    def __init__(self, data):
+        self.data = data
+
+
+class FakeARMSResponse:
+    def __init__(self, data):
+        self.body = FakeARMSBody(data)
+
+
+class FakeARMSClient:
+    def __init__(self, inter_url=None, intra_url=None, fail=False):
+        self._inter_url = inter_url
+        self._intra_url = intra_url
+        self.fail = fail
+        self.call_args = None
+
+    def get_prometheus_instance_with_options(self, req, runtime):
+        self.call_args = {"region_id": req.region_id, "cluster_id": req.cluster_id}
+        if self.fail:
+            raise RuntimeError("ARMS API error")
+        data = FakeARMSData(
+            http_api_inter_url=self._inter_url,
+            http_api_intra_url=self._intra_url,
+        )
+        return FakeARMSResponse(data)
+
+
+class FakeDescribeClusterDetailBody:
+    def __init__(self, region_id="cn-hangzhou"):
+        self.region_id = region_id
+
+
+class FakeDescribeClusterDetailResponse:
+    def __init__(self, region_id="cn-hangzhou"):
+        self.body = FakeDescribeClusterDetailBody(region_id)
+
+
+class FakeCSForARMS:
+    def __init__(self, region_id="cn-hangzhou"):
+        self._region_id = region_id
+
+    # _get_cluster_region calls the SYNC version
+    def describe_cluster_detail(self, cluster_id):
+        return FakeDescribeClusterDetailResponse(self._region_id)
+
+    async def describe_clusters_v1with_options_async(self, request, headers, runtime):
+        class EmptyBody:
+            clusters = []
+        class EmptyResp:
+            body = EmptyBody()
+        return EmptyResp()
+
+
+def _arms_factory(region_id, config):
+    return _arms_factory._instance
+
+
+def _cs_factory_for_arms(region_id, config):
+    return _cs_factory_for_arms._instance
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_via_arms_inter_url():
+    """Test _resolve_prometheus_endpoint uses get_arms_client to get internal URL."""
+    handler, _ = make_handler_and_tools()
+
+    arms = FakeARMSClient(inter_url="https://arms-inner.example.com")
+    cs = FakeCSForARMS("cn-hangzhou")
+    _arms_factory._instance = arms
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {
+            "arms_client_factory": _arms_factory,
+            "cs_client_factory": _cs_factory_for_arms,
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-test-cluster")
+
+    assert result == "https://arms-inner.example.com"
+    assert arms.call_args["region_id"] == "cn-hangzhou"
+    assert arms.call_args["cluster_id"] == "c-test-cluster"
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_falls_back_to_intra_url():
+    """Test fallback from http_api_inter_url to http_api_intra_url."""
+    handler, _ = make_handler_and_tools()
+
+    arms = FakeARMSClient(intra_url="https://arms-intra.example.com")
+    cs = FakeCSForARMS("cn-shanghai")
+    _arms_factory._instance = arms
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-shanghai"},
+        "providers": {
+            "arms_client_factory": _arms_factory,
+            "cs_client_factory": _cs_factory_for_arms,
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-test")
+
+    assert result == "https://arms-intra.example.com"
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_arms_fails_falls_back_to_static():
+    """Test that when ARMS call fails, it falls back to prometheus_endpoints."""
+    handler, _ = make_handler_and_tools()
+
+    arms = FakeARMSClient(fail=True)
+    cs = FakeCSForARMS("cn-hangzhou")
+    _arms_factory._instance = arms
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {
+            "arms_client_factory": _arms_factory,
+            "cs_client_factory": _cs_factory_for_arms,
+            "prometheus_endpoints": {"c-fallback": "http://static-prom.example.com"},
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-fallback")
+
+    assert result == "http://static-prom.example.com"
+
+
+@pytest.mark.asyncio
+async def test_resolve_endpoint_arms_factory_missing():
+    """Test that when no arms_client_factory, it falls through to static endpoints."""
+    handler, _ = make_handler_and_tools()
+
+    cs = FakeCSForARMS("cn-hangzhou")
+    _cs_factory_for_arms._instance = cs
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {
+            "cs_client_factory": _cs_factory_for_arms,
+            "prometheus_endpoints": {"c-norms": "http://fallback.example.com"},
+        },
+    })
+
+    result = handler._resolve_prometheus_endpoint(ctx, "c-norms")
+
+    assert result == "http://fallback.example.com"
+
+# ---------------------------------------------------------------------------
+# _normalize_time tests
+# ---------------------------------------------------------------------------
+
+class TestNormalizeTime:
+    """Tests for _normalize_time relative time conversion."""
+
+    def test_none_returns_none(self):
+        handler, _ = make_handler_and_tools()
+        assert handler._normalize_time(None) is None
+
+    def test_empty_string_returns_empty(self):
+        handler, _ = make_handler_and_tools()
+        assert handler._normalize_time("") == ""
+
+    def test_now_returns_current_timestamp(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        result = handler._normalize_time("now")
+        assert result == "1700000000"
+
+    def test_now_case_insensitive(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("NOW") == "1700000000"
+        assert handler._normalize_time("Now") == "1700000000"
+
+    def test_relative_seconds(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("30s") == str(1700000000 - 30)
+
+    def test_relative_minutes(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("30m") == str(1700000000 - 30 * 60)
+
+    def test_relative_hours(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("6h") == str(1700000000 - 6 * 3600)
+
+    def test_relative_days(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("1d") == str(1700000000 - 86400)
+
+    def test_relative_weeks(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("2w") == str(1700000000 - 2 * 604800)
+
+    def test_relative_years(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("1y") == str(1700000000 - 31536000)
+
+    def test_rfc3339_passes_through(self):
+        """RFC3339 strings should pass through unchanged (handled by _parse_time)."""
+        handler, _ = make_handler_and_tools()
+        result = handler._normalize_time("2025-09-16T06:15:23.239Z")
+        assert result == "2025-09-16T06:15:23.239Z"
+
+    def test_unix_timestamp_passes_through(self):
+        """Unix timestamp strings should pass through unchanged."""
+        handler, _ = make_handler_and_tools()
+        result = handler._normalize_time("1700000000")
+        assert result == "1700000000"
+
+    def test_unknown_unit_passes_through(self):
+        """Unknown time units should pass through unchanged."""
+        handler, _ = make_handler_and_tools()
+        result = handler._normalize_time("5x")
+        assert result == "5x"
+
+    def test_whitespace_stripped(self, monkeypatch):
+        handler, _ = make_handler_and_tools()
+        monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+        assert handler._normalize_time("  6h  ") == str(1700000000 - 6 * 3600)
+
+
+# ---------------------------------------------------------------------------
+# Integration: _normalize_time + _parse_time in query_prometheus
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_query_prometheus_range_with_relative_time(monkeypatch):
+    """Test that relative time strings are converted to unix timestamps."""
+    _, tools = make_handler_and_tools()
+    tool = tools["query_prometheus"]
+
+    ctx = FakeContext({
+        "config": {"region_id": "cn-hangzhou"},
+        "providers": {"prometheus_endpoints": {"c-3": "http://prom.example.com"}},
+    })
+
+    captured_params = {}
+
+    class DummyClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, url, params=None):
+            captured_params.update(params)
+            return DummyResp({
+                "status": "success",
+                "data": {"resultType": "matrix", "result": []}
+            })
+
+    monkeypatch.setattr(module_under_test.time, "time", lambda: 1700000000.0)
+    monkeypatch.setattr(module_under_test.httpx, "AsyncClient", lambda timeout=60.0: DummyClient())
+
+    await tool(ctx, cluster_id="c-3", promql="up", start_time="6h", end_time="now", step="1m")
+
+    # start_time "6h" should be converted to 1700000000 - 6*3600
+    expected_start = str(1700000000 - 6 * 3600)
+    # end_time "now" should be converted to 1700000000
+    expected_end = "1700000000"
+
+    assert captured_params["start"] == expected_start
+    assert captured_params["end"] == expected_end

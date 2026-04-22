@@ -6,7 +6,7 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 install: ## Install dependencies using uv
-	pip install -r requirements.txt
+	pip3 install -r requirements.txt
 
 test: ## Run all tests
 	python -m pytest src/tests/ -v
@@ -50,6 +50,12 @@ run-sse: ## Run the MCP server with SSE transport
 
 run-stdio: ## Run the MCP server with stdio transport
 	PYTHONPATH=src python -m src.main_server --transport stdio --allow-write
+
+run-cli-list: ## List all available MCP tools via CLI
+	PYTHONPATH=src python src/cli.py list
+
+run-cli-call: ## Call an MCP tool via CLI (usage: make run-cli-call TOOL=<name> ARGS='{}')
+	PYTHONPATH=src python src/cli.py call $(TOOL) --args '$(ARGS)'
 
 check: lint test ## Run linting and tests
 	@echo "All checks passed!"

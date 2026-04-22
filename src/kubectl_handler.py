@@ -428,22 +428,17 @@ class KubectlHandler:
         self._register_tools()
 
     def _setup_cs_client(self, ctx: Context):
-        """设置CS客户端（仅在需要时）"""
+        """设置CS客户端(仅在需要时)"""
         try:
             # 检查是否已经设置过
             if hasattr(get_context_manager(), '_cs_client') and get_context_manager()._cs_client:
                 return
 
-            lifespan_context = ctx.request_context.lifespan_context
-            if isinstance(lifespan_context, dict):
-                providers = lifespan_context.get("providers", {})
-            else:
-                providers = getattr(lifespan_context, "providers", {})
-
+            lifespan_context = ctx.lifespan_context or {}
+            providers = lifespan_context.get("providers", {})
             cs_client_factory = providers.get("cs_client_factory")
             if cs_client_factory:
-                # 传入统一签名所需的 config
-                config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
+                config = lifespan_context.get("config", {})
                 get_context_manager().set_cs_client(cs_client_factory("CENTER", config))
                 logger.debug("CS client factory set successfully")
             else:

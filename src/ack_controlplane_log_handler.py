@@ -19,32 +19,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx
 )
-
-
-def _get_sls_client(ctx: Context, region_id: str):
-    """从 lifespan providers 中获取指定区域的 SLS 客户端（统一入参: region_id, config）。"""
-    lifespan_context = getattr(ctx.request_context, "lifespan_context", {}) or {}
-    providers = lifespan_context.get("providers", {}) if isinstance(lifespan_context, dict) else {}
-    config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
-    factory = providers.get("sls_client_factory") if isinstance(providers, dict) else None
-    if not factory:
-        raise RuntimeError("sls_client_factory not available in runtime providers")
-    return factory(region_id, config)
-
-
-def _get_cs_client(ctx: Context, region_id: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = ctx.request_context.lifespan_context
-    if isinstance(lifespan_context, dict):
-        providers = lifespan_context.get("providers", {})
-    else:
-        providers = getattr(lifespan_context, "providers", {})
-
-    cs_client_factory = providers.get("cs_client_factory")
-    if not cs_client_factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    config = lifespan_context.get("config", {}) if isinstance(lifespan_context, dict) else {}
-    return cs_client_factory(region_id, config)
+from clients import get_cs_client, get_sls_client
 
 
 def _parse_single_time(time_str: Optional[str], default_hours: int = 24) -> datetime:
@@ -177,7 +152,7 @@ def _get_controlplane_log_config(ctx: Context, cluster_id: str, region_id: str) 
     """
     request_id = None
     try:
-        cs_client = _get_cs_client(ctx, region_id)
+        cs_client = get_cs_client(ctx, region_id)
 
         logger.info(f"Getting control plane log config for cluster {cluster_id}")
 
@@ -377,7 +352,7 @@ class ACKControlPlaneLogHandler:
             limit_value = min(limit_value, 100)
 
             # 获取集群信息以确定区域
-            lifespan_context = ctx.request_context.lifespan_context
+            lifespan_context = ctx.lifespan_context or {}
             config = lifespan_context.get("config", {})
 
             # default region_id
@@ -388,7 +363,7 @@ class ACKControlPlaneLogHandler:
             logger.info(f"Step 1: Getting control plane log config for cluster {cluster_id}")
             
             # cluster's region_id
-            cs_client = _get_cs_client(ctx, "CENTER")
+            cs_client = get_cs_client(ctx, "CENTER")
             
             # Get cluster region with execution logging
             api_start_region = int(time.time() * 1000)
@@ -540,7 +515,7 @@ class ACKControlPlaneLogHandler:
 
             # 获取 SLS 客户端
             try:
-                sls_client = _get_sls_client(ctx, region_id)
+                sls_client = get_sls_client(ctx, region_id)
             except Exception as e:
                 logger.error(f"Failed to get SLS client: {e}")
                 error_message = str(e)

@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, Optional, List
 from fastmcp import FastMCP, Context
 from loguru import logger
@@ -17,7 +18,19 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx,
 )
+from clients import get_cs_client, get_arms_client
 
+
+# Patterns for relative time strings like "6h", "30m", "1d", "2w"
+_RELATIVE_RE = re.compile(r"^(\d+)([smhdwy])$")
+_RELATIVE_UNITS = {
+    "s": 1,
+    "m": 60,
+    "h": 3600,
+    "d": 86400,
+    "w": 604800,
+    "y": 31536000,
+}
 
 class PrometheusHandler:
     """ACK Prometheus 查询与指标指引 Handler。"""
@@ -108,8 +121,8 @@ class PrometheusHandler:
 
 
     def _resolve_prometheus_endpoint(self, ctx: Context, cluster_id: str, execution_log: ExecutionLog) -> Optional[str]:
-        lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
-        providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
+        lifespan = ctx.lifespan_context or {}
+        providers = lifespan.get("providers", {})
         
         # Check prometheus_endpoint_mode setting
         if self.prometheus_endpoint_mode == "LOCAL":
@@ -170,12 +183,10 @@ class PrometheusHandler:
         #    从 providers 里取 ARMS client，调用 GetPrometheusInstance
         mode = "ARMS_PRIVATE" if use_private else "ARMS_PUBLIC"
         try:
-            cs_client = _get_cs_client(ctx, "CENTER")
+            cs_client = get_cs_client(ctx, "CENTER")
             region_id = self._get_cluster_region(cs_client, cluster_id, execution_log)
-            config = (ctx.request_context.lifespan_context.get("config", {}) or {}) if hasattr(ctx.request_context, "lifespan_context") and isinstance(ctx.request_context.lifespan_context, dict) else {}
-            arms_client_factory = providers.get("arms_client_factory") if isinstance(providers, dict) else None
-            if arms_client_factory and region_id:
-                arms_client = arms_client_factory(region_id, config)
+            arms_client = get_arms_client(ctx, region_id)
+            if arms_client and region_id:
                 from alibabacloud_arms20190808 import models as arms_models
                 from alibabacloud_tea_util import models as util_models
                 req = arms_models.GetPrometheusInstanceRequest(region_id=region_id, cluster_id=cluster_id)
@@ -236,6 +247,19 @@ class PrometheusHandler:
             # 直接传回（由后端 Prometheus 判定）
             return value
 
+    def _normalize_time(self, value: Optional[str]) -> Optional[str]:
+        """Convert relative time strings (e.g. '6h', '30m') to unix timestamp strings."""
+        if not value:
+            return value
+        v = value.strip()
+        if v.lower() == "now":
+            return str(int(time.time()))
+        m = _RELATIVE_RE.match(v)
+        if m:
+            amount, unit = int(m.group(1)), m.group(2).lower()
+            return str(int(time.time()) - amount * _RELATIVE_UNITS[unit])
+        return value
+
     async def query_prometheus(
             self,
             ctx: Context,
@@ -275,8 +299,8 @@ class PrometheusHandler:
             params: Dict[str, Any] = {"query": promql}
             url = endpoint + ("/api/v1/query_range" if has_range else "/api/v1/query")
             if has_range:
-                params["start"] = self._parse_time(start_time)
-                params["end"] = self._parse_time(end_time)
+                params["start"] = self._parse_time(self._normalize_time(start_time))
+                params["end"] = self._parse_time(self._normalize_time(end_time))
                 if step:
                     params["step"] = step
 
@@ -417,9 +441,9 @@ class PrometheusHandler:
         
         try:
             # 从 runtime context 获取 Prometheus 指标指引数据
-            lifespan = getattr(ctx.request_context, "lifespan_context", {}) or {}
-            providers = lifespan.get("providers", {}) if isinstance(lifespan, dict) else {}
-            prometheus_guidance = providers.get("prometheus_guidance", {}) if isinstance(providers, dict) else {}
+            lifespan = ctx.lifespan_context or {}
+            providers = lifespan.get("providers", {})
+            prometheus_guidance = providers.get("prometheus_guidance", {})
 
             if not prometheus_guidance or not prometheus_guidance.get("initialized"):
                 error_msg = "Prometheus guidance not initialized"
@@ -509,7 +533,7 @@ class PrometheusHandler:
                 promql_samples=promql_samples,
                 error=None,
                 execution_log=execution_log
-            )
+                )
 
         except Exception as e:
             logger.error(f"Error querying guidance data: {e}")
@@ -524,18 +548,3 @@ class PrometheusHandler:
                 "error": ErrorModel(error_code="GuidanceQueryError", error_message=f"Error querying guidance data: {str(e)}").model_dump(),
                 "execution_log": execution_log
             }
-
-def _get_cs_client(ctx: Context, region_id: str):
-    """从 lifespan providers 中获取指定区域的 CS 客户端。"""
-    lifespan_context = ctx.request_context.lifespan_context
-    if isinstance(lifespan_context, dict):
-        providers = lifespan_context.get("providers", {})
-        config = lifespan_context.get("config", {})
-    else:
-        providers = getattr(lifespan_context, "providers", {})
-        config = getattr(lifespan_context, "config", {}) if hasattr(lifespan_context, "config") else {}
-
-    cs_client_factory = providers.get("cs_client_factory")
-    if not cs_client_factory:
-        raise RuntimeError("cs_client_factory not available in runtime providers")
-    return cs_client_factory(region_id, config)
