@@ -89,6 +89,8 @@ py-modules = [
     "ack_inspect_handler",
     "ack_prometheus_handler",
     "kubectl_handler",
+    "ack_autoscaling_handler",
+    "ack_cost_analysis_handler",
     "main_server",
     "models",
     "runtime_provider",
