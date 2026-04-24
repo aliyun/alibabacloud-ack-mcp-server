@@ -7,7 +7,7 @@
   - [Network Security Configuration](#network-security-configuration)
     - [Host Binding](#host-binding)
     - [DNS Rebinding Protection](#dns-rebinding-protection)
-    - [Authentication (OAuth 2.1)](#authentication-oauth-21)
+    - [Authentication Recommendations](#authentication-recommendations)
     - [Transport Security (TLS/HTTPS)](#transport-security-tlshttps)
 
 ## 报告安全问题
@@ -62,62 +62,16 @@ export ALLOWED_ORIGINS="http://localhost:3000,https://myapp.example.com"
 python -m src.main_server --transport http --host 127.0.0.1 --port 8000
 ```
 
-### Authentication (OAuth 2.1)
+### Authentication Recommendations
 
-This server supports optional OAuth 2.1 authentication for HTTP/SSE transport, compliant with the 
-[MCP 2025-11-25 Authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
+The [MCP 2025-11-25 Authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) defines an optional OAuth 2.1 authorization framework for HTTP/SSE transport. The current version of this server does not include built-in authentication.
 
-**Enabling OAuth Authentication:**
+For production deployments, we recommend the following approaches to secure your MCP server:
 
-```bash
-python -m src.main_server --transport http --enable-oauth \
-  --oauth-jwks-uri "https://your-auth-provider.com/.well-known/jwks.json" \
-  --oauth-issuer "https://your-auth-provider.com" \
-  --oauth-audience "alibabacloud-ack-mcp-server"
-```
-
-Or via environment variables:
-```bash
-export ENABLE_OAUTH=true
-export OAUTH_JWKS_URI=https://your-auth-provider.com/.well-known/jwks.json
-export OAUTH_ISSUER=https://your-auth-provider.com
-export OAUTH_AUDIENCE=alibabacloud-ack-mcp-server
-```
-
-**Configuration Parameters:**
-
-| Parameter | Env Variable | Required | Description |
-|-----------|-------------|----------|-------------|
-| `--enable-oauth` | `ENABLE_OAUTH` | No | Enable OAuth 2.1 authentication (default: false) |
-| `--oauth-jwks-uri` | `OAUTH_JWKS_URI` | Yes* | JWKS endpoint URI for JWT public key retrieval |
-| `--oauth-issuer` | `OAUTH_ISSUER` | Yes* | Expected JWT token issuer |
-| `--oauth-audience` | `OAUTH_AUDIENCE` | No | Expected JWT audience claim |
-| `--oauth-base-url` | `OAUTH_BASE_URL` | No | Public base URL of this server (auto-detected if omitted) |
-| `--oauth-required-scopes` | `OAUTH_REQUIRED_SCOPES` | No | Comma-separated required OAuth scopes |
-
-*Required when `--enable-oauth` is set.
-
-**What you get when OAuth is enabled:**
-- Bearer token validation on all HTTP/SSE requests (JWT with automatic key rotation)
-- `/.well-known/oauth-protected-resource` endpoint (RFC 9728) for client discovery
-- Standard `401 Unauthorized` with `WWW-Authenticate` header for unauthenticated requests
-- Standard `403 Forbidden` for insufficient scope
-- STDIO transport is unaffected (no authentication required)
-
-**Supported OIDC Providers:**
-- Keycloak
-- Okta / Auth0
-- Azure AD (Entra ID)
-- Google Identity Platform
-- Any standard OIDC provider with JWKS endpoint
-
-**For deployments without OAuth:**
-
-If OAuth is not enabled, we recommend these alternatives for production:
-- Use a reverse proxy (Nginx, Envoy) with authentication
-- Use an API Gateway with built-in auth
-- Use Kubernetes NetworkPolicy or Service Mesh for network isolation
-- Restrict access via VPN or private network (VPC) boundaries
+- **Reverse Proxy**: Use Nginx or Envoy in front of the server with authentication modules
+- **API Gateway**: Use an API Gateway with built-in authentication and authorization
+- **Kubernetes NetworkPolicy / Service Mesh**: Restrict network access at the infrastructure level
+- **VPN / Private Network**: Limit access to trusted networks (e.g., VPC boundaries)
 
 ### Transport Security (TLS/HTTPS)
 

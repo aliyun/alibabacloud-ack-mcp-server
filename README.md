@@ -441,12 +441,6 @@ python -m src.main_server --transport sse --host 127.0.0.1 --port 8000
 | `--host` | 绑定主机             | localhost          |
 | `--port` | 端口号              | 8000               |
 | `--allowed-origins` | 允许的 Origin 白名单 | 无（本地模式自动允许 localhost） |
-| `--enable-oauth` | 启用 OAuth 2.1 认证 | false |
-| `--oauth-jwks-uri` | JWKS 端点 URI | 无 |
-| `--oauth-issuer` | JWT 签发者 | 无 |
-| `--oauth-audience` | JWT 受众 | 无 |
-| `--oauth-base-url` | 服务器公网 URL | 自动检测 |
-| `--oauth-required-scopes` | 必需的 OAuth 作用域（逗号分隔） | 无 |
 
 ### 3.6 安全注意事项
 
@@ -464,21 +458,6 @@ python -m src.main_server --transport http --host 127.0.0.1 --port 8000 --allowe
 export ALLOWED_ORIGINS="http://localhost:3000,https://myapp.example.com"
 python -m src.main_server --transport http --host 127.0.0.1 --port 8000
 ```
-
-#### OAuth 2.1 认证
-
-服务器支持可选的 OAuth 2.1 认证（符合 MCP 2025-11-25 规范）：
-
-```bash
-# 启用 OAuth 认证
-python -m src.main_server --transport http --host 127.0.0.1 --port 8000 \
-  --enable-oauth \
-  --oauth-jwks-uri "https://your-auth-provider.com/.well-known/jwks.json" \
-  --oauth-issuer "https://your-auth-provider.com" \
-  --oauth-audience "your-audience"
-```
-
-启用后自动提供 Bearer Token 验证、RFC 9728 资源发现端点和标准 401/403 响应。详细配置请参考 [SECURITY.md](./SECURITY.md)。
 
 ### 3.7 功能测试UT
 

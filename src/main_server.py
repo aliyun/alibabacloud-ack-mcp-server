@@ -225,47 +225,11 @@ def create_main_server(
     # Create runtime provider for main server (reuse ACK cluster runtime)
     runtime_provider = ACKClusterRuntimeProvider()
 
-    # 条件创建 OAuth auth provider
-    auth = None
-    if settings.get("enable_oauth"):
-        from fastmcp.server.auth import RemoteAuthProvider
-        from fastmcp.server.auth.providers.jwt import JWTVerifier
-        from pydantic import AnyHttpUrl
-
-        jwks_uri = settings.get("oauth_jwks_uri")
-        issuer = settings.get("oauth_issuer")
-        if not jwks_uri:
-            raise ValueError("--oauth-jwks-uri / OAUTH_JWKS_URI is required when OAuth is enabled")
-        if not issuer:
-            raise ValueError("--oauth-issuer / OAUTH_ISSUER is required when OAuth is enabled")
-
-        required_scopes = []
-        if settings.get("oauth_required_scopes"):
-            required_scopes = [s.strip() for s in settings["oauth_required_scopes"].split(",") if s.strip()]
-
-        token_verifier = JWTVerifier(
-            jwks_uri=jwks_uri,
-            issuer=issuer,
-            audience=settings.get("oauth_audience"),
-            required_scopes=required_scopes or None,
-        )
-
-        base_url = settings.get("oauth_base_url") or f"http://{settings.get('host', '127.0.0.1')}:{settings.get('port', 8000)}"
-
-        auth = RemoteAuthProvider(
-            token_verifier=token_verifier,
-            authorization_servers=[AnyHttpUrl(issuer)],
-            base_url=base_url,
-            resource_name="AlibabaCloud ACK MCP Server",
-        )
-        logger.info(f"OAuth 2.1 authentication enabled (issuer: {issuer})")
-
     # Create main MCP server
     main_mcp = FastMCP(
         name=MAIN_SERVER_NAME,
         instructions=MAIN_SERVER_INSTRUCTIONS,
         lifespan=runtime_provider.init_runtime,
-        auth=auth,  # None if OAuth disabled
     )
 
     # Attach config for lifespan provider access
@@ -379,38 +343,6 @@ def main():
         default=os.environ.get("ALLOWED_ORIGINS", ""),
         help="Comma-separated list of allowed origins for Origin header validation (env: ALLOWED_ORIGINS)"
     )
-    # OAuth 2.1 认证参数
-    parser.add_argument(
-        "--enable-oauth",
-        action="store_true",
-        default=False,
-        help="Enable OAuth 2.1 authentication for HTTP/SSE transport (env: ENABLE_OAUTH)"
-    )
-    parser.add_argument(
-        "--oauth-jwks-uri",
-        type=str,
-        help="JWKS endpoint URI for JWT verification (env: OAUTH_JWKS_URI)"
-    )
-    parser.add_argument(
-        "--oauth-issuer",
-        type=str,
-        help="Expected JWT issuer (env: OAUTH_ISSUER)"
-    )
-    parser.add_argument(
-        "--oauth-audience",
-        type=str,
-        help="Expected JWT audience (env: OAUTH_AUDIENCE)"
-    )
-    parser.add_argument(
-        "--oauth-base-url",
-        type=str,
-        help="Public base URL of this MCP server for OAuth metadata (env: OAUTH_BASE_URL)"
-    )
-    parser.add_argument(
-        "--oauth-required-scopes",
-        type=str,
-        help="Comma-separated required OAuth scopes (env: OAUTH_REQUIRED_SCOPES)"
-    )
     parser.add_argument(
         "--version",
         "-v",
@@ -466,14 +398,6 @@ def main():
         
         # Prometheus 配置
         "prometheus_endpoint_mode": args.prometheus_endpoint_mode or os.getenv("PROMETHEUS_ENDPOINT_MODE", "ARMS_PUBLIC"),
-
-        # OAuth 2.1 认证配置
-        "enable_oauth": args.enable_oauth or os.getenv("ENABLE_OAUTH", "false").lower() == "true",
-        "oauth_jwks_uri": args.oauth_jwks_uri or os.getenv("OAUTH_JWKS_URI"),
-        "oauth_issuer": args.oauth_issuer or os.getenv("OAUTH_ISSUER"),
-        "oauth_audience": args.oauth_audience or os.getenv("OAUTH_AUDIENCE"),
-        "oauth_base_url": args.oauth_base_url or os.getenv("OAUTH_BASE_URL"),
-        "oauth_required_scopes": args.oauth_required_scopes or os.getenv("OAUTH_REQUIRED_SCOPES"),
     }
     
     # 验证必要的配置
@@ -512,19 +436,6 @@ def main():
             logger.info("Starting stdio server...")
             main_server.run()
         elif args.transport == "http" or args.transport == "sse":
-            # OAuth 2.1 启动日志
-            if settings_dict.get("enable_oauth"):
-                logger.info(f"OAuth 2.1 authentication is ENABLED")
-                logger.info(f"  JWKS URI: {settings_dict.get('oauth_jwks_uri')}")
-                logger.info(f"  Issuer: {settings_dict.get('oauth_issuer')}")
-                logger.info(f"  Protected Resource Metadata: {settings_dict.get('oauth_base_url', f'http://{args.host}:{args.port}')}/.well-known/oauth-protected-resource")
-            else:
-                logger.warning(
-                    "OAuth 2.1 authentication is DISABLED. "
-                    "For production deployments, enable OAuth with --enable-oauth. "
-                    "See SECURITY.md for configuration details."
-                )
-
             # Parse allowed origins for Origin header validation
             allowed_origins = [o.strip() for o in args.allowed_origins.split(",") if o.strip()] if args.allowed_origins else []
 
