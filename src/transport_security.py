@@ -1,17 +1,15 @@
 """DNS rebinding protection for MCP server transports."""
 
-import logging
 from typing import Any
-
+from loguru import logger
 from pydantic import BaseModel, Field
 from starlette.requests import Request
-from starlette.responses import Response
 from fastmcp.server.middleware import Middleware, MiddlewareContext, CallNext
 import mcp.types as mt
 from fastmcp.server.dependencies import get_http_headers, get_http_request
 from fastmcp.exceptions import ValidationError
 
-logger = logging.getLogger(__name__)
+# logger = logging.getLogger(__name__)
 
 
 class TransportSecuritySettings(BaseModel):
@@ -47,28 +45,6 @@ class TransportSecurityMiddleware(Middleware):
         # for backwards compatibility
         self.settings = settings or TransportSecuritySettings(enable_dns_rebinding_protection=False)
 
-    def _validate_host(self, host: str | None) -> bool:
-        """Validate the Host header against allowed values."""
-        if not host:
-            logger.warning("Missing Host header in request")
-            return False
-
-        # Check exact match first
-        if host in self.settings.allowed_hosts:
-            return True
-
-        # Check wildcard port patterns
-        for allowed in self.settings.allowed_hosts:
-            if allowed.endswith(":*"):
-                # Extract base host from pattern
-                base_host = allowed[:-2]
-                # Check if the actual host starts with base host and has a port
-                if host.startswith(base_host + ":"):
-                    return True
-
-        logger.warning(f"Invalid Host header: {host}")
-        return False
-
     def _validate_origin(self, origin: str | None) -> bool:
         """Validate the Origin header against allowed values."""
         # Origin can be absent for same-origin requests
@@ -100,11 +76,6 @@ class TransportSecurityMiddleware(Middleware):
         if not self.settings.enable_dns_rebinding_protection:
             return None
 
-        # Validate Host header
-        host = request.headers.get("host")
-        if not self._validate_host(host):
-            return "Invalid Host header"
-
         # Validate Origin header
         origin = request.headers.get("origin")
         if not self._validate_origin(origin):
@@ -118,6 +89,7 @@ class TransportSecurityMiddleware(Middleware):
         call_next: CallNext[mt.Request[Any, Any], Any],
     ) -> Any:
         request = get_http_request()
+        logger.debug(f"Request Headers: {request.headers}")
         err = await self.validate_request(request)
         if err:
             raise ValidationError(err)

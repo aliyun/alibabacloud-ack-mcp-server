@@ -22,13 +22,9 @@ to connect various sub-MCP servers.
 import argparse
 import os
 import sys
-from typing import Dict, Any, Optional, Literal, List
-from urllib.parse import urlparse
+from typing import Dict, Any, Optional, Literal
 from loguru import logger
 from fastmcp import FastMCP
-from fastmcp.server.middleware import Middleware, MiddlewareContext, CallNext
-import mcp.types as mt
-from fastmcp.server.dependencies import get_http_headers
 
 from ack_audit_log_handler import ACKAuditLogHandler
 from ack_controlplane_log_handler import ACKControlPlaneLogHandler
@@ -364,23 +360,10 @@ def main():
                 [o.strip() for o in args.allowed_origins.split(",") if o.strip()] if args.allowed_origins else []
             )
 
-            logger.info(f"allowed origins: {allowed_origins}")
-            # Log Origin validation configuration
-            if allowed_origins:
-                logger.info(f"Origin validation enabled with allowed origins: {allowed_origins}")
-            elif args.host in ("localhost", "127.0.0.1"):
-                logger.info("Origin validation enabled for localhost origins")
-            else:
-                logger.warning(
-                    f"No allowed origins configured for non-localhost host '{args.host}'. "
-                    "All requests with Origin headers will be REJECTED. "
-                    "Configure --allowed-origins or ALLOWED_ORIGINS to allow specific origins."
-                )
-
+            logger.info(f"Origin validation enabled with allowed origins: {allowed_origins}")
             main_server.add_middleware(TransportSecurityMiddleware(
                 settings=TransportSecuritySettings(
                     enable_dns_rebinding_protection=True,
-                    # allowed_hosts=[f"{args.host}:{args.port}"],
                     allowed_origins=allowed_origins,
                 )))
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
