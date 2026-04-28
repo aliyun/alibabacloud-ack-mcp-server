@@ -24,20 +24,21 @@ import os
 import sys
 from typing import Dict, Any, Optional, Literal, List
 from urllib.parse import urlparse
-
 from loguru import logger
 from fastmcp import FastMCP
-from starlette.middleware import Middleware as ASGIMiddleware
-
-from models import ExecutionLog
+from fastmcp.server.middleware import Middleware, MiddlewareContext, CallNext
+import mcp.types as mt
+from fastmcp.server.dependencies import get_http_headers
 
 from ack_audit_log_handler import ACKAuditLogHandler
 from ack_controlplane_log_handler import ACKControlPlaneLogHandler
 from ack_cost_analysis_handler import ACKCostAnalysisHandler
+from transport_security import TransportSecurityMiddleware, TransportSecuritySettings
 
 # 尝试导入python-dotenv
 try:
     from dotenv import load_dotenv
+
     DOTENV_AVAILABLE = True
 except ImportError:
     DOTENV_AVAILABLE = False
@@ -122,84 +123,6 @@ MAIN_SERVER_DEPENDENCIES = [
     "aliyun-log-python-sdk",
     "pydantic-settings",
 ]
-
-class OriginValidationMiddleware:
-    """
-    ASGI middleware to validate Origin header on incoming HTTP requests.
-    Required by MCP specification (2025-03-26) to prevent DNS rebinding attacks.
-    """
-
-    def __init__(self, app, allowed_origins: List[str] = None, host: str = "localhost"):
-        self.app = app
-        self.allowed_origins = allowed_origins or []
-        self.host = host
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        # Extract Origin header from request
-        headers = dict(scope.get("headers", []))
-        origin = headers.get(b"origin", b"").decode("utf-8", errors="ignore").strip()
-
-        # No Origin header: allow (non-browser direct API calls)
-        if not origin:
-            await self.app(scope, receive, send)
-            return
-
-        # If user specified allowed origins, only allow those
-        if self.allowed_origins:
-            if origin in self.allowed_origins:
-                await self.app(scope, receive, send)
-                return
-            logger.warning(f"Rejected request with Origin: {origin} (not in allowed origins)")
-            await self._send_403(send)
-            return
-
-        # No allowed origins configured: auto-allow localhost origins for localhost/127.0.0.1 hosts
-        if self.host in ("localhost", "127.0.0.1"):
-            if self._is_localhost_origin(origin):
-                await self.app(scope, receive, send)
-                return
-            logger.warning(f"Rejected request with Origin: {origin} (only localhost origins allowed)")
-            await self._send_403(send)
-            return
-
-        # Non-localhost host without explicit allowed origins: reject for security (fail closed)
-        logger.warning(
-            f"No allowed origins configured for non-localhost host '{self.host}'. "
-            f"Rejecting request with Origin: {origin}. "
-            "Please configure --allowed-origins or ALLOWED_ORIGINS environment variable."
-        )
-        await self._send_403(send)
-        return
-
-    @staticmethod
-    def _is_localhost_origin(origin: str) -> bool:
-        """Check if the origin is from localhost or 127.0.0.1."""
-        try:
-            parsed = urlparse(origin)
-            return parsed.hostname in ("localhost", "127.0.0.1")
-        except Exception:
-            return False
-
-    @staticmethod
-    async def _send_403(send):
-        """Send a 403 Forbidden response."""
-        body = b"Forbidden: Origin not allowed"
-        await send({
-            "type": "http.response.start",
-            "status": 403,
-            "headers": [
-                [b"content-type", b"text/plain"],
-                [b"content-length", str(len(body)).encode()],
-            ],
-        })
-        await send({
-            "type": "http.response.body",
-            "body": body,
-        })
 
 
 def create_main_server(
@@ -437,8 +360,11 @@ def main():
             main_server.run()
         elif args.transport == "http" or args.transport == "sse":
             # Parse allowed origins for Origin header validation
-            allowed_origins = [o.strip() for o in args.allowed_origins.split(",") if o.strip()] if args.allowed_origins else []
+            allowed_origins = (
+                [o.strip() for o in args.allowed_origins.split(",") if o.strip()] if args.allowed_origins else []
+            )
 
+            logger.info(f"allowed origins: {allowed_origins}")
             # Log Origin validation configuration
             if allowed_origins:
                 logger.info(f"Origin validation enabled with allowed origins: {allowed_origins}")
@@ -451,20 +377,19 @@ def main():
                     "Configure --allowed-origins or ALLOWED_ORIGINS to allow specific origins."
                 )
 
-            origin_middleware = ASGIMiddleware(
-                OriginValidationMiddleware,
-                allowed_origins=allowed_origins,
-                host=args.host,
-            )
-            main_server.add_middleware(origin_middleware)
-
+            main_server.add_middleware(TransportSecurityMiddleware(
+                settings=TransportSecuritySettings(
+                    enable_dns_rebinding_protection=True,
+                    # allowed_hosts=[f"{args.host}:{args.port}"],
+                    allowed_origins=allowed_origins,
+                )))
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
             main_server.run(
                 transport=args.transport,
                 host=args.host,
                 port=args.port,
             )
-    
+
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")
         sys.exit(0)
