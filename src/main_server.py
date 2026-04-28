@@ -456,13 +456,13 @@ def main():
                 allowed_origins=allowed_origins,
                 host=args.host,
             )
+            main_server.add_middleware(origin_middleware)
 
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
             main_server.run(
                 transport=args.transport,
                 host=args.host,
                 port=args.port,
-                middleware=[origin_middleware],
             )
     
     except KeyboardInterrupt:
