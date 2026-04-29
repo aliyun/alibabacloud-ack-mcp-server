@@ -1,0 +1,9 @@
+task_name: "create-canary-deployment"
+scripts:
+  - prompt: "We want to test a new version of our recommendation engine (image tag 1.29) in production without disturbing the existing stable deployment. Can you deploy it as a canary (as engine-v2-1)? We want about 10% of traffic to go to the new version. The current deployment is named engine-v2-0."
+setup:
+  - setup_script_file: "setup.sh"
+verify:
+  - verify_script_file: "verify.sh"
+cleanup:
+  - cleanup_script_file: "cleanup.sh"
