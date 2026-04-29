@@ -42,5 +42,20 @@ docker build -t ack-mcp-server:1.0 . -f ./deploy/Dockerfile --platform linux/arm
 ## 如何运行镜像
 
 ```
-docker run -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --allow-write --host 0.0.0.0 --port 8000
+docker run -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --allow-write --host 127.0.0.1 --port 8000
 ```
+
+## Host Configuration
+
+Helm Chart 通过 `host` values 参数配置服务绑定地址，默认为 `127.0.0.1`，仅允许本地访问。如需在集群内部暴露服务，可通过 `--set host=0.0.0.0` 调整，但必须配合安全措施。
+
+## Production Security
+
+生产环境部署时，建议采取以下安全措施：
+
+- **Ingress + TLS**：配合 Kubernetes Ingress Controller（如 Nginx Ingress、ALB Ingress）实现 TLS 终止，确保 HTTPS 加密传输。
+- **NetworkPolicy**：使用 Kubernetes NetworkPolicy 限制 Pod 的网络访问范围，仅允许必要的流量。
+- **Origin 白名单**：配置 `--allowed-origins` 参数或 `ALLOWED_ORIGINS` 环境变量，限制允许的请求来源。
+- **Service Mesh**：考虑使用 Service Mesh（如 Istio）实现 mTLS 双向认证，增强服务间通信安全。
+
+更多安全配置详见 [SECURITY.md](../SECURITY.md)。

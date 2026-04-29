@@ -88,8 +88,10 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Command to run the application
-# Run the main server with http transport for containerized environments
-CMD ["python", "-m", "main_server", "--transport", "http", "--allow-write", "--host", "0.0.0.0", "--port", "8000"]
+# Default to localhost binding for security. Override with --host flag for network access.
+# For production deployments requiring network access, use --host 0.0.0.0 with proper
+# authentication and Origin validation (--allowed-origins).
+CMD ["python", "-m", "main_server", "--transport", "http", "--allow-write", "--host", "127.0.0.1", "--port", "8000"]
 
 # how to run
 # docker run -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --allow-write --host 0.0.0.0 --port 8000

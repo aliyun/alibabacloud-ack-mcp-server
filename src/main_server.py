@@ -23,20 +23,19 @@ import argparse
 import os
 import sys
 from typing import Dict, Any, Optional, Literal
-
 from loguru import logger
 from fastmcp import FastMCP
-
-from models import ExecutionLog
 
 from ack_audit_log_handler import ACKAuditLogHandler
 from ack_controlplane_log_handler import ACKControlPlaneLogHandler
 from ack_cost_analysis_handler import ACKCostAnalysisHandler
+from transport_security import TransportSecurityMiddleware, TransportSecuritySettings
 from ack_autoscaling_handler import ACKAutoscalingHandler
 
 # 尝试导入python-dotenv
 try:
     from dotenv import load_dotenv
+
     DOTENV_AVAILABLE = True
 except ImportError:
     DOTENV_AVAILABLE = False
@@ -121,6 +120,7 @@ MAIN_SERVER_DEPENDENCIES = [
     "aliyun-log-python-sdk",
     "pydantic-settings",
 ]
+
 
 def create_main_server(
     settings_dict: Optional[Dict[str, Any]] = None,
@@ -260,6 +260,12 @@ def main():
         help="Path to audit log configuration file (YAML format)"
     )
     parser.add_argument(
+        "--allowed-origins",
+        type=str,
+        default=os.environ.get("ALLOWED_ORIGINS", ""),
+        help="Comma-separated list of allowed origins for Origin header validation (env: ALLOWED_ORIGINS)"
+    )
+    parser.add_argument(
         "--version",
         "-v",
         action="version",
@@ -352,9 +358,24 @@ def main():
             logger.info("Starting stdio server...")
             main_server.run()
         elif args.transport == "http" or args.transport == "sse":
+            # Parse allowed origins for Origin header validation
+            allowed_origins = (
+                [o.strip() for o in args.allowed_origins.split(",") if o.strip()] if args.allowed_origins else []
+            )
+
+            logger.info(f"Origin validation enabled with allowed origins: {allowed_origins}")
+            main_server.add_middleware(TransportSecurityMiddleware(
+                settings=TransportSecuritySettings(
+                    enable_dns_rebinding_protection=True,
+                    allowed_origins=allowed_origins,
+                )))
             logger.info(f"Server will be available at http://{args.host}:{args.port}")
-            main_server.run(transport=args.transport, host=args.host, port=args.port)
-    
+            main_server.run(
+                transport=args.transport,
+                host=args.host,
+                port=args.port,
+            )
+
     except KeyboardInterrupt:
         logger.info("Received shutdown signal...")
         sys.exit(0)
