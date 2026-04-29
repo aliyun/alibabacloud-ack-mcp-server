@@ -30,6 +30,7 @@ from ack_audit_log_handler import ACKAuditLogHandler
 from ack_controlplane_log_handler import ACKControlPlaneLogHandler
 from ack_cost_analysis_handler import ACKCostAnalysisHandler
 from transport_security import TransportSecurityMiddleware, TransportSecuritySettings
+from ack_autoscaling_handler import ACKAutoscalingHandler
 
 # 尝试导入python-dotenv
 try:
@@ -170,6 +171,8 @@ def create_main_server(
     ACKControlPlaneLogHandler(main_mcp, settings)
     # Register cost analysis tools
     ACKCostAnalysisHandler(main_mcp, settings)
+    # Register autoscaling tools
+    ACKAutoscalingHandler(main_mcp, settings)
 
     return main_mcp
 

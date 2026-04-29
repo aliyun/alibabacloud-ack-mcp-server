@@ -457,3 +457,39 @@ class WorkloadCostOutput(BaseOutputModel):
         """
     )
     error: Optional[ErrorModel] = Field(None, description="错误信息")
+
+
+# ==================== 弹性分析相关模型 ====================
+class WorkloadResourceProfile(BaseModel):
+    """工作负载资源画像：单个资源维度的使用量特征"""
+    resource_type: str = Field(..., description="资源类型：cpu 或 memory")
+    pod_request: Optional[str] = Field(None, description="Pod 资源请求配置，未配置时为空")
+    is_volatile: bool = Field(..., description="该资源在观测窗口内是否存在明显使用量波动：True 表示有明显波动性，False 表示无明显波动性")
+    percentiles: Dict[str, str] = Field(default_factory=dict, description="资源使用量百分位分析，包含 min、max、avg、p95、p99")
+
+
+class HPARecommendation(BaseModel):
+    """HPA 配置推荐结果"""
+    recommended: bool = Field(..., description="是否推荐开启 HPA")
+    min_replicas: Optional[int] = Field(None, description="HPA最小副本数推荐")
+    max_replicas: Optional[int] = Field(None, description="HPA最大副本数推荐")
+    target_utilization: Optional[Dict[str, str]] = Field(
+        None,
+        description="HPA指标及目标利用率推荐。key 为指标类型（cpu/memory），value 为利用率。仅包含波动性明显的指标。"
+    )
+    average_utilization: Optional[Dict[str, str]] = Field(
+        None,
+        description="工作负载历史平均资源利用率。key 为指标类型（cpu/memory），value 为利用率。"
+    )
+    message: Optional[str] = Field(None, description="HPA 推荐说明信息")
+
+
+class WorkloadAutoscalingAnalysisOutput(BaseOutputModel):
+    """工作负载弹性分析输出结果"""
+    cluster_id: str = Field(..., description="集群 ID")
+    namespace: str = Field(..., description="命名空间")
+    workload_type: str = Field(..., description="工作负载类型")
+    workload_name: str = Field(..., description="工作负载名称")
+    resource_analysis: List[WorkloadResourceProfile] = Field(default_factory=list, description="各资源维度的特征分析结果列表，包含基础属性、百分位统计、波动性判定")
+    hpa_recommendation: Optional[HPARecommendation] = Field(None, description="HPA 配置推荐，如果为 null 则不建议开启 HPA")
+    error: Optional[ErrorModel] = Field(None, description="错误信息")
