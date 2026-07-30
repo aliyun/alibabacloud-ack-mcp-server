@@ -221,7 +221,7 @@ class ACKControlPlaneLogHandler:
             settings: Configuration settings
         """
         self.settings = settings or {}
-        self.allow_write = settings.get("allow_write", True) if settings else True
+        self.allow_write = settings.get("allow_write", False) if settings else False
 
         # Per-handler toggle
         self.enable_execution_log = self.settings.get("enable_execution_log", False)

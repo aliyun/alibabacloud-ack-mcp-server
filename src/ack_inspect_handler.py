@@ -60,7 +60,7 @@ class InspectHandler:
 
     def __init__(self, server: FastMCP, settings: Optional[Dict[str, Any]] = None):
         self.settings = settings or {}
-        self.allow_write = self.settings.get("allow_write", True)
+        self.allow_write = self.settings.get("allow_write", False)
         self.enable_execution_log = self.settings.get("enable_execution_log", False)
         if server is None:
             return

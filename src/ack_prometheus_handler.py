@@ -27,7 +27,7 @@ class PrometheusHandler:
         # prometheus_endpoint_mode: "ARMS_PUBLIC" (default), "ARMS_PRIVATE", or "LOCAL"
         self.prometheus_endpoint_mode = self.settings.get("prometheus_endpoint_mode", "ARMS_PUBLIC")
 
-        self.allow_write = self.settings.get("allow_write", True)
+        self.allow_write = self.settings.get("allow_write", False)
 
         # Per-handler toggle
         self.enable_execution_log = self.settings.get("enable_execution_log", False)

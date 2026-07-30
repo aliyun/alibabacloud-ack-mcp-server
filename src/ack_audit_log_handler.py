@@ -68,7 +68,7 @@ class ACKAuditLogHandler:
         self.settings = settings or {}
         self.cs_client = None
         self.sls_client = None
-        self.allow_write = settings.get("allow_write", True) if settings else True
+        self.allow_write = settings.get("allow_write", False) if settings else False
         self.resource_mapping = {
             "pod": "pods",
             "deployment": "deployments",
