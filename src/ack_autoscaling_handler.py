@@ -249,10 +249,10 @@ class ACKAutoscalingHandler:
                 execution_log,
             )
 
-            validate_kubernetes_name(namespace, "namespace")
-            validate_workload_type(workload_type)
-            validate_kubernetes_name(workload_name, "workload_name")
-            validate_kubeconfig_path(kubeconfig_path)
+            namespace = validate_kubernetes_name(namespace, "namespace")
+            workload_type = validate_workload_type(workload_type)
+            workload_name = validate_kubernetes_name(workload_name, "workload_name")
+            kubeconfig_path = validate_kubeconfig_path(kubeconfig_path)
 
             args = [
                 "kubectl", "--kubeconfig", kubeconfig_path,
@@ -880,10 +880,10 @@ class ACKAutoscalingHandler:
                 execution_log
             )
 
-            validate_kubernetes_name(namespace, "namespace")
-            validate_workload_type(workload_type)
-            validate_kubernetes_name(workload_name, "workload_name")
-            validate_kubeconfig_path(kubeconfig_path)
+            namespace = validate_kubernetes_name(namespace, "namespace")
+            workload_type = validate_workload_type(workload_type)
+            workload_name = validate_kubernetes_name(workload_name, "workload_name")
+            kubeconfig_path = validate_kubeconfig_path(kubeconfig_path)
 
             args = [
                 "kubectl", "--kubeconfig", kubeconfig_path,
