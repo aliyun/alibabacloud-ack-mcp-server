@@ -647,7 +647,7 @@ class KubectlHandler:
             tokens = shlex.split(command.strip())
         except ValueError:
             return {"exit_code": 1, "stdout": "", "stderr": "Invalid command syntax (unbalanced quotes or malformed input)"}
-        kubectl = KubectlRunner(kubeconfig_path, timeout)
+        kubectl = KubectlRunner(kubeconfig_path, timeout, self.allow_write)
         result = kubectl.run(*tokens)
         execution_log.api_calls.append({
             "api": "KubectlCommand",
