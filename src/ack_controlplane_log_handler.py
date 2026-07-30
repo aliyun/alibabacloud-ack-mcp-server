@@ -19,6 +19,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx
 )
+from security import escape_sls_query_value
 
 
 def _get_sls_client(ctx: Context, region_id: str):
@@ -110,8 +111,8 @@ def _build_controlplane_log_query(
         return isinstance(value, str) and not hasattr(value, 'annotation')
 
     # 额外过滤条件
-    if is_valid_string(filter_pattern):
-        conditions.append(filter_pattern)
+    if is_valid_string(filter_pattern) and filter_pattern.strip():
+        conditions.append(escape_sls_query_value(filter_pattern.strip()))
 
     return ' AND '.join(conditions) if conditions else '*'
 
