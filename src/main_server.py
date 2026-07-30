@@ -293,8 +293,15 @@ def main():
 
     if args.access_key_file:
         try:
+            file_mode = os.stat(args.access_key_file).st_mode
+            if file_mode & 0o077:
+                logger.error(
+                    f"Access key file {args.access_key_file} is group/world accessible. "
+                    f"Please restrict permissions (e.g., chmod 600)."
+                )
+                sys.exit(1)
             with open(args.access_key_file, 'r') as f:
-                creds = json.loads(f.read())
+                creds = json.load(f)
             access_key_id = access_key_id or creds.get("access_key_id")
             access_key_secret = access_key_secret or creds.get("access_key_secret")
         except Exception as e:
