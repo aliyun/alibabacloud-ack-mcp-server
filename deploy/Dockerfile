@@ -95,3 +95,4 @@ CMD ["python", "-m", "main_server", "--transport", "http", "--host", "127.0.0.1"
 
 # how to run
 # docker run -e ACCESS_KEY_ID=<your-access-key-id> -e ACCESS_KEY_SECRET=<your-access-key-secret> -p 8000:8000 ack-mcp-server:1.0 python -m main_server --transport http --host 0.0.0.0 --port 8000 --allowed-origins <your-allowed-origin>
+# Add --allow-write flag if mutating operations (create/update/delete) are needed
