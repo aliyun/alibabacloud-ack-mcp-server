@@ -14,3 +14,8 @@ venv/
 dist/
 build/
 *.log
+src/tests/
+.pytest_cache/
+htmlcov/
+.coverage
+*.spec
