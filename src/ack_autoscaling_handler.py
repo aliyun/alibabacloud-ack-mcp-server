@@ -22,8 +22,8 @@ from models import (
     enable_execution_log_ctx,
 )
 from security import (
+    validate_kubeconfig_path,
     validate_kubernetes_name,
-    validate_shell_safe_param,
     validate_workload_type,
 )
 
@@ -252,7 +252,7 @@ class ACKAutoscalingHandler:
             validate_kubernetes_name(namespace, "namespace")
             validate_workload_type(workload_type)
             validate_kubernetes_name(workload_name, "workload_name")
-            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
+            validate_kubeconfig_path(kubeconfig_path)
 
             args = [
                 "kubectl", "--kubeconfig", kubeconfig_path,
@@ -883,7 +883,7 @@ class ACKAutoscalingHandler:
             validate_kubernetes_name(namespace, "namespace")
             validate_workload_type(workload_type)
             validate_kubernetes_name(workload_name, "workload_name")
-            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
+            validate_kubeconfig_path(kubeconfig_path)
 
             args = [
                 "kubectl", "--kubeconfig", kubeconfig_path,
