@@ -19,6 +19,7 @@ from models import (
     enable_execution_log_ctx,
 )
 from security import (
+    validate_kubeconfig_path,
     validate_kubernetes_name,
     validate_shell_safe_param,
     validate_workload_type,
@@ -191,11 +192,6 @@ class ACKCostAnalysisHandler:
         try:
             from kubectl_handler import get_context_manager
 
-            validate_kubernetes_name(namespace, "namespace")
-            validate_workload_type(workload_type)
-            validate_kubernetes_name(workload_name, "workload_name")
-            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
-
             # 设置 CS client
             cs_client = _get_cs_client(ctx, "CENTER")
             context_manager = get_context_manager()
@@ -208,6 +204,11 @@ class ACKCostAnalysisHandler:
                 self.settings.get("kubeconfig_path"),
                 execution_log
             )
+
+            validate_kubernetes_name(namespace, "namespace")
+            validate_workload_type(workload_type)
+            validate_kubernetes_name(workload_name, "workload_name")
+            validate_kubeconfig_path(kubeconfig_path)
             
             # 获取 workload spec（request/limit）
             logger.debug(f"Fetching workload spec for {workload_type}/{workload_name}")
@@ -419,11 +420,6 @@ class ACKCostAnalysisHandler:
         try:
             from kubectl_handler import get_context_manager
 
-            validate_kubernetes_name(namespace, "namespace")
-            validate_workload_type(workload_type)
-            validate_kubernetes_name(workload_name, "workload_name")
-            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
-
             # 设置 CS client
             cs_client = _get_cs_client(ctx, "CENTER")
             context_manager = get_context_manager()
@@ -436,6 +432,11 @@ class ACKCostAnalysisHandler:
                 self.settings.get("kubeconfig_path"),
                 execution_log
             )
+
+            validate_kubernetes_name(namespace, "namespace")
+            validate_workload_type(workload_type)
+            validate_kubernetes_name(workload_name, "workload_name")
+            validate_kubeconfig_path(kubeconfig_path)
             
             # 构建 label selector（workload kind 使用驼峰命名）
             workload_kind_map = {
