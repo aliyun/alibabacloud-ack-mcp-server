@@ -20,6 +20,7 @@ to connect various sub-MCP servers.
 """
 
 import argparse
+import json
 import os
 import sys
 from typing import Dict, Any, Optional, Literal
@@ -223,12 +224,17 @@ def main():
     parser.add_argument(
         "--access-key-id",
         type=str,
-        help="AlibabaCloud Access Key ID (default: from env ACCESS_KEY_ID)"
+        help="[DEPRECATED] AlibabaCloud Access Key ID (default: from env ACCESS_KEY_ID). Use --access-key-file or environment variables instead."
     )
     parser.add_argument(
         "--access-key-secret",
         type=str,
-        help="AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET)"
+        help="[DEPRECATED] AlibabaCloud Access Key Secret (default: from env ACCESS_KEY_SECRET). Use --access-key-file or environment variables instead."
+    )
+    parser.add_argument(
+        "--access-key-file",
+        type=str,
+        help="Path to JSON file containing access credentials: {'access_key_id': '...', 'access_key_secret': '...'}"
     )
     parser.add_argument(
         "--kubeconfig-mode",
@@ -273,6 +279,27 @@ def main():
     )
     
     args = parser.parse_args()
+
+    if args.access_key_secret or args.access_key_id:
+        logger.warning(
+            "DEPRECATED: --access-key-id and --access-key-secret CLI flags are deprecated. "
+            "Use --access-key-file or environment variables (ACCESS_KEY_ID, ACCESS_KEY_SECRET) instead. "
+            "CLI credentials are visible in process listings (ps aux)."
+        )
+    sys.argv = [sys.argv[0]]
+
+    access_key_id = args.access_key_id or os.getenv("ACCESS_KEY_ID")
+    access_key_secret = args.access_key_secret or os.getenv("ACCESS_KEY_SECRET")
+
+    if args.access_key_file:
+        try:
+            with open(args.access_key_file, 'r') as f:
+                creds = json.loads(f.read())
+            access_key_id = access_key_id or creds.get("access_key_id")
+            access_key_secret = access_key_secret or creds.get("access_key_secret")
+        except Exception as e:
+            logger.error(f"Failed to read access key file {args.access_key_file}: {e}")
+            sys.exit(1)
     
     # Configure logging
     logger.remove()
@@ -291,8 +318,8 @@ def main():
         
         # 阿里云认证配置
         "region_id": args.region or os.getenv("REGION_ID", "cn-hangzhou"),
-        "access_key_id": args.access_key_id or os.getenv("ACCESS_KEY_ID"),
-        "access_key_secret": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),
+        "access_key_id": access_key_id,
+        "access_key_secret": access_key_secret,
 
         # 审计日志配置
         "audit_config_path": args.audit_config,
@@ -311,7 +338,7 @@ def main():
         "api_timeout": int(os.getenv("API_TIMEOUT", "60")),  # API调用超时（秒）
         
         # 兼容性配置
-        "access_secret_key": args.access_key_secret or os.getenv("ACCESS_KEY_SECRET"),  # 兼容旧字段名
+        "access_secret_key": access_key_secret,  # 兼容旧字段名
         "original_settings": Configs(vars(args)),
 
         # ACK kubectl 配置
