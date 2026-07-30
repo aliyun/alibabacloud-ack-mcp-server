@@ -755,11 +755,11 @@ class ACKAuditLogHandler:
             query += f" and objectRef.namespace: {escape_sls_query_value(params['namespace'])}"
 
         if params.get("verbs") and len(params["verbs"]) > 0:
-            verbs = [f"verb: {escape_sls_query_value(verb)}" for verb in params["verbs"]]
+            verbs = [f"verb: {escape_sls_query_value(str(verb))}" for verb in params["verbs"]]
             query += f" and ({' or '.join(verbs)})"
 
         if params.get("resource_types") and len(params["resource_types"]) > 0:
-            resource_types = [f"objectRef.resource: {escape_sls_query_value(rt)}" for rt in params["resource_types"]]
+            resource_types = [f"objectRef.resource: {escape_sls_query_value(str(rt))}" for rt in params["resource_types"]]
             query += f" and ({' or '.join(resource_types)})"
 
         if params.get("resource_name") and params["resource_name"] != "*":
