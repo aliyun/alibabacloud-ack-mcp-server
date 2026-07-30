@@ -491,7 +491,8 @@ class KubectlHandler:
             }
 
         try:
-            args = ["kubectl", "--kubeconfig", kubeconfig_path] + tokens
+            args = ["kubectl"] + tokens
+            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
 
             cmd_start = int(time.time() * 1000)
             process = subprocess.Popen(
@@ -501,7 +502,8 @@ class KubectlHandler:
                 stderr=subprocess.PIPE,
                 text=True,
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                env=env
             )
 
             stdout_lines = []
@@ -600,7 +602,8 @@ class KubectlHandler:
         """Run a kubectl command and return structured result."""
         try:
             tokens = shlex.split(command.strip())
-            args = ["kubectl", "--kubeconfig", kubeconfig_path] + tokens
+            args = ["kubectl"] + tokens
+            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
 
             cmd_start = int(time.time() * 1000)
             result = subprocess.run(
@@ -609,7 +612,8 @@ class KubectlHandler:
                 capture_output=True,
                 text=True,
                 check=True,
-                timeout=timeout
+                timeout=timeout,
+                env=env
             )
             cmd_duration = int(time.time() * 1000) - cmd_start
 

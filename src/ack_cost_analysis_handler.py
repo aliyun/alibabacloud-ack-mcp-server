@@ -2,6 +2,7 @@
 
 import json
 import math
+import os
 import re
 import subprocess
 import time
@@ -213,8 +214,9 @@ class ACKCostAnalysisHandler:
             
             # 获取 workload spec（request/limit）
             logger.debug(f"Fetching workload spec for {workload_type}/{workload_name}")
-            args_spec = ["kubectl", "--kubeconfig", kubeconfig_path, "get", workload_type, workload_name, "-n", namespace, "-o", "json"]
-            result_spec = subprocess.run(args_spec, shell=False, capture_output=True, text=True, timeout=30)
+            args_spec = ["kubectl", "get", workload_type, workload_name, "-n", namespace, "-o", "json"]
+            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
+            result_spec = subprocess.run(args_spec, shell=False, capture_output=True, text=True, timeout=30, env=env)
             
             if result_spec.returncode != 0:
                 raise ValueError(f"Failed to get workload spec: {result_spec.stderr}")
@@ -267,12 +269,12 @@ class ACKCostAnalysisHandler:
             
             if label_selector:
                 validate_shell_safe_param(label_selector, "label_selector")
-                args_pods = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "pods", "-n", namespace, "-l", label_selector, "-o", "json"]
+                args_pods = ["kubectl", "get", "pods", "-n", namespace, "-l", label_selector, "-o", "json"]
             else:
                 # 如果没有 selector，通过 owner reference 查找
-                args_pods = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "pods", "-n", namespace, "-o", "json"]
+                args_pods = ["kubectl", "get", "pods", "-n", namespace, "-o", "json"]
             
-            result_pods = subprocess.run(args_pods, shell=False, capture_output=True, text=True, timeout=30)
+            result_pods = subprocess.run(args_pods, shell=False, capture_output=True, text=True, timeout=30, env=env)
             
             if result_pods.returncode != 0:
                 logger.warning(f"Failed to get pods: {result_pods.stderr}")
@@ -307,11 +309,11 @@ class ACKCostAnalysisHandler:
                 
                 # 批量获取 top 数据
                 if label_selector:
-                    args_top = ["kubectl", "--kubeconfig", kubeconfig_path, "top", "pods", "-n", namespace, "-l", label_selector, "--no-headers"]
+                    args_top = ["kubectl", "top", "pods", "-n", namespace, "-l", label_selector, "--no-headers"]
                 else:
-                    args_top = ["kubectl", "--kubeconfig", kubeconfig_path, "top", "pods", "-n", namespace, "--no-headers"]
+                    args_top = ["kubectl", "top", "pods", "-n", namespace, "--no-headers"]
                 
-                result_top = subprocess.run(args_top, shell=False, capture_output=True, text=True, timeout=30)
+                result_top = subprocess.run(args_top, shell=False, capture_output=True, text=True, timeout=30, env=env)
                 
                 if result_top.returncode == 0 and result_top.stdout:
                     # 格式（无 header）：POD_NAME   CPU(cores)   MEMORY(bytes)
@@ -442,8 +444,9 @@ class ACKCostAnalysisHandler:
             )
             
             validate_shell_safe_param(label_selector, "recommendation_label_selector")
-            args = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "recommendation", "-n", namespace, "-l", label_selector, "-o", "json"]
-            result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30)
+            args = ["kubectl", "get", "recommendation", "-n", namespace, "-l", label_selector, "-o", "json"]
+            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
+            result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30, env=env)
             
             if result.returncode != 0 or not result.stdout:
                 return None
