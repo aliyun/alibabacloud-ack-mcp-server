@@ -302,6 +302,9 @@ def main():
                 sys.exit(1)
             with open(args.access_key_file, 'r') as f:
                 creds = json.load(f)
+            if not isinstance(creds, dict):
+                logger.error(f"Access key file {args.access_key_file} must contain a JSON object")
+                sys.exit(1)
             access_key_id = access_key_id or creds.get("access_key_id")
             access_key_secret = access_key_secret or creds.get("access_key_secret")
         except (OSError, json.JSONDecodeError) as e:
