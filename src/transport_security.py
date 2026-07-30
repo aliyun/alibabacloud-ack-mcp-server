@@ -47,8 +47,10 @@ class TransportSecurityMiddleware(Middleware):
 
     def _validate_origin(self, origin: str | None) -> bool:
         """Validate the Origin header against allowed values."""
-        # Origin can be absent for same-origin requests
         if not origin:
+            if self.settings.allowed_origins:
+                logger.warning("Missing Origin header when allowed_origins is configured")
+                return False
             return True
 
         # Check exact match first
