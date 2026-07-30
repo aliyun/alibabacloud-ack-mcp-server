@@ -20,6 +20,7 @@ from models import (
     enable_execution_log_ctx,
 )
 from kubectl_handler import (
+    KubectlRunner,
     validate_kubeconfig_path,
     validate_kubernetes_name,
     validate_shell_safe_param,
@@ -214,15 +215,14 @@ class ACKCostAnalysisHandler:
             
             # 获取 workload spec（request/limit）
             logger.debug(f"Fetching workload spec for {workload_type}/{workload_name}")
-            args_spec = ["kubectl", "get", workload_type, workload_name, "-n", namespace, "-o", "json"]
-            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
-            result_spec = subprocess.run(args_spec, shell=False, capture_output=True, text=True, timeout=30, env=env)
+            kubectl = KubectlRunner(kubeconfig_path, timeout=30)
+            result_spec = kubectl.run("get", workload_type, workload_name, "-n", namespace, "-o", "json")
             
-            if result_spec.returncode != 0:
-                raise ValueError(f"Failed to get workload spec: {result_spec.stderr}")
+            if result_spec["exit_code"] != 0:
+                raise ValueError(f"Failed to get workload spec: {result_spec['stderr']}")
             
             try:
-                workload = json.loads(result_spec.stdout)
+                workload = json.loads(result_spec["stdout"])
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON response from kubectl get {workload_type}: {e}")
             
@@ -269,19 +269,16 @@ class ACKCostAnalysisHandler:
             
             if label_selector:
                 validate_shell_safe_param(label_selector, "label_selector")
-                args_pods = ["kubectl", "get", "pods", "-n", namespace, "-l", label_selector, "-o", "json"]
+                result_pods = kubectl.run("get", "pods", "-n", namespace, "-l", label_selector, "-o", "json")
             else:
-                # 如果没有 selector，通过 owner reference 查找
-                args_pods = ["kubectl", "get", "pods", "-n", namespace, "-o", "json"]
+                result_pods = kubectl.run("get", "pods", "-n", namespace, "-o", "json")
             
-            result_pods = subprocess.run(args_pods, shell=False, capture_output=True, text=True, timeout=30, env=env)
-            
-            if result_pods.returncode != 0:
-                logger.warning(f"Failed to get pods: {result_pods.stderr}")
+            if result_pods["exit_code"] != 0:
+                logger.warning(f"Failed to get pods: {result_pods['stderr']}")
                 pod_list = []
             else:
                 try:
-                    pods_data = json.loads(result_pods.stdout)
+                    pods_data = json.loads(result_pods["stdout"])
                     pod_list = pods_data.get("items", [])
                 except json.JSONDecodeError as e:
                     logger.warning(f"Invalid JSON response from kubectl get pods: {e}")
@@ -309,17 +306,14 @@ class ACKCostAnalysisHandler:
                 
                 # 批量获取 top 数据
                 if label_selector:
-                    args_top = ["kubectl", "top", "pods", "-n", namespace, "-l", label_selector, "--no-headers"]
+                    result_top = kubectl.run("top", "pods", "-n", namespace, "-l", label_selector, "--no-headers")
                 else:
-                    args_top = ["kubectl", "top", "pods", "-n", namespace, "--no-headers"]
+                    result_top = kubectl.run("top", "pods", "-n", namespace, "--no-headers")
                 
-                result_top = subprocess.run(args_top, shell=False, capture_output=True, text=True, timeout=30, env=env)
-                
-                if result_top.returncode == 0 and result_top.stdout:
-                    # 格式（无 header）：POD_NAME   CPU(cores)   MEMORY(bytes)
+                if result_top["exit_code"] == 0 and result_top["stdout"]:
                     pod_names_set = {pod.get("metadata", {}).get("name", "") for pod in pod_list}
                     
-                    for line in result_top.stdout.strip().split('\n'):
+                    for line in result_top["stdout"].strip().split('\n'):
                         if not line.strip():
                             continue
                         
@@ -444,15 +438,14 @@ class ACKCostAnalysisHandler:
             )
             
             validate_shell_safe_param(label_selector, "recommendation_label_selector")
-            args = ["kubectl", "get", "recommendation", "-n", namespace, "-l", label_selector, "-o", "json"]
-            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
-            result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30, env=env)
+            kubectl = KubectlRunner(kubeconfig_path, timeout=30)
+            result = kubectl.run("get", "recommendation", "-n", namespace, "-l", label_selector, "-o", "json")
             
-            if result.returncode != 0 or not result.stdout:
+            if result["exit_code"] != 0 or not result["stdout"]:
                 return None
             
             try:
-                data = json.loads(result.stdout)
+                data = json.loads(result["stdout"])
             except json.JSONDecodeError as e:
                 logger.debug(f"Invalid JSON response from kubectl get recommendation: {e}")
                 return None
