@@ -299,7 +299,7 @@ def main():
             access_key_secret = access_key_secret or creds.get("access_key_secret")
         except Exception as e:
             logger.error(f"Failed to read access key file {args.access_key_file}: {e}")
-sys.exit(1)
+            sys.exit(1)
 
     if args.port < 1 or args.port > 65535:
         logger.error(f"Invalid port: {args.port}. Must be between 1 and 65535.")
