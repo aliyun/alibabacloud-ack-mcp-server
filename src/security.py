@@ -97,28 +97,13 @@ def is_write_command(command: str) -> tuple[bool, str | None]:
     if ';' in command or '|' in command or '&' in command:
         return True, "Command chaining not allowed"
 
-    write_verbs = []
-    forbidden_flags = []
-    for token in tokens:
-        if _is_forbidden_flag(token):
-            forbidden_flags.append(token)
-        if token in _READONLY_COMMANDS and not token.startswith('-'):
-            continue
-        if token.startswith('-'):
-            continue
-        if token not in _READONLY_COMMANDS:
-            write_verbs.append(token)
-
+    forbidden_flags = [t for t in tokens if _is_forbidden_flag(t)]
     if forbidden_flags:
-        join = ", ".join(forbidden_flags)
-        return True, f"Forbidden flag(s): {join}"
+        return True, f"Forbidden flag(s) not allowed in read-only mode: {', '.join(forbidden_flags)}"
 
-    if write_verbs:
-        join = ", ".join(write_verbs)
-        return True, f"Write command(s) not allowed in read-only mode: {join}. Only: {', '.join(sorted(_READONLY_COMMANDS))}"
-
-    if tokens[0] not in _READONLY_COMMANDS:
-        return True, f"Unknown command '{tokens[0]}'. Only: {', '.join(sorted(_READONLY_COMMANDS))}"
+    main_command = tokens[0]
+    if main_command not in _READONLY_COMMANDS:
+        return True, f"Write command '{main_command}' not allowed in read-only mode. Only read-only commands are permitted: {', '.join(sorted(_READONLY_COMMANDS))}"
 
     return False, None
 
