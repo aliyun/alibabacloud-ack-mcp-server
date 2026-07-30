@@ -14,7 +14,7 @@ from pydantic import Field
 
 from ack_cluster_handler import parse_master_url
 from models import KubectlOutput, ExecutionLog, enable_execution_log_ctx
-from security import is_write_command as security_is_write_command, is_streaming_command as security_is_streaming_command, is_interactive_command as security_is_interactive_command
+from security import is_write_command as security_is_write_command, is_streaming_command as security_is_streaming_command, is_interactive_command as security_is_interactive_command, check_forbidden_flags
 
 _CLUSTER_ID_PATTERN = re.compile(r"^c[a-z0-9]{32}$")
 
@@ -782,6 +782,23 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
             try:
                 # 设置CS客户端
                 self._setup_cs_client(ctx)
+
+                is_forbidden, forbidden_error = check_forbidden_flags(command)
+                if is_forbidden:
+                    execution_log.error = forbidden_error
+                    execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                    execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                    execution_log.metadata = {
+                        "error_type": "ForbiddenFlag",
+                        "command": command
+                    }
+                    return KubectlOutput(
+                        command=command,
+                        stdout="",
+                        stderr=forbidden_error,
+                        exit_code=1,
+                        execution_log=execution_log
+                    )
 
                 # 检查是否为只读模式
                 if not self.allow_write:

@@ -92,6 +92,25 @@ def _is_interactive_flag(token: str) -> bool:
     return False
 
 
+def check_forbidden_flags(command: str) -> tuple[bool, str | None]:
+    try:
+        tokens = shlex.split(command.strip())
+    except ValueError:
+        return True, "Invalid command syntax"
+
+    if not tokens:
+        return False, None
+
+    if ';' in command or '|' in command or '&' in command:
+        return True, "Command chaining not allowed"
+
+    forbidden_flags = [t for t in tokens if _is_forbidden_flag(t)]
+    if forbidden_flags:
+        return True, f"Forbidden flag(s) not allowed: {', '.join(forbidden_flags)}"
+
+    return False, None
+
+
 def is_write_command(command: str) -> tuple[bool, str | None]:
     try:
         tokens = shlex.split(command.strip())
@@ -100,13 +119,6 @@ def is_write_command(command: str) -> tuple[bool, str | None]:
 
     if not tokens:
         return True, "Empty command not allowed"
-
-    if ';' in command or '|' in command or '&' in command:
-        return True, "Command chaining not allowed"
-
-    forbidden_flags = [t for t in tokens if _is_forbidden_flag(t)]
-    if forbidden_flags:
-        return True, f"Forbidden flag(s) not allowed in read-only mode: {', '.join(forbidden_flags)}"
 
     main_command = tokens[0]
     if main_command not in _READONLY_COMMANDS:
