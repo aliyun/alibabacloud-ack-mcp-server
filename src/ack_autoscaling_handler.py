@@ -369,6 +369,16 @@ class ACKAutoscalingHandler:
                 ready_replicas=0,
                 ready_ratio=0.0,
             )
+        except FileNotFoundError:
+            execution_log.warnings.append(
+                "Precheck: kubectl is not installed or not found in PATH"
+            )
+            return WorkloadPrecheckResult(
+                stable_for_hpa=False,
+                replicas=0,
+                ready_replicas=0,
+                ready_ratio=0.0,
+            )
         except Exception as e:
             execution_log.warnings.append(
                 f"Precheck: unexpected error while checking workload stability: {str(e)}"
@@ -946,6 +956,9 @@ class ACKAutoscalingHandler:
             return None
         except json.JSONDecodeError as e:
             execution_log.warnings.append(f"Failed to parse workload JSON for {resource_type}: {str(e)}")
+            return None
+        except FileNotFoundError:
+            execution_log.warnings.append(f"kubectl is not installed or not found in PATH")
             return None
         except Exception as e:
             execution_log.warnings.append(f"Failed to retrieve pod request for {resource_type}: {str(e)}")

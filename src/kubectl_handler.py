@@ -550,6 +550,12 @@ class KubectlHandler:
                 "stderr": "".join(stderr_lines)
             }
 
+        except FileNotFoundError:
+            return {
+                "exit_code": 127,
+                "stdout": "",
+                "stderr": "kubectl is not installed or not found in PATH",
+            }
         except Exception as e:
             execution_log.api_calls.append({
                 "api": "KubectlCommand",
@@ -626,6 +632,18 @@ class KubectlHandler:
                 "exit_code": e.returncode,
                 "stdout": e.stdout.strip() if e.stdout else "",
                 "stderr": e.stderr.strip() if e.stderr else str(e),
+            }
+        except FileNotFoundError:
+            return {
+                "exit_code": 127,
+                "stdout": "",
+                "stderr": "kubectl is not installed or not found in PATH",
+            }
+        except OSError as e:
+            return {
+                "exit_code": 1,
+                "stdout": "",
+                "stderr": f"Failed to execute kubectl: {e}",
             }
 
     def _register_tools(self):
