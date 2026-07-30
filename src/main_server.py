@@ -294,14 +294,16 @@ def main():
 
     if args.access_key_file:
         try:
-            file_mode = os.stat(args.access_key_file).st_mode
+            fd = os.open(args.access_key_file, os.O_RDONLY)
+            file_mode = os.fstat(fd).st_mode
             if file_mode & 0o077:
                 logger.error(
                     f"Access key file {args.access_key_file} is group/world accessible. "
                     f"Please restrict permissions (e.g., chmod 600)."
                 )
+                os.close(fd)
                 sys.exit(1)
-            with open(args.access_key_file, 'r') as f:
+            with os.fdopen(fd, 'r') as f:
                 creds = json.load(f)
             if not isinstance(creds, dict):
                 logger.error(f"Access key file {args.access_key_file} must contain a JSON object")
