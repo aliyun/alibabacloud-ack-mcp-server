@@ -140,6 +140,63 @@ def _is_interactive_command(command: str) -> tuple[bool, str | None]:
         return True, "interactive mode not supported (commands with -it/-i/-t/--stdin/--tty flags), please use non-interactive commands"
     return False, None
 
+
+def _check_forbidden_flags_argv(tokens: list[str]) -> str | None:
+    found = [t for t in tokens if _is_forbidden_flag(t)]
+    if found:
+        return f"Forbidden flag(s) not allowed: {', '.join(found)}"
+    return None
+
+
+def _check_interactive_argv(tokens: list[str]) -> str | None:
+    if not tokens:
+        return None
+    if tokens[0] == "port-forward":
+        return "interactive mode not supported for kubectl port-forward, please use service types like NodePort or LoadBalancer"
+    if tokens[0] == "edit":
+        return "interactive mode not supported for kubectl edit, please use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply'"
+    if any(_is_interactive_flag(t) for t in tokens):
+        return "interactive mode not supported (commands with -it/-i/-t/--stdin/--tty flags), please use non-interactive commands"
+    return None
+
+
+def _check_write_argv(tokens: list[str]) -> str | None:
+    if not tokens:
+        return "Empty command not allowed"
+    if tokens[0] not in _READONLY_COMMANDS:
+        return f"Write command '{tokens[0]}' not allowed in read-only mode. Only read-only commands are permitted: {', '.join(sorted(_READONLY_COMMANDS))}"
+    return None
+
+
+class KubectlRunner:
+    def __init__(self, kubeconfig_path: str, timeout: int = 30, allow_write: bool = False):
+        self._env = {**os.environ, "KUBECONFIG": kubeconfig_path}
+        self._timeout = timeout
+        self._allow_write = allow_write
+
+    def run(self, *args: str) -> dict[str, Any]:
+        tokens = list(args)
+        error = self._check_security(tokens)
+        if error:
+            return {"exit_code": 1, "stdout": "", "stderr": error}
+        try:
+            result = subprocess.run(["kubectl"] + tokens, shell=False,
+                                    capture_output=True, text=True,
+                                    timeout=self._timeout, env=self._env)
+            return {"exit_code": result.returncode,
+                    "stdout": result.stdout.strip() if result.stdout else "",
+                    "stderr": result.stderr.strip() if result.stderr else ""}
+        except subprocess.TimeoutExpired:
+            return {"exit_code": 124, "stdout": "", "stderr": f"timed out after {self._timeout}s"}
+        except FileNotFoundError:
+            return {"exit_code": 127, "stdout": "", "stderr": "kubectl not installed"}
+
+    def _check_security(self, tokens: list[str]) -> str | None:
+        return (_check_forbidden_flags_argv(tokens)
+                or _check_interactive_argv(tokens)
+                or (not self._allow_write and _check_write_argv(tokens)))
+
+
 _CLUSTER_ID_PATTERN = re.compile(r"^c[a-z0-9]{32}$")
 
 class KubectlContextManager(TTLCache):
