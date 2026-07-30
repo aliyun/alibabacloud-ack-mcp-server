@@ -12,6 +12,9 @@ from pydantic import Field
 
 from ack_cluster_handler import parse_master_url
 from models import KubectlOutput, ExecutionLog, enable_execution_log_ctx
+from security import validate_kubernetes_name
+
+_CLUSTER_ID_PATTERN = re.compile(r"^c[a-z0-9]{32}$")
 
 class KubectlContextManager(TTLCache):
     """基于 TTL+LRU 缓存的 kubeconfig 文件管理器"""
@@ -759,6 +762,23 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                 tool_call_id=f"ack_kubectl_{cluster_id}_{start_ms}",
                 start_time=datetime.utcnow().isoformat() + "Z"
             )
+
+            if not _CLUSTER_ID_PATTERN.match(cluster_id):
+                error_msg = f"Invalid cluster_id format: {cluster_id}"
+                execution_log.error = error_msg
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "InvalidClusterId",
+                    "cluster_id": cluster_id
+                }
+                return KubectlOutput(
+                    command=command,
+                    stdout="",
+                    stderr=error_msg,
+                    exit_code=1,
+                    execution_log=execution_log
+                )
 
             try:
                 # 设置CS客户端
