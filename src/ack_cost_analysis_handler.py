@@ -189,6 +189,10 @@ class ACKCostAnalysisHandler:
         execution_log: ExecutionLog
     ) -> Dict[str, Any]:
         """根据瞬时水位分析稳定性和效率：kubectl top + request/limit"""
+        validate_kubernetes_name(namespace, "namespace")
+        validate_workload_type(workload_type)
+        validate_kubernetes_name(workload_name, "workload_name")
+
         try:
             from kubectl_handler import get_context_manager
 
@@ -205,9 +209,6 @@ class ACKCostAnalysisHandler:
                 execution_log
             )
 
-            validate_kubernetes_name(namespace, "namespace")
-            validate_workload_type(workload_type)
-            validate_kubernetes_name(workload_name, "workload_name")
             validate_kubeconfig_path(kubeconfig_path)
             
             # 获取 workload spec（request/limit）
@@ -417,6 +418,10 @@ class ACKCostAnalysisHandler:
         execution_log: ExecutionLog
     ) -> Optional[Dict[str, Any]]:
         """获取资源画像推荐配置"""
+        validate_kubernetes_name(namespace, "namespace")
+        validate_workload_type(workload_type)
+        validate_kubernetes_name(workload_name, "workload_name")
+
         try:
             from kubectl_handler import get_context_manager
 
@@ -433,9 +438,6 @@ class ACKCostAnalysisHandler:
                 execution_log
             )
 
-            validate_kubernetes_name(namespace, "namespace")
-            validate_workload_type(workload_type)
-            validate_kubernetes_name(workload_name, "workload_name")
             validate_kubeconfig_path(kubeconfig_path)
             
             # 构建 label selector（workload kind 使用驼峰命名）
