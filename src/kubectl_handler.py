@@ -2,6 +2,7 @@ import os
 import re
 import shlex
 import subprocess
+import tempfile
 import time
 from datetime import datetime
 from typing import Any, Dict, Optional
@@ -32,10 +33,7 @@ class KubectlContextManager(TTLCache):
         self._cs_client = None  # CS客户端实例
         self.do_not_cleanup_file = None  # 本地kubeconfig文件路径，不需要清理
 
-        # 使用 .kube 目录存储 kubeconfig 文件
-        self._kube_dir = os.path.expanduser("~/.kube")
-        os.makedirs(self._kube_dir, exist_ok=True)
-        os.chmod(self._kube_dir, 0o700)
+        self._kube_dir = tempfile.mkdtemp(prefix="mcp-kubeconfig-")
 
         self._setup_cleanup_handlers()
 
