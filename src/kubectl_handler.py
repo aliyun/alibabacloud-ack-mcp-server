@@ -171,7 +171,7 @@ class KubectlContextManager(TTLCache):
         if path and os.path.exists(path):
             if self.do_not_cleanup_file and os.path.samefile(path, self.do_not_cleanup_file):
                 logger.debug(f"Skipped removal of protected kubeconfig file: {path}")
-                return
+                return key, path
             try:
                 os.remove(path)
                 logger.debug(f"Removed cached kubeconfig file: {path}")
