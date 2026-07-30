@@ -466,26 +466,7 @@ class KubectlHandler:
         return security_is_interactive_command(command)
 
     def is_streaming_command(self, command: str) -> tuple[bool, Optional[str]]:
-        """检查是否为流式命令
-
-        Args:
-            command: kubectl 命令字符串
-
-        Returns:
-            (是否为流式命令, 流式类型)
-        """
-        is_watch = " get " in command and " -w" in command
-        is_logs = " logs " in command and " -f" in command
-        is_attach = " attach " in command
-
-        if is_watch:
-            return True, "watch"
-        if is_logs:
-            return True, "logs"
-        if is_attach:
-            return True, "attach"
-
-        return False, None
+        return security_is_streaming_command(command)
 
     def run_streaming_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
         """运行流式命令，支持超时控制"""
