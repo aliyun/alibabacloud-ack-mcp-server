@@ -16,6 +16,7 @@ build/
 *.log
 config.local.yaml
 config.prod.yaml
+deploy/
 src/tests/
 benchmarks/
 .pytest_cache/
