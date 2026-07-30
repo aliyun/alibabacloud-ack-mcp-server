@@ -529,23 +529,22 @@ class KubectlHandler:
             stderr_thread.join(timeout=1)
 
             cmd_duration = int(time.time() * 1000) - cmd_start
-            exit_code = process.returncode
-            if process_terminated and exit_code is None:
+            exit_code = process.returncode if process.returncode is not None else -1
+            if process_terminated:
                 exit_code = 124
-            
-            # Log kubectl execution
+
             execution_log.api_calls.append({
                 "api": "KubectlCommand",
                 "command": command,
                 "type": "streaming",
                 "duration_ms": cmd_duration,
-                "exit_code": exit_code or 0,
+                "exit_code": exit_code,
                 "status": "success" if exit_code == 0 else "failed",
                 "timeout": timeout
             })
 
             return {
-                "exit_code": exit_code or 0,
+                "exit_code": exit_code,
                 "stdout": "".join(stdout_lines),
                 "stderr": "".join(stderr_lines)
             }
