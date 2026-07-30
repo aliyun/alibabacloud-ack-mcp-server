@@ -1,17 +1,18 @@
 """ACK Autoscaling Handler - Autoscaling and workload elasticity analysis."""
 
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass
 import json
+import math
+import shlex
 import subprocess
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
+import httpx
 from fastmcp import FastMCP, Context
 from loguru import logger
 from pydantic import Field
-import httpx
-import time
-import math
-from datetime import datetime
 
 from models import (
     WorkloadAutoscalingAnalysisOutput,
@@ -20,6 +21,11 @@ from models import (
     ErrorModel,
     ExecutionLog,
     enable_execution_log_ctx,
+)
+from security import (
+    validate_kubernetes_name,
+    validate_shell_safe_param,
+    validate_workload_type,
 )
 
 # 波动性分析参数配置
@@ -244,15 +250,20 @@ class ACKAutoscalingHandler:
                 execution_log,
             )
 
-            command = (
-                f"kubectl --kubeconfig {kubeconfig_path} "
-                f"get {workload_type} {workload_name} -n {namespace} -o json"
-            )
+            validate_kubernetes_name(namespace, "namespace")
+            validate_workload_type(workload_type)
+            validate_kubernetes_name(workload_name, "workload_name")
+            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
+
+            args = [
+                "kubectl", "--kubeconfig", kubeconfig_path,
+                "get", workload_type, workload_name, "-n", namespace, "-o", "json",
+            ]
 
             cmd_start = int(time.time() * 1000)
             result = subprocess.run(
-                command,
-                shell=True,
+                args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=self.kubectl_timeout,
@@ -860,12 +871,20 @@ class ACKAutoscalingHandler:
                 execution_log
             )
 
-            command = f"kubectl --kubeconfig {kubeconfig_path} get {workload_type} {workload_name} -n {namespace} -o json"
-            
+            validate_kubernetes_name(namespace, "namespace")
+            validate_workload_type(workload_type)
+            validate_kubernetes_name(workload_name, "workload_name")
+            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
+
+            args = [
+                "kubectl", "--kubeconfig", kubeconfig_path,
+                "get", workload_type, workload_name, "-n", namespace, "-o", "json",
+            ]
+
             cmd_start = int(time.time() * 1000)
             result = subprocess.run(
-                command,
-                shell=True,
+                args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 timeout=self.kubectl_timeout
