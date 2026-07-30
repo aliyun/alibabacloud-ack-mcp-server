@@ -318,7 +318,7 @@ def main():
                 sys.exit(1)
             access_key_id = access_key_id or file_ak
             access_key_secret = access_key_secret or file_sk
-            if not access_key_id and not access_key_secret:
+            if not file_ak and not file_sk:
                 logger.error(
                     f"Access key file {args.access_key_file} does not contain "
                     f"'access_key_id' or 'access_key_secret'"

@@ -110,7 +110,20 @@ class DiagnoseHandler:
         )
         
         try:
-            # 解析 resource_target JSON
+            if not self.allow_write:
+                error_msg = "diagnose_resource creates a cluster diagnosis resource and is not allowed in read-only mode"
+                execution_log.error = error_msg
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "WriteOperationNotAllowed",
+                    "failure_stage": "allow_write_check"
+                }
+                return {
+                    "error": ErrorModel(error_code="WriteOperationNotAllowed", error_message=error_msg).model_dump(),
+                    "execution_log": execution_log
+                }
+
             try:
                 target_dict = json.loads(resource_target)
             except json.JSONDecodeError as e:
@@ -124,20 +137,6 @@ class DiagnoseHandler:
                 }
                 return {
                     "error": ErrorModel(error_code="InvalidTarget", error_message=error_msg).model_dump(),
-                    "execution_log": execution_log
-                }
-
-            if not self.allow_write:
-                error_msg = "diagnose_resource creates a cluster diagnosis resource and is not allowed in read-only mode"
-                execution_log.error = error_msg
-                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-                execution_log.duration_ms = int(time.time() * 1000) - start_ms
-                execution_log.metadata = {
-                    "error_type": "WriteOperationNotAllowed",
-                    "failure_stage": "allow_write_check"
-                }
-                return {
-                    "error": ErrorModel(error_code="WriteOperationNotAllowed", error_message=error_msg).model_dump(),
                     "execution_log": execution_log
                 }
 
