@@ -288,8 +288,8 @@ def main():
         )
     sys.argv = [sys.argv[0]]
 
-    access_key_id = os.getenv("ACCESS_KEY_ID") or args.access_key_id
-    access_key_secret = os.getenv("ACCESS_KEY_SECRET") or args.access_key_secret
+    access_key_id = os.getenv("ACCESS_KEY_ID")
+    access_key_secret = os.getenv("ACCESS_KEY_SECRET")
 
     if args.access_key_file:
         try:
@@ -316,6 +316,9 @@ def main():
         except (OSError, json.JSONDecodeError) as e:
             logger.error(f"Failed to read access key file {args.access_key_file}: {e}")
             sys.exit(1)
+
+    access_key_id = access_key_id or args.access_key_id
+    access_key_secret = access_key_secret or args.access_key_secret
 
     if args.port < 1 or args.port > 65535:
         logger.error(f"Invalid port: {args.port}. Must be between 1 and 65535.")
