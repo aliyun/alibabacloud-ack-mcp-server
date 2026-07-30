@@ -447,7 +447,7 @@ python -m src.main_server --transport sse --host 127.0.0.1 --port 8000
 - 服务默认绑定 `127.0.0.1`，仅允许本地访问。如需暴露到网络，请配合 `--allowed-origins` 参数配置 Origin 白名单。
 - 服务内置了 Origin 头校验中间件，符合 MCP 2025-03-26 规范要求，可防御 DNS Rebinding 攻击。
 - **注意：** 当服务绑定到非 localhost 地址（如 `0.0.0.0`）且未配置 `--allowed-origins` 时，所有带 Origin 头的请求将被拒绝（403 Forbidden）。生产环境部署前请务必通过 `--allowed-origins` 或 `ALLOWED_ORIGINS` 环境变量配置 Origin 白名单。
-- 生产环境部署建议配合反向代理、API Gateway 或 Kubernetes NetworkPolicy 等方式增加认证和网络隔离。
+- 当前版本未内置 MCP 级别的认证或授权机制。生产环境部署建议配合反向代理、API Gateway 或 Kubernetes NetworkPolicy 等方式增加认证和网络隔离。
 - 完整安全指南请参考 [SECURITY.md](./SECURITY.md)。
 
 ```bash
