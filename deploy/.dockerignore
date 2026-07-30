@@ -1,0 +1,16 @@
+.env
+.env.*
+*.pyc
+__pycache__/
+.git/
+.gitignore
+.github/
+*.md
+*.pem
+*.key
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+*.log
