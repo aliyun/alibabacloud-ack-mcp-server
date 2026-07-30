@@ -644,6 +644,12 @@ class KubectlHandler:
                 "stdout": e.stdout.strip() if e.stdout else "",
                 "stderr": e.stderr.strip() if e.stderr else str(e),
             }
+        except ValueError:
+            return {
+                "exit_code": 1,
+                "stdout": "",
+                "stderr": "Invalid command syntax (unbalanced quotes or malformed input)",
+            }
         except FileNotFoundError:
             execution_log.api_calls.append({
                 "api": "KubectlCommand",
