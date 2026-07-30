@@ -888,9 +888,9 @@ class ACKAutoscalingHandler:
             kubeconfig_path = validate_kubeconfig_path(kubeconfig_path)
 
             args = [
-                "kubectl", "--kubeconfig", kubeconfig_path,
-                "get", workload_type, workload_name, "-n", namespace, "-o", "json",
+                "kubectl", "get", workload_type, workload_name, "-n", namespace, "-o", "json",
             ]
+            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
 
             cmd_start = int(time.time() * 1000)
             result = subprocess.run(
@@ -898,7 +898,8 @@ class ACKAutoscalingHandler:
                 shell=False,
                 capture_output=True,
                 text=True,
-                timeout=self.kubectl_timeout
+                timeout=self.kubectl_timeout,
+                env=env
             )
             cmd_duration = int(time.time() * 1000) - cmd_start
 
