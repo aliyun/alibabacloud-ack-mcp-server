@@ -80,36 +80,6 @@ def _is_interactive_flag(token: str) -> bool:
     return False
 
 
-def _is_write_command(command: str) -> tuple[bool, str | None]:
-    try:
-        tokens = shlex.split(command.strip())
-    except ValueError:
-        return True, "Invalid command syntax"
-    if not tokens:
-        return True, "Empty command not allowed"
-    main_command = tokens[0]
-    if main_command not in _READONLY_COMMANDS:
-        return True, f"Write command '{main_command}' not allowed in read-only mode. Only read-only commands are permitted: {', '.join(sorted(_READONLY_COMMANDS))}"
-    return False, None
-
-
-def _is_interactive_command(command: str) -> tuple[bool, str | None]:
-    try:
-        tokens = shlex.split(command.strip())
-    except ValueError:
-        return True, "Invalid command syntax"
-    if not tokens:
-        return False, None
-    if tokens[0] == "port-forward":
-        return True, "interactive mode not supported for kubectl port-forward, please use service types like NodePort or LoadBalancer"
-    if tokens[0] == "edit":
-        return True, "interactive mode not supported for kubectl edit, please use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply'"
-    has_interactive = any(_is_interactive_flag(t) for t in tokens)
-    if has_interactive:
-        return True, "interactive mode not supported (commands with -it/-i/-t/--stdin/--tty flags), please use non-interactive commands"
-    return False, None
-
-
 class KubectlRunner:
     def __init__(self, kubeconfig_path: str, timeout: int = 30, allow_write: bool = False):
         self._env = {**os.environ, "KUBECONFIG": kubeconfig_path}
@@ -604,12 +574,6 @@ class KubectlHandler:
                 logger.warning("cs_client not available in lifespan context")
         except Exception as e:
             logger.error(f"Failed to setup CS client: {e}")
-
-    def is_write_command(self, command: str) -> tuple[bool, Optional[str]]:
-        return _is_write_command(command)
-
-    def is_interactive_command(self, command: str) -> tuple[bool, Optional[str]]:
-        return _is_interactive_command(command)
 
     def run_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
         try:

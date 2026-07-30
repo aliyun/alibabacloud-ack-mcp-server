@@ -61,10 +61,9 @@ class TransportSecurityMiddleware(Middleware):
         # Check wildcard port patterns
         for allowed in self.settings.allowed_origins:
             if allowed.endswith(":*"):
-                # Extract base origin from pattern
                 base_origin = allowed[:-2]
-                # Check if the actual origin starts with base origin and has a port
-                if origin.startswith(base_origin + ":"):
+                scheme_host, _, port_part = origin.rpartition(":")
+                if scheme_host == base_origin and port_part.isdigit():
                     return True
 
         logger.warning(f"Invalid Origin header: {origin}")

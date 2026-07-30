@@ -14,9 +14,6 @@ WORKDIR /app
 # Copy dependency definition files
 COPY requirements.txt pyproject.toml ./
 
-# Copy the application source code
-COPY src/ ./src/
-
 # Install dependencies using requirements.txt
 # This leverages Docker's layer caching, so dependencies are only re-installed
 # if the requirements.txt changes.

@@ -2,7 +2,6 @@
 
 import json
 import math
-import subprocess
 import time
 from dataclasses import dataclass
 from datetime import datetime
@@ -340,29 +339,9 @@ class ACKAutoscalingHandler:
                 message=message,
             )
 
-        except subprocess.TimeoutExpired:
-            execution_log.warnings.append(
-                "Precheck: timeout while querying workload via kubectl"
-            )
-            return WorkloadPrecheckResult(
-                stable_for_hpa=False,
-                replicas=0,
-                ready_replicas=0,
-                ready_ratio=0.0,
-            )
         except json.JSONDecodeError as e:
             execution_log.warnings.append(
                 f"Precheck: failed to parse workload JSON: {str(e)}"
-            )
-            return WorkloadPrecheckResult(
-                stable_for_hpa=False,
-                replicas=0,
-                ready_replicas=0,
-                ready_ratio=0.0,
-            )
-        except FileNotFoundError:
-            execution_log.warnings.append(
-                "Precheck: kubectl is not installed or not found in PATH"
             )
             return WorkloadPrecheckResult(
                 stable_for_hpa=False,
@@ -933,14 +912,8 @@ class ACKAutoscalingHandler:
             execution_log.warnings.append(f"No request value configured for {resource_type} in workload")
             return None
 
-        except subprocess.TimeoutExpired:
-            execution_log.warnings.append(f"Timeout while querying {resource_type} via kubectl")
-            return None
         except json.JSONDecodeError as e:
             execution_log.warnings.append(f"Failed to parse workload JSON for {resource_type}: {str(e)}")
-            return None
-        except FileNotFoundError:
-            execution_log.warnings.append(f"kubectl is not installed or not found in PATH")
             return None
         except Exception as e:
             execution_log.warnings.append(f"Failed to retrieve pod request for {resource_type}: {str(e)}")
