@@ -34,6 +34,7 @@ class KubectlContextManager(TTLCache):
         # 使用 .kube 目录存储 kubeconfig 文件
         self._kube_dir = os.path.expanduser("~/.kube")
         os.makedirs(self._kube_dir, exist_ok=True)
+        os.chmod(self._kube_dir, 0o700)
 
         self._setup_cleanup_handlers()
 
