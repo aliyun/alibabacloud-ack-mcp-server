@@ -80,21 +80,6 @@ def _is_interactive_flag(token: str) -> bool:
     return False
 
 
-def _check_forbidden_flags(command: str) -> tuple[bool, str | None]:
-    try:
-        tokens = shlex.split(command.strip())
-    except ValueError:
-        return True, "Invalid command syntax"
-    if not tokens:
-        return False, None
-    if ';' in command or '|' in command or '&' in command:
-        return True, "Command chaining not allowed"
-    forbidden_flags = [t for t in tokens if _is_forbidden_flag(t)]
-    if forbidden_flags:
-        return True, f"Forbidden flag(s) not allowed: {', '.join(forbidden_flags)}"
-    return False, None
-
-
 def _is_write_command(command: str) -> tuple[bool, str | None]:
     try:
         tokens = shlex.split(command.strip())
@@ -105,22 +90,6 @@ def _is_write_command(command: str) -> tuple[bool, str | None]:
     main_command = tokens[0]
     if main_command not in _READONLY_COMMANDS:
         return True, f"Write command '{main_command}' not allowed in read-only mode. Only read-only commands are permitted: {', '.join(sorted(_READONLY_COMMANDS))}"
-    return False, None
-
-
-def _is_streaming_command(command: str) -> tuple[bool, str | None]:
-    try:
-        tokens = shlex.split(command.strip())
-    except ValueError:
-        return False, None
-    if not tokens:
-        return False, None
-    if tokens[0] == "get" and any(t == "-w" or t == "--watch" or t.startswith("-w=") or t.startswith("--watch=") for t in tokens):
-        return True, "watch"
-    if tokens[0] == "logs" and ("-f" in tokens or "--follow" in tokens):
-        return True, "logs"
-    if tokens[0] == "attach":
-        return True, "attach"
     return False, None
 
 
@@ -647,12 +616,15 @@ class KubectlHandler:
             tokens = shlex.split(command.strip())
         except ValueError:
             return {"exit_code": 1, "stdout": "", "stderr": "Invalid command syntax (unbalanced quotes or malformed input)"}
+        cmd_start = int(time.time() * 1000)
         kubectl = KubectlRunner(kubeconfig_path, timeout, self.allow_write)
         result = kubectl.run(*tokens)
+        cmd_duration = int(time.time() * 1000) - cmd_start
         execution_log.api_calls.append({
             "api": "KubectlCommand",
             "command": command,
             "type": "normal",
+            "duration_ms": cmd_duration,
             "exit_code": result["exit_code"],
             "status": "success" if result["exit_code"] == 0 else "failed",
             "timeout": timeout

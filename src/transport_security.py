@@ -84,7 +84,8 @@ class TransportSecurityMiddleware(Middleware):
         for allowed in self.settings.allowed_hosts:
             if allowed.endswith(":*"):
                 base = allowed[:-2]
-                if host.startswith(base + ":"):
+                host_part, _, port_part = host.partition(":")
+                if host_part == base and port_part.isdigit():
                     return True
         logger.warning(f"Invalid Host header: {host}")
         return False
