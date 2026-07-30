@@ -299,7 +299,26 @@ def main():
             access_key_secret = access_key_secret or creds.get("access_key_secret")
         except Exception as e:
             logger.error(f"Failed to read access key file {args.access_key_file}: {e}")
-            sys.exit(1)
+sys.exit(1)
+
+    if args.port < 1 or args.port > 65535:
+        logger.error(f"Invalid port: {args.port}. Must be between 1 and 65535.")
+        sys.exit(1)
+
+    kubectl_timeout = int(os.getenv("KUBECTL_TIMEOUT", "30"))
+    if kubectl_timeout < 5:
+        logger.warning(f"KUBECTL_TIMEOUT={kubectl_timeout} is too low, using minimum value of 5")
+        kubectl_timeout = 5
+
+    cache_ttl = int(os.getenv("CACHE_TTL", "300"))
+    if cache_ttl < 60:
+        logger.warning(f"CACHE_TTL={cache_ttl} is too low, using minimum value of 60")
+        cache_ttl = 60
+
+    cache_max_size = int(os.getenv("CACHE_MAX_SIZE", "1000"))
+    if cache_max_size < 1:
+        logger.warning(f"CACHE_MAX_SIZE={cache_max_size} is too low, using minimum value of 1")
+        cache_max_size = 1
     
     # Configure logging
     logger.remove()
@@ -326,15 +345,15 @@ def main():
         "audit_config_dict": None,
         
         # 额外的环境配置
-        "cache_ttl": int(os.getenv("CACHE_TTL", "300")),
-        "cache_max_size": int(os.getenv("CACHE_MAX_SIZE", "1000")),
+        "cache_ttl": cache_ttl,
+        "cache_max_size": cache_max_size,
         "fastmcp_log_level": os.getenv("FASTMCP_LOG_LEVEL", "INFO"),
         "development": os.getenv("DEVELOPMENT", "false").lower() == "true",
         
         # 超时配置
         "diagnose_timeout": int(os.getenv("DIAGNOSE_TIMEOUT", "600")),  # 诊断超时时间（秒）
         "diagnose_poll_interval": int(os.getenv("DIAGNOSE_POLL_INTERVAL", "15")),  # 诊断轮询间隔（秒）
-        "kubectl_timeout": int(os.getenv("KUBECTL_TIMEOUT", "30")),  # kubectl命令超时（秒）
+        "kubectl_timeout": kubectl_timeout,  # kubectl命令超时（秒）
         "api_timeout": int(os.getenv("API_TIMEOUT", "60")),  # API调用超时（秒）
         
         # 兼容性配置
