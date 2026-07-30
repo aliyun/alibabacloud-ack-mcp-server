@@ -63,10 +63,10 @@ def validate_kubeconfig_path(path: str) -> str:
     if any(c in _SHELL_METACHARS for c in path):
         raise ValueError(f"Unsafe characters in kubeconfig path: {path}")
     resolved = os.path.abspath(os.path.expanduser(path))
-    norm = os.path.normpath(path)
+    norm = os.path.normpath(resolved)
     if '..' in norm.split(os.sep):
         raise ValueError(f"Path traversal detected in kubeconfig path: {path}")
-    return path
+    return resolved
 
 
 def validate_workload_type(workload_type: str) -> str:
