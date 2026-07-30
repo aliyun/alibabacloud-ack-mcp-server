@@ -307,6 +307,12 @@ def main():
                 sys.exit(1)
             access_key_id = access_key_id or creds.get("access_key_id")
             access_key_secret = access_key_secret or creds.get("access_key_secret")
+            if not access_key_id and not access_key_secret:
+                logger.error(
+                    f"Access key file {args.access_key_file} does not contain "
+                    f"'access_key_id' or 'access_key_secret'"
+                )
+                sys.exit(1)
         except (OSError, json.JSONDecodeError) as e:
             logger.error(f"Failed to read access key file {args.access_key_file}: {e}")
             sys.exit(1)
