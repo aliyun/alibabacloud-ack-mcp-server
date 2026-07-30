@@ -525,8 +525,11 @@ class KubectlHandler:
                     process.kill()
                     process.wait(timeout=1)
 
-            stdout_thread.join(timeout=1)
-            stderr_thread.join(timeout=1)
+            stdout_thread.join(timeout=5)
+            stderr_thread.join(timeout=5)
+
+            if stdout_thread.is_alive() or stderr_thread.is_alive():
+                execution_log.warnings.append("Streaming output threads did not complete within timeout; output may be truncated")
 
             cmd_duration = int(time.time() * 1000) - cmd_start
             exit_code = process.returncode if process.returncode is not None else -1
