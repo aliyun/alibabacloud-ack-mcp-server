@@ -1,15 +1,17 @@
-from typing import Any
-from fastmcp import FastMCP, Context
-from pydantic import Field
 import os
+import shlex
 import subprocess
-from typing import Dict, Optional
-from cachetools import TTLCache
-from loguru import logger
-from ack_cluster_handler import parse_master_url
-from models import KubectlOutput, ExecutionLog, enable_execution_log_ctx
 import time
 from datetime import datetime
+from typing import Any, Dict, Optional
+
+from cachetools import TTLCache
+from fastmcp import FastMCP, Context
+from loguru import logger
+from pydantic import Field
+
+from ack_cluster_handler import parse_master_url
+from models import KubectlOutput, ExecutionLog, enable_execution_log_ctx
 
 class KubectlContextManager(TTLCache):
     """基于 TTL+LRU 缓存的 kubeconfig 文件管理器"""
@@ -635,20 +637,20 @@ class KubectlHandler:
     def run_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
         """Run a kubectl command and return structured result."""
         try:
-            full_command = f"kubectl --kubeconfig {kubeconfig_path} {command}"
-            
+            tokens = shlex.split(command.strip())
+            args = ["kubectl", "--kubeconfig", kubeconfig_path] + tokens
+
             cmd_start = int(time.time() * 1000)
             result = subprocess.run(
-                full_command,
-                shell=True,
+                args,
+                shell=False,
                 capture_output=True,
                 text=True,
                 check=True,
                 timeout=timeout
             )
             cmd_duration = int(time.time() * 1000) - cmd_start
-            
-            # Log kubectl execution
+
             execution_log.api_calls.append({
                 "api": "KubectlCommand",
                 "command": command,
@@ -658,7 +660,7 @@ class KubectlHandler:
                 "status": "success",
                 "timeout": timeout
             })
-            
+
             return {
                 "exit_code": result.returncode,
                 "stdout": result.stdout.strip() if result.stdout else "",
