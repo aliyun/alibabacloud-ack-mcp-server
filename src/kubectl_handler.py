@@ -155,7 +155,8 @@ class KubectlContextManager(TTLCache):
         # 确保目录存在
         os.makedirs(os.path.dirname(kubeconfig_path), exist_ok=True)
 
-        with open(kubeconfig_path, 'w') as f:
+        fd = os.open(kubeconfig_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w') as f:
             f.write(kubeconfig_content)
 
         # 添加到缓存
