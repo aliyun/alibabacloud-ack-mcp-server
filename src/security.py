@@ -85,7 +85,11 @@ def _is_forbidden_flag(token: str) -> bool:
 
 
 def _is_interactive_flag(token: str) -> bool:
-    return token in _INTERACTIVE_FLAGS
+    if token in _INTERACTIVE_FLAGS:
+        return True
+    if token.startswith('-') and not token.startswith('--') and 'i' in token and 't' in token:
+        return True
+    return False
 
 
 def is_write_command(command: str) -> tuple[bool, str | None]:
