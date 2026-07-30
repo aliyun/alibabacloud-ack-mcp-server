@@ -69,6 +69,25 @@ class TransportSecurityMiddleware(Middleware):
         logger.warning(f"Invalid Origin header: {origin}")
         return False
 
+    def _validate_host(self, host: str | None) -> bool:
+        """Validate the Host header against allowed values."""
+        if not host:
+            if self.settings.allowed_hosts:
+                logger.warning("Missing Host header when allowed_hosts is configured")
+                return False
+            return True
+        if not self.settings.allowed_hosts:
+            return True
+        if host in self.settings.allowed_hosts:
+            return True
+        for allowed in self.settings.allowed_hosts:
+            if allowed.endswith(":*"):
+                base = allowed[:-2]
+                if host.startswith(base + ":"):
+                    return True
+        logger.warning(f"Invalid Host header: {host}")
+        return False
+
     async def validate_request(self, request: Request) -> str | None:
         """Validate request headers for DNS rebinding protection.
 
@@ -82,6 +101,11 @@ class TransportSecurityMiddleware(Middleware):
         origin = request.headers.get("origin")
         if not self._validate_origin(origin):
             return "Invalid Origin header"
+
+        # Validate Host header
+        host = request.headers.get("host")
+        if not self._validate_host(host):
+            return "Invalid Host header"
 
         return None
 
