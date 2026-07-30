@@ -477,6 +477,13 @@ class KubectlHandler:
         try:
             tokens = shlex.split(command.strip())
         except ValueError:
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "streaming",
+                "status": "failed",
+                "error": "Invalid command syntax"
+            })
             return {
                 "exit_code": 1,
                 "stdout": "",
