@@ -349,7 +349,8 @@ class KubectlContextManager(TTLCache):
             raise ValueError("unable to load in-cluster configuration, KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT must be defined")
         
         kubeconfig_path = os.path.join(self._kube_dir, "config.incluster")
-        with open(kubeconfig_path, 'w') as f:
+        fd = os.open(kubeconfig_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, 'w') as f:
             f.write(f"""apiVersion: v1
 clusters:
 - cluster:
@@ -553,6 +554,13 @@ class KubectlHandler:
             }
 
         except FileNotFoundError:
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "streaming",
+                "status": "failed",
+                "error": "kubectl not found"
+            })
             return {
                 "exit_code": 127,
                 "stdout": "",
@@ -636,12 +644,26 @@ class KubectlHandler:
                 "stderr": e.stderr.strip() if e.stderr else str(e),
             }
         except FileNotFoundError:
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "normal",
+                "status": "failed",
+                "error": "kubectl not found"
+            })
             return {
                 "exit_code": 127,
                 "stdout": "",
                 "stderr": "kubectl is not installed or not found in PATH",
             }
         except OSError as e:
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "normal",
+                "status": "failed",
+                "error": str(e)
+            })
             return {
                 "exit_code": 1,
                 "stdout": "",
