@@ -40,6 +40,8 @@ _INTERACTIVE_FLAGS = frozenset({'-i', '-t', '--stdin', '--tty'})
 
 _WORKLOAD_TYPES = frozenset({'deployment', 'statefulset', 'daemonset', 'replicaset'})
 
+_FORBIDDEN_FLAGS_NORMALIZED = frozenset(f.lstrip('-') for f in _FORBIDDEN_KUBECTL_FLAGS)
+
 
 def validate_kubernetes_name(name: str, context: str = "resource") -> str:
     if not name or not _K8S_NAME_RE.match(name):
@@ -77,8 +79,8 @@ def validate_workload_type(workload_type: str) -> str:
 def _is_forbidden_flag(token: str) -> bool:
     if not token.startswith('-'):
         return False
-    normalized = token.lstrip('-')
-    return normalized in {f.lstrip('-') for f in _FORBIDDEN_KUBECTL_FLAGS}
+    normalized = token.lstrip('-').split('=', 1)[0]
+    return normalized in _FORBIDDEN_FLAGS_NORMALIZED
 
 
 def _is_interactive_flag(token: str) -> bool:
