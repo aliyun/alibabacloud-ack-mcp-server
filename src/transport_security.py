@@ -53,6 +53,9 @@ class TransportSecurityMiddleware(Middleware):
                 return False
             return True
 
+        if not self.settings.allowed_origins:
+            return True
+
         # Check exact match first
         if origin in self.settings.allowed_origins:
             return True
