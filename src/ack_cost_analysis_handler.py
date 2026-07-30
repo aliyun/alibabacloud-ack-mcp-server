@@ -1,20 +1,28 @@
 """ACK Cost Analysis Handler - Alibaba Cloud Container Service Cost Analysis."""
 
-from typing import Dict, Any, Optional
+import json
+import math
+import re
+import shlex
+import subprocess
+import time
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 from fastmcp import FastMCP, Context
 from loguru import logger
 from pydantic import Field
-import subprocess
-import json
-import re
-import math
-import time
-from datetime import datetime
+
 from models import (
     WorkloadCostOutput,
     ErrorModel,
     ExecutionLog,
     enable_execution_log_ctx,
+)
+from security import (
+    validate_kubernetes_name,
+    validate_shell_safe_param,
+    validate_workload_type,
 )
 
 
@@ -183,7 +191,12 @@ class ACKCostAnalysisHandler:
         """根据瞬时水位分析稳定性和效率：kubectl top + request/limit"""
         try:
             from kubectl_handler import get_context_manager
-            
+
+            validate_kubernetes_name(namespace, "namespace")
+            validate_workload_type(workload_type)
+            validate_kubernetes_name(workload_name, "workload_name")
+            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
+
             # 设置 CS client
             cs_client = _get_cs_client(ctx, "CENTER")
             context_manager = get_context_manager()
@@ -199,8 +212,8 @@ class ACKCostAnalysisHandler:
             
             # 获取 workload spec（request/limit）
             logger.debug(f"Fetching workload spec for {workload_type}/{workload_name}")
-            cmd_spec = f"kubectl --kubeconfig {kubeconfig_path} get {workload_type} {workload_name} -n {namespace} -o json"
-            result_spec = subprocess.run(cmd_spec, shell=True, capture_output=True, text=True, timeout=30)
+            args_spec = ["kubectl", "--kubeconfig", kubeconfig_path, "get", workload_type, workload_name, "-n", namespace, "-o", "json"]
+            result_spec = subprocess.run(args_spec, shell=False, capture_output=True, text=True, timeout=30)
             
             if result_spec.returncode != 0:
                 raise ValueError(f"Failed to get workload spec: {result_spec.stderr}")
@@ -252,12 +265,13 @@ class ACKCostAnalysisHandler:
             label_selector = ",".join([f"{k}={v}" for k, v in pod_selector_labels.items()]) if pod_selector_labels else ""
             
             if label_selector:
-                cmd_pods = f"kubectl --kubeconfig {kubeconfig_path} get pods -n {namespace} -l '{label_selector}' -o json"
+                validate_shell_safe_param(label_selector, "label_selector")
+                args_pods = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "pods", "-n", namespace, "-l", label_selector, "-o", "json"]
             else:
                 # 如果没有 selector，通过 owner reference 查找
-                cmd_pods = f"kubectl --kubeconfig {kubeconfig_path} get pods -n {namespace} -o json"
+                args_pods = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "pods", "-n", namespace, "-o", "json"]
             
-            result_pods = subprocess.run(cmd_pods, shell=True, capture_output=True, text=True, timeout=30)
+            result_pods = subprocess.run(args_pods, shell=False, capture_output=True, text=True, timeout=30)
             
             if result_pods.returncode != 0:
                 logger.warning(f"Failed to get pods: {result_pods.stderr}")
@@ -292,11 +306,11 @@ class ACKCostAnalysisHandler:
                 
                 # 批量获取 top 数据
                 if label_selector:
-                    cmd_top = f"kubectl --kubeconfig {kubeconfig_path} top pods -n {namespace} -l '{label_selector}' --no-headers"
+                    args_top = ["kubectl", "--kubeconfig", kubeconfig_path, "top", "pods", "-n", namespace, "-l", label_selector, "--no-headers"]
                 else:
-                    cmd_top = f"kubectl --kubeconfig {kubeconfig_path} top pods -n {namespace} --no-headers"
+                    args_top = ["kubectl", "--kubeconfig", kubeconfig_path, "top", "pods", "-n", namespace, "--no-headers"]
                 
-                result_top = subprocess.run(cmd_top, shell=True, capture_output=True, text=True, timeout=30)
+                result_top = subprocess.run(args_top, shell=False, capture_output=True, text=True, timeout=30)
                 
                 if result_top.returncode == 0 and result_top.stdout:
                     # 格式（无 header）：POD_NAME   CPU(cores)   MEMORY(bytes)
@@ -392,7 +406,12 @@ class ACKCostAnalysisHandler:
         """获取资源画像推荐配置"""
         try:
             from kubectl_handler import get_context_manager
-            
+
+            validate_kubernetes_name(namespace, "namespace")
+            validate_workload_type(workload_type)
+            validate_kubernetes_name(workload_name, "workload_name")
+            validate_shell_safe_param(kubeconfig_path, "kubeconfig_path")
+
             # 设置 CS client
             cs_client = _get_cs_client(ctx, "CENTER")
             context_manager = get_context_manager()
@@ -420,8 +439,9 @@ class ACKCostAnalysisHandler:
                 f"alpha.alibabacloud.com/recommendation-workload-kind={workload_kind}"
             )
             
-            cmd = f"kubectl --kubeconfig {kubeconfig_path} get recommendation -n {namespace} -l '{label_selector}' -o json"
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            validate_shell_safe_param(label_selector, "recommendation_label_selector")
+            args = ["kubectl", "--kubeconfig", kubeconfig_path, "get", "recommendation", "-n", namespace, "-l", label_selector, "-o", "json"]
+            result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30)
             
             if result.returncode != 0 or not result.stdout:
                 return None
