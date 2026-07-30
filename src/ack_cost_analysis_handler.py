@@ -381,19 +381,6 @@ class ACKCostAnalysisHandler:
                 "pod_count": pod_count,
                 "top_data_available": top_data_available,
             }
-        except FileNotFoundError:
-            logger.warning("kubectl is not installed or not found in PATH, using defaults")
-            return {
-                "cpu_request": None,
-                "memory_request": None,
-                "cpu_limit": None,
-                "memory_limit": None,
-                "instant_cpu_usage": "N/A",
-                "instant_memory_usage": "N/A",
-                "resource_utilization": {},
-                "pod_count": 0,
-                "top_data_available": False,
-            }
         except Exception as e:
             logger.warning(f"Failed to analyze instant metrics, using defaults: {e}")
             return {
@@ -507,9 +494,6 @@ class ACKCostAnalysisHandler:
                 "containers": containers,
                 "resource_recommendation_status": rec.get("metadata", {}).get("labels", {}).get("alpha.alibabacloud.com/recommendation-status", "")
             }
-        except FileNotFoundError:
-            logger.debug("kubectl is not installed or not found in PATH")
-            return None
         except Exception as e:
             logger.debug(f"No resource recommendation found: {e}")
             return None
