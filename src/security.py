@@ -124,7 +124,7 @@ def is_streaming_command(command: str) -> tuple[bool, str | None]:
     if not tokens:
         return False, None
 
-    if tokens[0] == "get" and "-w" in tokens:
+    if tokens[0] == "get" and any(t == "-w" or t == "--watch" or t.startswith("-w=") or t.startswith("--watch=") for t in tokens):
         return True, "watch"
     if tokens[0] == "logs" and ("-f" in tokens or "--follow" in tokens):
         return True, "logs"
