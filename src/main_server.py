@@ -304,7 +304,7 @@ def main():
                 creds = json.load(f)
             access_key_id = access_key_id or creds.get("access_key_id")
             access_key_secret = access_key_secret or creds.get("access_key_secret")
-        except Exception as e:
+        except (OSError, json.JSONDecodeError) as e:
             logger.error(f"Failed to read access key file {args.access_key_file}: {e}")
             sys.exit(1)
 
