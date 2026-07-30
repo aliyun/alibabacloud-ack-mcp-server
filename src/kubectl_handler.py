@@ -660,6 +660,13 @@ class KubectlHandler:
                 "stderr": e.stderr.strip() if e.stderr else str(e),
             }
         except ValueError:
+            execution_log.api_calls.append({
+                "api": "KubectlCommand",
+                "command": command,
+                "type": "normal",
+                "status": "failed",
+                "error": "Invalid command syntax"
+            })
             return {
                 "exit_code": 1,
                 "stdout": "",
