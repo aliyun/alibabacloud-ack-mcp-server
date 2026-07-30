@@ -476,6 +476,14 @@ class KubectlHandler:
         """运行流式命令，支持超时控制"""
         try:
             tokens = shlex.split(command.strip())
+        except ValueError:
+            return {
+                "exit_code": 1,
+                "stdout": "",
+                "stderr": "Invalid command syntax (unbalanced quotes or malformed input)",
+            }
+
+        try:
             args = ["kubectl", "--kubeconfig", kubeconfig_path, "--"] + tokens
 
             cmd_start = int(time.time() * 1000)
