@@ -463,26 +463,7 @@ class KubectlHandler:
 
 
     def is_interactive_command(self, command: str) -> tuple[bool, Optional[str]]:
-        """检查是否为交互式 kubectl 命令
-
-        Args:
-            command: kubectl 命令字符串
-
-        Returns:
-            (是否为交互式命令, 错误信息)
-        """
-        is_interactive = " -it" in command
-        is_port_forward = "port-forward " in command
-        is_edit = "edit " in command
-
-        if is_interactive:
-            return True, "interactive mode not supported (commands with -it flag), please use non-interactive commands"
-        if is_port_forward:
-            return True, "interactive mode not supported for kubectl port-forward, please use service types like NodePort or LoadBalancer"
-        if is_edit:
-            return True, "interactive mode not supported for kubectl edit, please use 'kubectl get -o yaml', 'kubectl patch', or 'kubectl apply'"
-
-        return False, None
+        return security_is_interactive_command(command)
 
     def is_streaming_command(self, command: str) -> tuple[bool, Optional[str]]:
         """检查是否为流式命令
