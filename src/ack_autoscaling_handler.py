@@ -2,7 +2,6 @@
 
 import json
 import math
-import os
 import subprocess
 import time
 from dataclasses import dataclass
