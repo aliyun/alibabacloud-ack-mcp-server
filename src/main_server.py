@@ -288,8 +288,8 @@ def main():
         )
     sys.argv = [sys.argv[0]]
 
-    access_key_id = args.access_key_id or os.getenv("ACCESS_KEY_ID")
-    access_key_secret = args.access_key_secret or os.getenv("ACCESS_KEY_SECRET")
+    access_key_id = os.getenv("ACCESS_KEY_ID") or args.access_key_id
+    access_key_secret = os.getenv("ACCESS_KEY_SECRET") or args.access_key_secret
 
     if args.access_key_file:
         try:
