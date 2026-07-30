@@ -365,10 +365,10 @@ def main():
         "development": os.getenv("DEVELOPMENT", "false").lower() == "true",
         
         # 超时配置
-        "diagnose_timeout": int(os.getenv("DIAGNOSE_TIMEOUT", "600")),  # 诊断超时时间（秒）
-        "diagnose_poll_interval": int(os.getenv("DIAGNOSE_POLL_INTERVAL", "15")),  # 诊断轮询间隔（秒）
+        "diagnose_timeout": _env_int("DIAGNOSE_TIMEOUT", 600),  # 诊断超时时间（秒）
+        "diagnose_poll_interval": _env_int("DIAGNOSE_POLL_INTERVAL", 15),  # 诊断轮询间隔（秒）
         "kubectl_timeout": kubectl_timeout,  # kubectl命令超时（秒）
-        "api_timeout": int(os.getenv("API_TIMEOUT", "60")),  # API调用超时（秒）
+        "api_timeout": _env_int("API_TIMEOUT", 60),  # API调用超时（秒）
         
         # 兼容性配置
         "access_secret_key": access_key_secret,  # 兼容旧字段名
