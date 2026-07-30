@@ -642,239 +642,22 @@ class KubectlHandler:
     def is_interactive_command(self, command: str) -> tuple[bool, Optional[str]]:
         return _is_interactive_command(command)
 
-    def is_streaming_command(self, command: str) -> tuple[bool, Optional[str]]:
-        return _is_streaming_command(command)
-
-    def run_streaming_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
-        """运行流式命令，支持超时控制"""
-        try:
-            tokens = shlex.split(command.strip())
-        except ValueError:
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "streaming",
-                "status": "failed",
-                "error": "Invalid command syntax"
-            })
-            return {
-                "exit_code": 1,
-                "stdout": "",
-                "stderr": "Invalid command syntax (unbalanced quotes or malformed input)",
-            }
-
-        try:
-            args = ["kubectl"] + tokens
-            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
-
-            cmd_start = int(time.time() * 1000)
-            process = subprocess.Popen(
-                args,
-                shell=False,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True,
-                env=env
-            )
-
-            stdout_lines = []
-            stderr_lines = []
-            process_terminated = False
-
-            def read_stdout():
-                try:
-                    for line in iter(process.stdout.readline, ''):
-                        if line and not process_terminated:
-                            stdout_lines.append(line)
-                except Exception:
-                    pass
-
-            def read_stderr():
-                try:
-                    for line in iter(process.stderr.readline, ''):
-                        if line and not process_terminated:
-                            stderr_lines.append(line)
-                except Exception:
-                    pass
-
-            import threading
-            stdout_thread = threading.Thread(target=read_stdout, daemon=True)
-            stderr_thread = threading.Thread(target=read_stderr, daemon=True)
-
-            stdout_thread.start()
-            stderr_thread.start()
-
-            try:
-                process.wait(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                process_terminated = True
-                process.terminate()
-                try:
-                    process.wait(timeout=2)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait(timeout=1)
-
-            stdout_thread.join(timeout=5)
-            stderr_thread.join(timeout=5)
-
-            if stdout_thread.is_alive() or stderr_thread.is_alive():
-                execution_log.warnings.append("Streaming output threads did not complete within timeout; output may be truncated")
-
-            cmd_duration = int(time.time() * 1000) - cmd_start
-            exit_code = process.returncode if process.returncode is not None else -1
-            if process_terminated:
-                exit_code = 124
-
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "streaming",
-                "duration_ms": cmd_duration,
-                "exit_code": exit_code,
-                "status": "success" if exit_code == 0 else "failed",
-                "timeout": timeout
-            })
-
-            return {
-                "exit_code": exit_code,
-                "stdout": "".join(stdout_lines),
-                "stderr": "".join(stderr_lines)
-            }
-
-        except FileNotFoundError:
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "streaming",
-                "status": "failed",
-                "error": "kubectl not found"
-            })
-            return {
-                "exit_code": 127,
-                "stdout": "",
-                "stderr": "kubectl is not installed or not found in PATH",
-            }
-        except Exception as e:
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "streaming",
-                "status": "failed",
-                "error": str(e)
-            })
-            return {
-                "exit_code": 1,
-                "stdout": "",
-                "stderr": str(e)
-            }
-
     def run_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
-        """Run a kubectl command and return structured result."""
         try:
             tokens = shlex.split(command.strip())
-            args = ["kubectl"] + tokens
-            env = {**os.environ, "KUBECONFIG": kubeconfig_path}
-
-            cmd_start = int(time.time() * 1000)
-            result = subprocess.run(
-                args,
-                shell=False,
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=timeout,
-                env=env
-            )
-            cmd_duration = int(time.time() * 1000) - cmd_start
-
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "normal",
-                "duration_ms": cmd_duration,
-                "exit_code": result.returncode,
-                "status": "success",
-                "timeout": timeout
-            })
-
-            return {
-                "exit_code": result.returncode,
-                "stdout": result.stdout.strip() if result.stdout else "",
-                "stderr": result.stderr.strip() if result.stderr else "",
-            }
-        except subprocess.TimeoutExpired:
-            cmd_duration = int(time.time() * 1000) - cmd_start
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "normal",
-                "duration_ms": cmd_duration,
-                "exit_code": 124,
-                "status": "timeout",
-                "timeout": timeout
-            })
-            return {
-                "exit_code": 124,
-                "stdout": "",
-                "stderr": f"Command timed out after {timeout} seconds",
-            }
-        except subprocess.CalledProcessError as e:
-            cmd_duration = int(time.time() * 1000) - cmd_start
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "normal",
-                "duration_ms": cmd_duration,
-                "exit_code": e.returncode,
-                "status": "failed"
-            })
-            return {
-                "exit_code": e.returncode,
-                "stdout": e.stdout.strip() if e.stdout else "",
-                "stderr": e.stderr.strip() if e.stderr else str(e),
-            }
         except ValueError:
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "normal",
-                "status": "failed",
-                "error": "Invalid command syntax"
-            })
-            return {
-                "exit_code": 1,
-                "stdout": "",
-                "stderr": "Invalid command syntax (unbalanced quotes or malformed input)",
-            }
-        except FileNotFoundError:
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "normal",
-                "status": "failed",
-                "error": "kubectl not found"
-            })
-            return {
-                "exit_code": 127,
-                "stdout": "",
-                "stderr": "kubectl is not installed or not found in PATH",
-            }
-        except OSError as e:
-            execution_log.api_calls.append({
-                "api": "KubectlCommand",
-                "command": command,
-                "type": "normal",
-                "status": "failed",
-                "error": str(e)
-            })
-            return {
-                "exit_code": 1,
-                "stdout": "",
-                "stderr": f"Failed to execute kubectl: {e}",
-            }
+            return {"exit_code": 1, "stdout": "", "stderr": "Invalid command syntax (unbalanced quotes or malformed input)"}
+        kubectl = KubectlRunner(kubeconfig_path, timeout)
+        result = kubectl.run(*tokens)
+        execution_log.api_calls.append({
+            "api": "KubectlCommand",
+            "command": command,
+            "type": "normal",
+            "exit_code": result["exit_code"],
+            "status": "success" if result["exit_code"] == 0 else "failed",
+            "timeout": timeout
+        })
+        return result
 
     def _register_tools(self):
         """Register kubectl tool."""
@@ -958,72 +741,11 @@ assistant: exec my-pod -- /bin/sh -c "your command here"""
                 # 设置CS客户端
                 self._setup_cs_client(ctx)
 
-                is_forbidden, forbidden_error = _check_forbidden_flags(command)
-                if is_forbidden:
-                    execution_log.error = forbidden_error
-                    execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-                    execution_log.duration_ms = int(time.time() * 1000) - start_ms
-                    execution_log.metadata = {
-                        "error_type": "ForbiddenFlag",
-                        "command": command
-                    }
-                    return KubectlOutput(
-                        command=command,
-                        stdout="",
-                        stderr=forbidden_error,
-                        exit_code=1,
-                        execution_log=execution_log
-                    )
-
-                # 检查是否为只读模式
-                if not self.allow_write:
-                    is_write_command, not_allow_write_error = self.is_write_command(command)
-                    if is_write_command:
-                        execution_log.error = not_allow_write_error
-                        execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-                        execution_log.duration_ms = int(time.time() * 1000) - start_ms
-                        execution_log.metadata = {
-                            "error_type": "WriteCommandNotAllowed",
-                            "command": command,
-                            "allow_write": False
-                        }
-                        return KubectlOutput(
-                            command=command,
-                            stdout="",
-                            stderr=not_allow_write_error,
-                            exit_code=1,
-                            execution_log=execution_log
-                        )
-
-                # 检查是否为交互式命令
-                is_interactive, interactive_error = self.is_interactive_command(command)
-                if is_interactive:
-                    execution_log.error = interactive_error
-                    execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-                    execution_log.duration_ms = int(time.time() * 1000) - start_ms
-                    execution_log.metadata = {
-                        "error_type": "InteractiveCommandNotSupported",
-                        "command": command
-                    }
-                    return KubectlOutput(
-                        command=command,
-                        stdout="",
-                        stderr=interactive_error,
-                        exit_code=1,
-                        execution_log=execution_log
-                    )
-
                 # 获取 kubeconfig 文件路径
                 context_manager = get_context_manager()
                 kubeconfig_path = context_manager.get_kubeconfig_path(cluster_id, self.settings.get("kubeconfig_mode"), self.settings.get("kubeconfig_path"), execution_log)
 
-                # 检查是否为流式命令
-                is_streaming, stream_type = self.is_streaming_command(command)
-
-                if is_streaming:
-                    result = self.run_streaming_command(command, kubeconfig_path, self.kubectl_timeout, execution_log)
-                else:
-                    result = self.run_command(command, kubeconfig_path, self.kubectl_timeout, execution_log)
+                result = self.run_command(command, kubeconfig_path, self.kubectl_timeout, execution_log)
 
                 execution_log.end_time = datetime.utcnow().isoformat() + "Z"
                 execution_log.duration_ms = int(time.time() * 1000) - start_ms
