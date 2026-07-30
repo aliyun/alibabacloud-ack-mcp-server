@@ -127,6 +127,20 @@ class DiagnoseHandler:
                     "execution_log": execution_log
                 }
 
+            if not self.allow_write:
+                error_msg = "diagnose_resource creates a cluster diagnosis resource and is not allowed in read-only mode"
+                execution_log.error = error_msg
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "WriteOperationNotAllowed",
+                    "failure_stage": "allow_write_check"
+                }
+                return {
+                    "error": ErrorModel(error_code="WriteOperationNotAllowed", error_message=error_msg).model_dump(),
+                    "execution_log": execution_log
+                }
+
             # 获取 CS 客户端
             cs_client = _get_cs_client(ctx, "CENTER")
 
