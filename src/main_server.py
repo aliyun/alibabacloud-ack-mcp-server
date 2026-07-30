@@ -286,6 +286,7 @@ def main():
             "Use --access-key-file or environment variables (ACCESS_KEY_ID, ACCESS_KEY_SECRET) instead. "
             "CLI credentials are visible in process listings (ps aux)."
         )
+    # NOTE: sys.argv reassignment does not hide credentials from /proc/PID/cmdline on Linux.
     sys.argv = [sys.argv[0]]
 
     access_key_id = os.getenv("ACCESS_KEY_ID")
