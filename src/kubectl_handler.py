@@ -544,12 +544,13 @@ class KubectlHandler:
     def run_streaming_command(self, command: str, kubeconfig_path: str, timeout: int, execution_log: ExecutionLog) -> Dict[str, Any]:
         """运行流式命令，支持超时控制"""
         try:
-            full_command = f"kubectl --kubeconfig {kubeconfig_path} {command}"
-            
+            tokens = shlex.split(command.strip())
+            args = ["kubectl", "--kubeconfig", kubeconfig_path] + tokens
+
             cmd_start = int(time.time() * 1000)
             process = subprocess.Popen(
-                full_command,
-                shell=True,
+                args,
+                shell=False,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
