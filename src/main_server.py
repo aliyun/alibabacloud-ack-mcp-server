@@ -305,17 +305,24 @@ def main():
         logger.error(f"Invalid port: {args.port}. Must be between 1 and 65535.")
         sys.exit(1)
 
-    kubectl_timeout = int(os.getenv("KUBECTL_TIMEOUT", "30"))
+    def _env_int(name: str, default: int) -> int:
+        try:
+            return int(os.getenv(name, str(default)))
+        except ValueError:
+            logger.warning(f"{name} is not a valid integer, using default of {default}")
+            return default
+
+    kubectl_timeout = _env_int("KUBECTL_TIMEOUT", 30)
     if kubectl_timeout < 5:
         logger.warning(f"KUBECTL_TIMEOUT={kubectl_timeout} is too low, using minimum value of 5")
         kubectl_timeout = 5
 
-    cache_ttl = int(os.getenv("CACHE_TTL", "300"))
+    cache_ttl = _env_int("CACHE_TTL", 300)
     if cache_ttl < 60:
         logger.warning(f"CACHE_TTL={cache_ttl} is too low, using minimum value of 60")
         cache_ttl = 60
 
-    cache_max_size = int(os.getenv("CACHE_MAX_SIZE", "1000"))
+    cache_max_size = _env_int("CACHE_MAX_SIZE", 1000)
     if cache_max_size < 1:
         logger.warning(f"CACHE_MAX_SIZE={cache_max_size} is too low, using minimum value of 1")
         cache_max_size = 1
