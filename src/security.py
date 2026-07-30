@@ -34,6 +34,7 @@ _FORBIDDEN_KUBECTL_FLAGS = frozenset({
     '--cluster',
     '--context',
     '--insecure-skip-tls-verify',
+    '--raw',
 })
 
 _INTERACTIVE_FLAGS = frozenset({'-i', '-t', '--stdin', '--tty'})
