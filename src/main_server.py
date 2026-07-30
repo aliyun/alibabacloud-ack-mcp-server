@@ -308,8 +308,16 @@ def main():
             if not isinstance(creds, dict):
                 logger.error(f"Access key file {args.access_key_file} must contain a JSON object")
                 sys.exit(1)
-            access_key_id = access_key_id or creds.get("access_key_id")
-            access_key_secret = access_key_secret or creds.get("access_key_secret")
+            file_ak = creds.get("access_key_id")
+            file_sk = creds.get("access_key_secret")
+            if file_ak is not None and not isinstance(file_ak, str):
+                logger.error(f"Access key file {args.access_key_file}: 'access_key_id' must be a string")
+                sys.exit(1)
+            if file_sk is not None and not isinstance(file_sk, str):
+                logger.error(f"Access key file {args.access_key_file}: 'access_key_secret' must be a string")
+                sys.exit(1)
+            access_key_id = access_key_id or file_ak
+            access_key_secret = access_key_secret or file_sk
             if not access_key_id and not access_key_secret:
                 logger.error(
                     f"Access key file {args.access_key_file} does not contain "
