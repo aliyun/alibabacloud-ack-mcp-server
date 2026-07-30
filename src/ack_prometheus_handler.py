@@ -256,22 +256,15 @@ class PrometheusHandler:
         )
         
         try:
-            if not promql or not promql.strip():
+            promql = (promql or "").strip()
+            if not promql:
                 error_msg = "promql parameter is required and cannot be empty"
-                execution_log.error = error_msg
-                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
-                execution_log.duration_ms = int(time.time() * 1000) - start_ms
-                execution_log.metadata = {
-                    "error_type": "InvalidPromQL",
-                    "failure_stage": "validate_promql"
-                }
-                return {
-                    "error": ErrorModel(error_code="InvalidPromQL", error_message=error_msg).model_dump(),
-                    "execution_log": execution_log
-                }
-            promql = promql.strip()
-            if len(promql) > 10000:
+            elif len(promql) > 10000:
                 error_msg = "promql parameter exceeds maximum length of 10000 characters"
+            else:
+                error_msg = None
+
+            if error_msg:
                 execution_log.error = error_msg
                 execution_log.end_time = datetime.utcnow().isoformat() + "Z"
                 execution_log.duration_ms = int(time.time() * 1000) - start_ms
