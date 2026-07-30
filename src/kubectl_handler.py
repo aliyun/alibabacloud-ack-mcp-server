@@ -12,7 +12,7 @@ from pydantic import Field
 
 from ack_cluster_handler import parse_master_url
 from models import KubectlOutput, ExecutionLog, enable_execution_log_ctx
-from security import validate_kubernetes_name
+from security import validate_kubernetes_name, is_write_command as security_is_write_command, is_streaming_command as security_is_streaming_command, is_interactive_command as security_is_interactive_command
 
 _CLUSTER_ID_PATTERN = re.compile(r"^c[a-z0-9]{32}$")
 
@@ -457,45 +457,7 @@ class KubectlHandler:
             logger.error(f"Failed to setup CS client: {e}")
 
     def is_write_command(self, command: str) -> tuple[bool, Optional[str]]:
-        """检查是否为可写命令
-        所有kubectl command operations: https://kubernetes.io/docs/reference/kubectl/
-
-        Args:
-            command: kubectl 命令字符串
-
-        Returns:
-            (是否为可写命令, 错误信息)
-        """
-        # 定义只读命令列表
-        readonly_commands = {
-            "api-resources",
-            "api-versions", 
-            "cluster-info",
-            "describe",
-            "diff",
-            "events",
-            "explain",
-            "get",
-            "kustomize",
-            "logs",
-            "options",
-            "top",
-            "version"
-        }
-        
-        # 提取命令的第一个参数（主命令）
-        command_parts = command.strip().split()
-        if not command_parts:
-            return True, "Empty command not allowed"
-            
-        main_command = command_parts[0]
-        
-        # 检查是否为只读命令
-        if main_command in readonly_commands:
-            return False, None
-        
-        # 所有其他命令都视为写命令
-        return True, f"Write command '{main_command}' not allowed in read-only mode. Only read-only commands are permitted: {', '.join(sorted(readonly_commands))}"
+        return security_is_write_command(command)
 
 
 
