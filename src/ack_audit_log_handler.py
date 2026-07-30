@@ -25,6 +25,7 @@ except ImportError:
         ExecutionLog,
         enable_execution_log_ctx
     )
+from security import escape_sls_query_value
 
 
 def _get_sls_client(ctx: Context, region_id: str):
@@ -748,21 +749,21 @@ class ACKAuditLogHandler:
         query = "*"
 
         if params.get("user") and params["user"] != "*":
-            query += f" and user.username: {params['user']}"
+            query += f" and user.username: {escape_sls_query_value(params['user'])}"
 
         if params.get("namespace") and params["namespace"] != "*":
-            query += f" and objectRef.namespace: {params['namespace']}"
+            query += f" and objectRef.namespace: {escape_sls_query_value(params['namespace'])}"
 
         if params.get("verbs") and len(params["verbs"]) > 0:
-            verbs = [f"verb: \"{verb}\"" for verb in params["verbs"]]
+            verbs = [f"verb: {escape_sls_query_value(verb)}" for verb in params["verbs"]]
             query += f" and ({' or '.join(verbs)})"
 
         if params.get("resource_types") and len(params["resource_types"]) > 0:
-            resource_types = [f"objectRef.resource: \"{rt}\"" for rt in params["resource_types"]]
+            resource_types = [f"objectRef.resource: {escape_sls_query_value(rt)}" for rt in params["resource_types"]]
             query += f" and ({' or '.join(resource_types)})"
 
         if params.get("resource_name") and params["resource_name"] != "*":
-            query += f" and objectRef.name: {params['resource_name']}"
+            query += f" and objectRef.name: {escape_sls_query_value(params['resource_name'])}"
 
         return query
 
