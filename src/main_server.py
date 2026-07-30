@@ -204,8 +204,8 @@ def main():
     parser.add_argument(
         "--host",
         type=str,
-        default="localhost",
-        help="Host for SSE transport (default: localhost)"
+        default="127.0.0.1",
+        help="Host for SSE transport (default: 127.0.0.1)"
     )
     parser.add_argument(
         "--port",
