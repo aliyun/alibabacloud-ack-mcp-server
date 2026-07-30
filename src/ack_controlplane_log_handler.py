@@ -19,7 +19,7 @@ from models import (
     ExecutionLog,
     enable_execution_log_ctx
 )
-from security import escape_sls_query_value
+from ack_audit_log_handler import escape_sls_query_value
 
 
 def _get_sls_client(ctx: Context, region_id: str):

@@ -25,7 +25,11 @@ except ImportError:
         ExecutionLog,
         enable_execution_log_ctx
     )
-from security import escape_sls_query_value
+
+
+def escape_sls_query_value(value: str) -> str:
+    escaped = value.replace('\\', '\\\\').replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 def _get_sls_client(ctx: Context, region_id: str):
