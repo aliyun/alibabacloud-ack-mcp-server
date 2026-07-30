@@ -375,7 +375,7 @@ def main():
         
         # 兼容性配置
         "access_secret_key": access_key_secret,  # 兼容旧字段名
-        "original_settings": Configs(vars(args)),
+        "original_settings": Configs({k: v for k, v in vars(args).items() if k not in ("access_key_id", "access_key_secret")}),
 
         # ACK kubectl 配置
         "kubeconfig_mode": args.kubeconfig_mode or os.getenv("KUBECONFIG_MODE", "ACK_PUBLIC"),
