@@ -256,6 +256,34 @@ class PrometheusHandler:
         )
         
         try:
+            if not promql or not promql.strip():
+                error_msg = "promql parameter is required and cannot be empty"
+                execution_log.error = error_msg
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "InvalidPromQL",
+                    "failure_stage": "validate_promql"
+                }
+                return {
+                    "error": ErrorModel(error_code="InvalidPromQL", error_message=error_msg).model_dump(),
+                    "execution_log": execution_log
+                }
+            promql = promql.strip()
+            if len(promql) > 10000:
+                error_msg = "promql parameter exceeds maximum length of 10000 characters"
+                execution_log.error = error_msg
+                execution_log.end_time = datetime.utcnow().isoformat() + "Z"
+                execution_log.duration_ms = int(time.time() * 1000) - start_ms
+                execution_log.metadata = {
+                    "error_type": "InvalidPromQL",
+                    "failure_stage": "validate_promql"
+                }
+                return {
+                    "error": ErrorModel(error_code="InvalidPromQL", error_message=error_msg).model_dump(),
+                    "execution_log": execution_log
+                }
+
             endpoint = self._resolve_prometheus_endpoint(ctx, cluster_id, execution_log)
             if not endpoint:
                 error_msg = "无法获取 Prometheus HTTP API，请确定此集群是否已经正常部署阿里云Prometheus 或 环境变量 PROMETHEUS_HTTP_API[_<cluster_id>]"
