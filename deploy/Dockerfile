@@ -15,7 +15,7 @@ WORKDIR /app
 COPY requirements.txt pyproject.toml ./
 
 # Copy the application source code
-COPY ./* ./
+COPY src/ ./src/
 
 # Install dependencies using requirements.txt
 # This leverages Docker's layer caching, so dependencies are only re-installed
@@ -34,7 +34,7 @@ ARG TARGETARCH
 # Set working directory
 WORKDIR /app
 # Copy the application source code
-COPY ./* ./
+COPY src/ ./src/
 
 # Copy installed dependencies from the builder stage
 COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
