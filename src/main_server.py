@@ -403,8 +403,14 @@ def main():
         
         # Prometheus 配置
         "prometheus_endpoint_mode": args.prometheus_endpoint_mode or os.getenv("PROMETHEUS_ENDPOINT_MODE", "ARMS_PUBLIC"),
-    }
-    
+}
+
+    if args.transport in ("http", "sse") and args.host not in ("127.0.0.1", "localhost", "::1"):
+        logger.warning(
+            f"Binding to non-loopback address {args.host} without authentication configured. "
+            f"This exposes the server to the network. Use --allowed-origins to restrict access."
+        )
+
     # 验证必要的配置
     if not settings_dict.get("access_key_id"):
         logger.warning("⚠️  未配置ACCESS_KEY_ID，部分功能可能无法使用")
