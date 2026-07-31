@@ -17,7 +17,7 @@ host: "127.0.0.1"
 
 image:
   registry: registry-cn-beijing.ack.aliyuncs.com/acs/ack-mcp-server
-  tag: "v1.0.0-73a8c94-aliyun"
+  tag: "v1.1.0-4e2343f-aliyun"
   pullPolicy: Always
 
 # Probes (disabled as per requirements)
