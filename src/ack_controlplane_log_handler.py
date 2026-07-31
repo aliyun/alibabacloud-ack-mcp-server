@@ -71,16 +71,19 @@ def _parse_single_time(time_str: Optional[str], default_hours: int = 24) -> date
         return datetime.fromtimestamp(iv)
 
     ts_lower = ts.lower()
-    if ts_lower.endswith('h'):
-        return datetime.now() - timedelta(hours=int(ts_lower[:-1]))
-    if ts_lower.endswith('d'):
-        return datetime.now() - timedelta(days=int(ts_lower[:-1]))
-    if ts_lower.endswith('m'):
-        return datetime.now() - timedelta(minutes=int(ts_lower[:-1]))
-    if ts_lower.endswith('s'):
-        return datetime.now() - timedelta(seconds=int(ts_lower[:-1]))
-    if ts_lower.endswith('w'):
-        return datetime.now() - timedelta(weeks=int(ts_lower[:-1]))
+    try:
+        if ts_lower.endswith('h'):
+            return datetime.now() - timedelta(hours=int(ts_lower[:-1]))
+        if ts_lower.endswith('d'):
+            return datetime.now() - timedelta(days=int(ts_lower[:-1]))
+        if ts_lower.endswith('m'):
+            return datetime.now() - timedelta(minutes=int(ts_lower[:-1]))
+        if ts_lower.endswith('s'):
+            return datetime.now() - timedelta(seconds=int(ts_lower[:-1]))
+        if ts_lower.endswith('w'):
+            return datetime.now() - timedelta(weeks=int(ts_lower[:-1]))
+    except (ValueError, OverflowError):
+        return datetime.now() - timedelta(hours=default_hours)
 
     try:
         iso_str = ts

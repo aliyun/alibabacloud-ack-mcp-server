@@ -684,16 +684,11 @@ class TestTimeParameterInjection:
         assert isinstance(result, datetime)
 
     def test_extremely_large_relative_time(self):
-        """超大相对时间导致溢出。"""
+        """超大相对时间应被安全处理，返回默认值而非崩溃。"""
         handler = audit_handler.ACKAuditLogHandler(None, {})
         from datetime import datetime
-        # 超大值在 timedelta 构造时可能溢出，但 _parse_single_time 会回退到默认值
-        try:
-            result = handler._parse_single_time("999999999999d", default_hours=24)
-            assert isinstance(result, datetime)
-        except OverflowError:
-            # 溢出是预期行为之一，说明超大值被正确处理（不会导致安全漏洞）
-            pass
+        result = handler._parse_single_time("999999999999d", default_hours=24)
+        assert isinstance(result, datetime)
 
     def test_parse_single_time_now(self):
         """`now` 别称。"""

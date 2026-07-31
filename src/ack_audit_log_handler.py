@@ -572,24 +572,27 @@ class ACKAuditLogHandler:
             return datetime.now()
             
         # 相对时间格式
-        if time_str.endswith('h'):
-            return datetime.now() - timedelta(hours=int(time_str[:-1]))
-        elif time_str.endswith('d'):
-            return datetime.now() - timedelta(days=int(time_str[:-1]))
-        elif time_str.endswith('m'):
-            return datetime.now() - timedelta(minutes=int(time_str[:-1]))
-        elif time_str.endswith('s'):
-            return datetime.now() - timedelta(seconds=int(time_str[:-1]))
-        elif time_str.endswith('w'):
-            return datetime.now() - timedelta(weeks=int(time_str[:-1]))
-        else:
-            # ISO 8601格式
-            try:
-                if time_str.endswith('Z'):
-                    time_str = time_str.replace('Z', '+00:00')
-                return datetime.fromisoformat(time_str)
-            except ValueError:
-                return datetime.now() - timedelta(hours=default_hours)
+        try:
+            if time_str.endswith('h'):
+                return datetime.now() - timedelta(hours=int(time_str[:-1]))
+            elif time_str.endswith('d'):
+                return datetime.now() - timedelta(days=int(time_str[:-1]))
+            elif time_str.endswith('m'):
+                return datetime.now() - timedelta(minutes=int(time_str[:-1]))
+            elif time_str.endswith('s'):
+                return datetime.now() - timedelta(seconds=int(time_str[:-1]))
+            elif time_str.endswith('w'):
+                return datetime.now() - timedelta(weeks=int(time_str[:-1]))
+        except (ValueError, OverflowError):
+            return datetime.now() - timedelta(hours=default_hours)
+        
+        # ISO 8601格式
+        try:
+            if time_str.endswith('Z'):
+                time_str = time_str.replace('Z', '+00:00')
+            return datetime.fromisoformat(time_str)
+        except ValueError:
+            return datetime.now() - timedelta(hours=default_hours)
 
     def _parse_time_params(self, params: Dict[str, Any]) -> tuple[int, int]:
         """解析时间参数为Unix时间戳"""
