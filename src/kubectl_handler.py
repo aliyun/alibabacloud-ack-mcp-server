@@ -51,6 +51,8 @@ def validate_kubeconfig_path(path: str) -> str:
         raise ValueError("Empty kubeconfig path")
     if any(c in _SHELL_METACHARS for c in path):
         raise ValueError(f"Unsafe characters in kubeconfig path: {path}")
+    if '..' in os.path.normpath(path).split(os.sep):
+        raise ValueError(f"Path traversal detected in kubeconfig path: {path}")
     resolved = os.path.abspath(os.path.expanduser(path))
     norm = os.path.normpath(resolved)
     if '..' in norm.split(os.sep):

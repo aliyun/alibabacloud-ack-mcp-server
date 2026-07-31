@@ -587,12 +587,8 @@ class TestInputValidationBypass:
 
     def test_kubeconfig_path_traversal(self):
         """路径穿越被拒绝。"""
-        # validate_kubeconfig_path 先 expanduser/abspath/normpath 再检查 ..
-        # abspath 会解析 .. 所以 "dir/../../etc/passwd" 中的 .. 被解析后消失
-        # 但 validate_kubeconfig_path 也会检查 shell 元字符，路径中的特殊字符会被拦截
-        # 使用不包含 .. 的路径但包含 shell 元字符来验证
-        with pytest.raises(ValueError, match="Unsafe characters"):
-            kubectl_handler.validate_kubeconfig_path("/etc/passwd;id")
+        with pytest.raises(ValueError, match="Path traversal"):
+            kubectl_handler.validate_kubeconfig_path("../../../etc/passwd")
 
     def test_kubeconfig_path_shell_metachars(self):
         """含 shell 元字符的路径被拒绝。"""
