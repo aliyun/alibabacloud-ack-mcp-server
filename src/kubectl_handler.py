@@ -53,11 +53,7 @@ def validate_kubeconfig_path(path: str) -> str:
         raise ValueError(f"Unsafe characters in kubeconfig path: {path}")
     if '..' in os.path.normpath(path).split(os.sep):
         raise ValueError(f"Path traversal detected in kubeconfig path: {path}")
-    resolved = os.path.abspath(os.path.expanduser(path))
-    norm = os.path.normpath(resolved)
-    if '..' in norm.split(os.sep):
-        raise ValueError(f"Path traversal detected in kubeconfig path: {path}")
-    return resolved
+    return os.path.abspath(os.path.expanduser(path))
 
 
 def validate_workload_type(workload_type: str) -> str:
