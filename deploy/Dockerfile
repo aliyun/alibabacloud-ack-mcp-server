@@ -1,6 +1,6 @@
 
 # Stage 1: Builder - Install dependencies
-FROM --platform=$TARGETPLATFORM python:3.12-slim as builder
+FROM --platform=$TARGETPLATFORM python:3.15-slim as builder
 
 # multi arch build
 ARG TARGETPLATFORM
@@ -20,7 +20,7 @@ COPY requirements.txt pyproject.toml ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Stage 2: Final image - Create the production image
-FROM --platform=$TARGETPLATFORM python:3.12-slim
+FROM --platform=$TARGETPLATFORM python:3.15-slim
 
 # multi arch build
 ARG TARGETPLATFORM
