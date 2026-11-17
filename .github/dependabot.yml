@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Enable version updates for uv
+  - package-ecosystem: "uv"
+    directory: "/"
+    # Check the npm registry for updates every day (weekdays)
+    schedule:
+      interval: "daily"
+
+  # Enable version updates for Docker
+  - package-ecosystem: "docker"
+    # Look for a `Dockerfile` in the `deploy` directory
+    directory: "/deploy"
+    # Check for updates once a week
+    schedule:
+      interval: "weekly"
