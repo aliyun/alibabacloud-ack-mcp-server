@@ -1,0 +1,11 @@
+name: Ruff
+on: [push, pull_request]
+jobs:
+  check-and-format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          src: "./src"
+      - run: ruff format --check --diff
